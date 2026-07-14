@@ -1,23 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { createSupabaseBrowser } from "@/lib/supabase/client";
-import { requestUpload, confirmUpload } from "@/lib/actions/uploads";
 import { VideoRecorder } from "./VideoRecorder";
+import { useUploadManager } from "./UploadManager";
 
 const MAX_SIZE_BYTES = 50 * 1024 * 1024;
-
-/** 파일 SHA-256 (hex) — 같은 영상 재탕 감지용 */
-async function hashFile(file: File): Promise<string | undefined> {
-  try {
-    const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
-    return Array.from(new Uint8Array(digest))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  } catch {
-    return undefined; // 해시 실패해도 업로드는 진행 (중복 검사만 생략)
-  }
-}
 
 interface Props {
   cardId: string;
@@ -25,17 +12,17 @@ interface Props {
   onDone: () => void;
 }
 
-/** 촬영/파일 선택 → signed URL로 Storage 직접 업로드 → submission 등록 */
+/** 촬영/파일 선택 → 백그라운드 업로드 시작 (진행률은 하단 칩에서 표시) */
 export function VideoUploader({ cardId, grapeIndex, onDone }: Props) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
+  const { startUpload } = useUploadManager();
   const [showRecorder, setShowRecorder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [comment, setComment] = useState("");
 
-  const handleFile = async (file: File | undefined) => {
+  const handleFile = (file: File | undefined) => {
     if (!file) return;
     setError(null);
 
@@ -48,58 +35,13 @@ export function VideoUploader({ cardId, grapeIndex, onDone }: Props) {
       return;
     }
 
-    setUploading(true);
-    try {
-      const fileHash = await hashFile(file);
-      const req = await requestUpload({
-        cardId,
-        grapeIndex,
-        fileName: file.name || "video.mp4",
-        fileSize: file.size,
-        fileHash,
-      });
-      if (!req.ok) {
-        setError(req.error);
-        return;
-      }
-
-      const supabase = createSupabaseBrowser();
-      const { error: uploadError } = await supabase.storage
-        .from("videos")
-        .uploadToSignedUrl(req.data.path, req.data.token, file);
-      if (uploadError) {
-        setError("업로드에 실패했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.");
-        return;
-      }
-
-      const confirm = await confirmUpload({
-        cardId,
-        grapeIndex,
-        path: req.data.path,
-        fileSize: file.size,
-        fileHash,
-        title,
-        comment,
-      });
-      if (!confirm.ok) {
-        setError(confirm.error);
-        return;
-      }
-      onDone();
-    } finally {
-      setUploading(false);
+    const result = startUpload({ cardId, grapeIndex, file, title, comment });
+    if (!result.ok) {
+      setError(result.error ?? "업로드를 시작하지 못했어요.");
+      return;
     }
+    onDone(); // 업로드는 백그라운드로 계속 — 시트를 닫고 다른 것을 해도 된다
   };
-
-  if (uploading) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-6">
-        <div className="w-10 h-10 border-4 border-violet-300 border-t-violet-600 rounded-full animate-spin" />
-        <p className="text-violet-700 font-medium">영상을 올리는 중이에요...</p>
-        <p className="text-sm text-gray-500">화면을 닫지 말고 잠시만 기다려 주세요</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-3">

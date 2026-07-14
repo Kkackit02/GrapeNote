@@ -21,7 +21,7 @@ export async function requestUpload(input: {
   fileSize: number;
   /** 클라이언트에서 계산한 파일 SHA-256 (hex) — 같은 영상 재탕 방지 */
   fileHash?: string;
-}): Promise<ActionResult<{ path: string; token: string }>> {
+}): Promise<ActionResult<{ path: string; token: string; signedUrl: string }>> {
   const supabase = await createSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "로그인이 필요해요." };
@@ -77,7 +77,10 @@ export async function requestUpload(input: {
     .createSignedUploadUrl(path);
   if (error || !signed) return { ok: false, error: "업로드 준비에 실패했어요. 다시 시도해 주세요." };
 
-  return { ok: true, data: { path: signed.path, token: signed.token } };
+  return {
+    ok: true,
+    data: { path: signed.path, token: signed.token, signedUrl: signed.signedUrl },
+  };
 }
 
 /** 2단계: 업로드 완료 확인 후 submission(pending) 생성 → 포도알이 "검토 대기"로 */

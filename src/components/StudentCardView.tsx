@@ -91,9 +91,11 @@ export function StudentCardView({ card, grapes }: Props) {
             {justUploaded ? (
               <div className="text-center py-4">
                 <div className="text-5xl">🙌</div>
-                <p className="mt-2 font-bold text-violet-800">영상을 올렸어요!</p>
+                <p className="mt-2 font-bold text-violet-800">영상이 올라가고 있어요!</p>
                 <p className="mt-1 text-sm text-gray-500">
-                  선생님이 확인하면 포도알이 채워져요.
+                  화면 아래에서 진행 상황을 볼 수 있어요.
+                  <br />
+                  다 올라가면 선생님이 확인할 거예요.
                 </p>
                 <button
                   type="button"

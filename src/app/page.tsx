@@ -9,7 +9,7 @@ export default function LandingPage() {
         <p className="mt-2 text-gray-600">
           연습 영상을 올리고 포도알을 채우는
           <br />
-          온라인 피아노 진도카드
+          온라인 악기 연습 진도 카드!
         </p>
       </div>
 
@@ -33,6 +33,18 @@ export default function LandingPage() {
           초대코드를 받았나요? 여기서 가입하세요
         </Link>
       </div>
+
+      <footer className="text-center text-xs text-gray-400">
+        만든 사람:{" "}
+        <a
+          href="https://github.com/Kkackit02"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-2 hover:text-violet-600"
+        >
+          github.com/Kkackit02
+        </a>
+      </footer>
     </main>
   );
 }
