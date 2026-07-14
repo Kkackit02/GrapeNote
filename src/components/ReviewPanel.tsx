@@ -10,10 +10,17 @@ interface Props {
   nextSubmissionId?: string | null;
   /** 이 건을 제외한 검토 대기 수 */
   remaining?: number;
+  /** 검토함 경로 (선생님: /teacher/review, 파트장: /me/review) */
+  basePath?: string;
 }
 
 /** 합격/재연습 판정 + 코멘트 */
-export function ReviewPanel({ submissionId, nextSubmissionId, remaining = 0 }: Props) {
+export function ReviewPanel({
+  submissionId,
+  nextSubmissionId,
+  remaining = 0,
+  basePath = "/teacher/review",
+}: Props) {
   const router = useRouter();
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -29,7 +36,7 @@ export function ReviewPanel({ submissionId, nextSubmissionId, remaining = 0 }: P
       return;
     }
     // 몰아보기: 다음 대기 영상으로 바로 이동
-    router.push(nextSubmissionId ? `/teacher/review/${nextSubmissionId}` : "/teacher/review");
+    router.push(nextSubmissionId ? `${basePath}/${nextSubmissionId}` : basePath);
     router.refresh();
   };
 

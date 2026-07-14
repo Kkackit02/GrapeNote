@@ -7,10 +7,16 @@ import type { ProgressCard, Submission } from "@/lib/types";
 /** 내 포도밭: 완성한 포도송이 갤러리 + 누적 통계 */
 export default async function VineyardPage() {
   const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
 
+  // 파트장은 팀원 것도 조회되므로 내 것만 명시적으로 필터
   const [{ data: cards }, { data: subs }] = await Promise.all([
-    supabase.from("progress_cards").select("*").order("completed_at", { ascending: false }),
-    supabase.from("submissions").select("*"),
+    supabase
+      .from("progress_cards")
+      .select("*")
+      .eq("student_id", user!.id)
+      .order("completed_at", { ascending: false }),
+    supabase.from("submissions").select("*").eq("student_id", user!.id),
   ]);
   const cardList = (cards ?? []) as ProgressCard[];
   const subList = (subs ?? []) as Submission[];

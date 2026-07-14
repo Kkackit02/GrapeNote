@@ -15,6 +15,15 @@ export interface Profile {
   role: UserRole;
   display_name: string;
   username: string | null;
+  team_id: string | null;
+  created_at: string;
+}
+
+export interface Team {
+  id: string;
+  academy_id: string;
+  name: string;
+  leader_id: string | null;
   created_at: string;
 }
 
@@ -37,6 +46,7 @@ export interface ProgressCard {
   title: string;
   description: string | null;
   total_grapes: number;
+  due_date: string | null;
   completed_at: string | null;
   created_by: string;
   created_at: string;

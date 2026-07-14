@@ -2,15 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createCard } from "@/lib/actions/cards";
+import { createMyCard } from "@/lib/actions/cards";
 import { SongTitleField } from "./SongTitleField";
 
-interface Props {
-  studentId: string;
-}
-
-/** 진도카드 배정 폼 (곡명 + 포도알 개수 + 지시사항) */
-export function NewCardForm({ studentId }: Props) {
+/** 학생이 스스로 연습할 곡(숙제)을 추가하는 폼. 추가만 가능하고 수정/삭제는 선생님만. */
+export function AddMyCardForm() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -24,8 +20,7 @@ export function NewCardForm({ studentId }: Props) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const result = await createCard({
-      studentIds: [studentId],
+    const result = await createMyCard({
       title,
       description,
       totalGrapes,
@@ -39,6 +34,7 @@ export function NewCardForm({ studentId }: Props) {
     setOpen(false);
     setTitle("");
     setDescription("");
+    setDueDate("");
     router.refresh();
   };
 
@@ -49,19 +45,22 @@ export function NewCardForm({ studentId }: Props) {
         onClick={() => setOpen(true)}
         className="w-full h-13 py-3 rounded-2xl border-2 border-dashed border-violet-300 text-violet-600 font-bold active:bg-violet-50"
       >
-        + 새 진도카드 배정
+        + 연습하고 싶은 곡 직접 추가하기
       </button>
     );
   }
 
   return (
     <form onSubmit={submit} className="rounded-2xl bg-white border border-violet-200 p-4 flex flex-col gap-3">
-      <h3 className="font-bold text-violet-900">새 진도카드</h3>
+      <h3 className="font-bold text-violet-900">🙋 내가 연습할 곡 추가</h3>
+      <p className="text-xs text-gray-500 -mt-1">
+        한번 추가하면 스스로 고칠 수 없어요. 바꾸고 싶으면 선생님께 말씀드리세요!
+      </p>
       <SongTitleField value={title} onChange={setTitle} />
       <input
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        placeholder="지시사항 (예: 손목 힘 빼고 천천히)"
+        placeholder="연습 목표 (예: 틀리지 않고 끝까지)"
         className="h-12 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400"
       />
       <label className="flex items-center justify-between text-sm font-medium text-gray-700">
@@ -77,7 +76,7 @@ export function NewCardForm({ studentId }: Props) {
         </select>
       </label>
       <label className="flex items-center justify-between text-sm font-medium text-gray-700">
-        기한 (선택)
+        목표 기한 (선택)
         <input
           type="date"
           value={dueDate}
@@ -99,7 +98,7 @@ export function NewCardForm({ studentId }: Props) {
           disabled={submitting}
           className="h-12 rounded-xl bg-violet-600 text-white font-bold disabled:opacity-50 active:bg-violet-800"
         >
-          {submitting ? "배정 중..." : "배정하기 🍇"}
+          {submitting ? "추가 중..." : "추가하기 🍇"}
         </button>
       </div>
     </form>
