@@ -90,7 +90,8 @@ export function VideoRecorder({ onRecorded, onClose, onFallback }: Props) {
   }, [stopStream]);
 
   useEffect(() => {
-    startStream(facing);
+    // 마이크로태스크로 미뤄 effect 본문에서의 동기 setState를 피한다 (react-hooks/set-state-in-effect)
+    queueMicrotask(() => startStream(facing));
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       recorderRef.current?.stop();
