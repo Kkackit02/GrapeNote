@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCard } from "@/lib/actions/cards";
+import { SongTitleField } from "./SongTitleField";
 
 interface Props {
   studentId: string;
@@ -49,13 +50,7 @@ export function NewCardForm({ studentId }: Props) {
   return (
     <form onSubmit={submit} className="rounded-2xl bg-white border border-violet-200 p-4 flex flex-col gap-3">
       <h3 className="font-bold text-violet-900">새 진도카드</h3>
-      <input
-        required
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="곡 이름 (예: 체르니 100 - 45번)"
-        className="h-12 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400"
-      />
+      <SongTitleField value={title} onChange={setTitle} />
       <input
         value={description}
         onChange={(e) => setDescription(e.target.value)}

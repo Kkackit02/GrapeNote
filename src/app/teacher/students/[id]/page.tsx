@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes, approvedCount } from "@/lib/grapes";
 import { NewCardForm } from "@/components/NewCardForm";
+import { StudentAdminPanel } from "@/components/StudentAdminPanel";
 import type { ProgressCard, Profile, Submission } from "@/lib/types";
 
 export default async function StudentDetailPage({
@@ -87,6 +88,8 @@ export default async function StudentDetailPage({
           })}
         </ul>
       )}
+
+      <StudentAdminPanel studentId={id} displayName={profile.display_name} />
     </div>
   );
 }

@@ -57,6 +57,7 @@ export interface Submission {
   teacher_comment: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
+  video_deleted_at: string | null;
   created_at: string;
 }
 

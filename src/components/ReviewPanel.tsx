@@ -6,10 +6,14 @@ import { reviewSubmission } from "@/lib/actions/review";
 
 interface Props {
   submissionId: string;
+  /** 판정 후 이어서 검토할 다음 영상 (몰아보기) */
+  nextSubmissionId?: string | null;
+  /** 이 건을 제외한 검토 대기 수 */
+  remaining?: number;
 }
 
 /** 합격/재연습 판정 + 코멘트 */
-export function ReviewPanel({ submissionId }: Props) {
+export function ReviewPanel({ submissionId, nextSubmissionId, remaining = 0 }: Props) {
   const router = useRouter();
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -24,7 +28,8 @@ export function ReviewPanel({ submissionId }: Props) {
       setError(result.error);
       return;
     }
-    router.push("/teacher/review");
+    // 몰아보기: 다음 대기 영상으로 바로 이동
+    router.push(nextSubmissionId ? `/teacher/review/${nextSubmissionId}` : "/teacher/review");
     router.refresh();
   };
 
@@ -38,6 +43,11 @@ export function ReviewPanel({ submissionId }: Props) {
         className="w-full rounded-xl border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
       />
       {error && <p className="text-sm text-red-500">{error}</p>}
+      {remaining > 0 && (
+        <p className="text-xs text-gray-400 text-center">
+          판정하면 다음 영상으로 넘어가요 · 대기 {remaining}개 남음
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <button
           type="button"

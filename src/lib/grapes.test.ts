@@ -20,6 +20,7 @@ function sub(grapeIndex: number, status: Submission["status"], createdAt?: strin
     teacher_comment: null,
     reviewed_by: null,
     reviewed_at: null,
+    video_deleted_at: null,
     created_at: createdAt ?? new Date(2026, 0, 1, 0, 0, seq).toISOString(),
   };
 }

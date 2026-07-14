@@ -28,6 +28,21 @@ export default async function ReviewDetailPage({
   if (!data) notFound();
   const sub = data as unknown as SubRow;
 
+  // 몰아보기: 다음 검토 대기 영상 (오래된 순, 현재 건 제외)
+  const { data: pendingQueue } = await supabase
+    .from("submissions")
+    .select("id")
+    .eq("status", "pending")
+    .neq("id", subId)
+    .order("created_at", { ascending: true })
+    .limit(1);
+  const { count: remaining } = await supabase
+    .from("submissions")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "pending")
+    .neq("id", subId);
+  const nextId = pendingQueue?.[0]?.id ?? null;
+
   return (
     <div className="flex flex-col gap-4 max-w-lg mx-auto w-full">
       <div>
@@ -59,10 +74,10 @@ export default async function ReviewDetailPage({
         </div>
       )}
 
-      <VideoPlayer submissionId={sub.id} />
+      <VideoPlayer submissionId={sub.id} withRate />
 
       {sub.status === "pending" ? (
-        <ReviewPanel submissionId={sub.id} />
+        <ReviewPanel submissionId={sub.id} nextSubmissionId={nextId} remaining={remaining ?? 0} />
       ) : (
         <div
           className={`rounded-2xl p-4 ${

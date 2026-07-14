@@ -14,8 +14,11 @@ export default async function MyCardsPage() {
   ]);
 
   const profile = profileRow as Profile;
-  const cardList = (cards ?? []) as ProgressCard[];
+  const allCards = (cards ?? []) as ProgressCard[];
   const subList = (subs ?? []) as Submission[];
+  const cardList = allCards.filter((c) => !c.completed_at); // 진행 중만 (완성작은 포도밭에)
+  const completedCount = allCards.length - cardList.length;
+  const totalApproved = subList.filter((s) => s.status === "approved").length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -23,11 +26,32 @@ export default async function MyCardsPage() {
         {profile.display_name} 님, 안녕하세요! 👋
       </h1>
 
+      <Link
+        href="/me/vineyard"
+        className="rounded-2xl bg-gradient-to-r from-violet-500 to-purple-600 text-white p-4 flex items-center justify-between active:opacity-90"
+      >
+        <div>
+          <p className="font-extrabold">🍇 지금까지 포도알 {totalApproved}개!</p>
+          <p className="text-sm text-violet-100 mt-0.5">완성한 포도송이 {completedCount}개</p>
+        </div>
+        <span className="font-bold text-sm">내 포도밭 →</span>
+      </Link>
+
       {cardList.length === 0 ? (
         <div className="rounded-2xl bg-white border border-violet-100 p-10 text-center text-gray-500">
-          아직 진도카드가 없어요.
-          <br />
-          선생님이 곧 카드를 만들어 주실 거예요! 🎹
+          {completedCount > 0 ? (
+            <>
+              진행 중인 카드를 전부 끝냈어요! 🎉
+              <br />
+              선생님이 곧 새 카드를 만들어 주실 거예요.
+            </>
+          ) : (
+            <>
+              아직 진도카드가 없어요.
+              <br />
+              선생님이 곧 카드를 만들어 주실 거예요! 🎹
+            </>
+          )}
         </div>
       ) : (
         <ul className="grid gap-3">

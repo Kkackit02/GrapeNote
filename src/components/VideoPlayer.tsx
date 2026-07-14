@@ -1,15 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getPlaybackUrl } from "@/lib/actions/uploads";
+
+const RATES = [1, 1.5, 2];
 
 interface Props {
   submissionId: string;
   className?: string;
+  /** 배속 버튼 표시 (선생님 검토용) */
+  withRate?: boolean;
 }
 
 /** 서버 액션으로 signed URL을 받아 재생 (버킷은 private) */
-export function VideoPlayer({ submissionId, className }: Props) {
+export function VideoPlayer({ submissionId, className, withRate }: Props) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [rate, setRate] = useState(1);
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +39,39 @@ export function VideoPlayer({ submissionId, className }: Props) {
       </div>
     );
   }
+  const applyRate = (r: number) => {
+    setRate(r);
+    if (videoRef.current) videoRef.current.playbackRate = r;
+  };
+
   return (
-    <video src={url} controls playsInline className={`w-full rounded-xl bg-black ${className ?? ""}`} />
+    <div className={className}>
+      <video
+        ref={videoRef}
+        src={url}
+        controls
+        playsInline
+        onLoadedMetadata={() => {
+          if (videoRef.current) videoRef.current.playbackRate = rate;
+        }}
+        className="w-full rounded-xl bg-black"
+      />
+      {withRate && (
+        <div className="mt-2 flex gap-1.5 justify-end">
+          {RATES.map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => applyRate(r)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                rate === r ? "bg-violet-600 text-white" : "bg-violet-50 text-violet-600"
+              }`}
+            >
+              {r}x
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

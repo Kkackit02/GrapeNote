@@ -188,10 +188,13 @@ export async function getPlaybackUrl(
   // RLS: 학생은 자기 것, 선생님은 같은 학원 것만 조회된다
   const { data: submission } = await supabase
     .from("submissions")
-    .select("video_path")
+    .select("video_path, video_deleted_at")
     .eq("id", submissionId)
     .maybeSingle();
   if (!submission) return { ok: false, error: "영상을 찾을 수 없어요." };
+  if (submission.video_deleted_at) {
+    return { ok: false, error: "오래된 영상이라 저장 공간을 위해 정리됐어요. (판정 기록은 남아 있어요)" };
+  }
 
   const admin = createSupabaseAdmin();
   const { data: signed, error } = await admin.storage
