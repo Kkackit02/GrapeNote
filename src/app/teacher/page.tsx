@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { JoinCodeCard } from "@/components/JoinCodeCard";
-import type { Academy, Profile, StudentInvite } from "@/lib/types";
+import type { Academy, Profile, StudentInvite, Team } from "@/lib/types";
 
 export default async function TeacherDashboard() {
   const supabase = await createSupabaseServer();
 
-  const [{ data: students }, { count: pendingCount }, { data: invites }, { data: academyRow }] = await Promise.all([
+  const [{ data: students }, { count: pendingCount }, { data: invites }, { data: academyRow }, { data: teams }] = await Promise.all([
     supabase
       .from("profiles")
       .select("*")
@@ -23,11 +23,14 @@ export default async function TeacherDashboard() {
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false }),
     supabase.from("academies").select("*").maybeSingle(),
+    supabase.from("teams").select("*"),
   ]);
 
   const studentList = (students ?? []) as Profile[];
   const inviteList = (invites ?? []) as StudentInvite[];
   const academy = academyRow as Academy | null;
+  const teamList = (teams ?? []) as Team[];
+  const teamById = new Map(teamList.map((t) => [t.id, t]));
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,6 +47,23 @@ export default async function TeacherDashboard() {
       )}
 
       <JoinCodeCard code={academy?.join_code ?? null} />
+
+      <div className="grid grid-cols-2 gap-2">
+        <Link
+          href="/teacher/cards"
+          className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
+        >
+          📋 숙제 관리
+          <p className="mt-0.5 text-xs font-medium text-gray-400">배정한 숙제 수정·기한 설정</p>
+        </Link>
+        <Link
+          href="/teacher/teams"
+          className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
+        >
+          👥 팀 관리
+          <p className="mt-0.5 text-xs font-medium text-gray-400">팀 나누기·파트장 지정</p>
+        </Link>
+      </div>
 
       <section>
         <div className="flex items-center justify-between">
@@ -80,7 +100,15 @@ export default async function TeacherDashboard() {
                   href={`/teacher/students/${student.id}`}
                   className="rounded-2xl bg-white border border-violet-100 p-4 flex items-center justify-between active:bg-violet-50"
                 >
-                  <span className="font-bold text-gray-800">🎹 {student.display_name}</span>
+                  <span className="font-bold text-gray-800">
+                    🎹 {student.display_name}
+                    {student.team_id && teamById.has(student.team_id) && (
+                      <span className="ml-2 text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
+                        {teamById.get(student.team_id)!.leader_id === student.id && "⭐ "}
+                        {teamById.get(student.team_id)!.name}
+                      </span>
+                    )}
+                  </span>
                   <span className="text-sm text-gray-400">
                     {student.username && `@${student.username}`} →
                   </span>

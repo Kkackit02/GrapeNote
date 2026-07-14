@@ -17,6 +17,7 @@ export function BulkCardForm({ students }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [totalGrapes, setTotalGrapes] = useState(10);
+  const [dueDate, setDueDate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -38,6 +39,7 @@ export function BulkCardForm({ students }: Props) {
       title,
       description,
       totalGrapes,
+      dueDate: dueDate || null,
     });
     setSubmitting(false);
     if (!result.ok) {
@@ -106,6 +108,15 @@ export function BulkCardForm({ students }: Props) {
               <option key={n} value={n}>{n}알</option>
             ))}
           </select>
+        </label>
+        <label className="flex items-center justify-between text-sm font-medium text-gray-700">
+          기한 (선택)
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="h-10 px-3 rounded-lg border border-gray-300 font-bold text-violet-700"
+          />
         </label>
       </section>
 

@@ -12,12 +12,14 @@ export default async function MyCardPage({
 }) {
   const { cardId } = await params;
   const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  // RLS: 내 카드만 조회된다
+  // 파트장은 팀원 카드도 RLS를 통과하므로 내 카드인지 명시적으로 확인
   const { data: cardRow } = await supabase
     .from("progress_cards")
     .select("*")
     .eq("id", cardId)
+    .eq("student_id", user!.id)
     .maybeSingle();
   if (!cardRow) notFound();
   const card = cardRow as ProgressCard;

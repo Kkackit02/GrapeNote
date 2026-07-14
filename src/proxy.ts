@@ -38,6 +38,17 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   };
 
+  // 자동 로그인: 세션이 살아 있으면 랜딩/로그인 화면 대신 역할 홈으로 바로 보낸다.
+  // (계정 전환은 각 화면의 로그아웃 버튼으로 세션을 지운 뒤 가능)
+  if (path === "/" || path === "/login" || path === "/student/login") {
+    if (claims) {
+      if (meta.role === "student") return redirectTo("/me");
+      if (meta.role === "teacher" && meta.academy_id) return redirectTo("/teacher");
+      return redirectTo("/onboarding");
+    }
+    return response;
+  }
+
   if (path.startsWith("/teacher")) {
     if (!claims) return redirectTo("/login");
     if (meta.role === "student") return redirectTo("/me");
@@ -55,5 +66,5 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/teacher/:path*", "/me/:path*", "/onboarding"],
+  matcher: ["/", "/login", "/student/login", "/teacher/:path*", "/me/:path*", "/onboarding"],
 };
