@@ -1,0 +1,207 @@
+// GrapeNote 골든 시나리오 통합 테스트 (실 Supabase 대상)
+// 서버 액션이 수행하는 것과 동일한 순서의 작업을 API 레벨에서 검증한다.
+import { createClient } from "@supabase/supabase-js";
+import { readFileSync } from "fs";
+
+const env = Object.fromEntries(
+  readFileSync(".env.local", "utf8")
+    .split("\n")
+    .filter((l) => l.includes("=") && !l.startsWith("#"))
+    .map((l) => [l.slice(0, l.indexOf("=")).trim(), l.slice(l.indexOf("=") + 1).trim()])
+);
+const URL_ = env.NEXT_PUBLIC_SUPABASE_URL;
+const ANON = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SECRET = env.SUPABASE_SERVICE_ROLE_KEY;
+
+const admin = createClient(URL_, SECRET, { auth: { persistSession: false, autoRefreshToken: false } });
+const newAnon = () => createClient(URL_, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
+
+let pass = 0, fail = 0;
+const ok = (name, cond, extra = "") => {
+  if (cond) { pass++; console.log(`  ✅ ${name}`); }
+  else { fail++; console.log(`  ❌ ${name} ${extra}`); }
+};
+
+const ts = Date.now();
+const teacherEmail = `teacher-${ts}@grapenote-e2e.test`;
+const studentUsername = `podo${ts % 100000}`;
+const studentEmail = `${studentUsername}@student.grapenote.app`;
+const PIN = "123456";
+const cleanup = { userIds: [], academyId: null, paths: [] };
+
+try {
+  console.log("\n[1] 선생님 가입 (이메일 autoconfirm 확인)");
+  const teacher = newAnon();
+  const { data: signUp, error: signUpErr } = await teacher.auth.signUp({
+    email: teacherEmail, password: "grape-pass-1!",
+  });
+  ok("가입 성공", !signUpErr, signUpErr?.message);
+  ok("세션 즉시 발급 (Confirm email 꺼짐)", !!signUp?.session,
+    "→ 대시보드에서 Auth > Providers > Email > Confirm email을 꺼야 함");
+  const teacherId = signUp.user.id;
+  cleanup.userIds.push(teacherId);
+
+  console.log("\n[2] 온보딩: 학원 생성 + app_metadata");
+  const { data: academy } = await admin.from("academies")
+    .insert({ name: "포도피아노 (E2E)", owner_id: teacherId }).select("id").single();
+  cleanup.academyId = academy.id;
+  await admin.from("profiles").insert({ id: teacherId, academy_id: academy.id, role: "teacher", display_name: "김포도 선생님" });
+  await admin.auth.admin.updateUserById(teacherId, { app_metadata: { role: "teacher", academy_id: academy.id } });
+  const { data: refreshed, error: refErr } = await teacher.auth.refreshSession();
+  ok("refreshSession으로 새 JWT 수령", !refErr && refreshed.session.user.app_metadata.academy_id === academy.id);
+
+  console.log("\n[3] 초대코드 발급 (선생님 세션, RLS insert)");
+  const code = `GRAPE-E2E${ts % 10}`;
+  const { error: invErr } = await teacher.from("student_invites")
+    .insert({ academy_id: academy.id, code, student_name: "김포도", created_by: teacherId });
+  ok("초대코드 insert 성공", !invErr, invErr?.message);
+
+  console.log("\n[4] 학생 가입 (가짜 이메일 + PIN)");
+  const { data: studentCreated, error: stuErr } = await admin.auth.admin.createUser({
+    email: studentEmail, password: PIN, email_confirm: true,
+    app_metadata: { role: "student", academy_id: academy.id },
+  });
+  ok("학생 계정 생성", !stuErr, stuErr?.message);
+  const studentId = studentCreated.user.id;
+  cleanup.userIds.push(studentId);
+  await admin.from("profiles").insert({ id: studentId, academy_id: academy.id, role: "student", display_name: "김포도", username: studentUsername });
+  await admin.from("student_invites").update({ used_by: studentId, used_at: new Date().toISOString() }).eq("code", code);
+
+  const student = newAnon();
+  const { data: stuLogin, error: loginErr } = await student.auth.signInWithPassword({ email: studentEmail, password: PIN });
+  ok("학생 아이디+PIN 로그인", !loginErr && !!stuLogin.session, loginErr?.message);
+
+  console.log("\n[5] 진도카드 배정 (선생님 세션)");
+  const { data: card, error: cardErr } = await teacher.from("progress_cards")
+    .insert({ academy_id: academy.id, student_id: studentId, title: "체르니 100 - 45번", total_grapes: 3, created_by: teacherId })
+    .select("id").single();
+  ok("카드 배정 성공", !cardErr, cardErr?.message);
+
+  console.log("\n[6] RLS 격리 검증 (학생 세션)");
+  const { data: myCards } = await student.from("progress_cards").select("id");
+  ok("학생이 자기 카드 조회 가능", myCards?.length === 1);
+  const { data: stolenInvites } = await student.from("student_invites").select("id");
+  ok("학생은 초대코드 접근 불가", (stolenInvites ?? []).length === 0);
+
+  console.log("\n[7] 영상 업로드 (signed upload URL → 직접 업로드 → pending)");
+  const fakeVideo = new Blob([new Uint8Array(1024).fill(7)], { type: "video/mp4" });
+  const path1 = `${academy.id}/${studentId}/${card.id}/1-${crypto.randomUUID()}.mp4`;
+  cleanup.paths.push(path1);
+  const { data: signed1 } = await admin.storage.from("videos").createSignedUploadUrl(path1);
+  const { error: upErr } = await student.storage.from("videos").uploadToSignedUrl(signed1.path, signed1.token, fakeVideo);
+  ok("signed URL로 업로드 성공", !upErr, upErr?.message);
+  const { error: subErr } = await student.from("submissions")
+    .insert({ card_id: card.id, student_id: studentId, academy_id: academy.id, grape_index: 1, video_path: path1, video_size_bytes: 1024 });
+  ok("submission(pending) insert 성공", !subErr, subErr?.message);
+
+  console.log("\n[8] 보안: 셀프 합격 / 무단 수정 차단");
+  const { error: selfApprove } = await student.from("submissions")
+    .insert({ card_id: card.id, student_id: studentId, academy_id: academy.id, grape_index: 2, video_path: path1, status: "approved" });
+  ok("학생이 approved로 insert → 거부", !!selfApprove);
+  const { data: hacked } = await student.from("submissions")
+    .update({ status: "approved" }).eq("card_id", card.id).select("id");
+  ok("학생이 status update → 0건", (hacked ?? []).length === 0);
+  const { error: dupPending } = await admin.from("submissions")
+    .insert({ card_id: card.id, student_id: studentId, academy_id: academy.id, grape_index: 1, video_path: path1 });
+  ok("같은 포도알에 pending 중복 → DB가 거부", !!dupPending);
+
+  console.log("\n[9] 스토리지 보안");
+  const pub = await fetch(`${URL_}/storage/v1/object/public/videos/${path1}`);
+  ok("public URL 직접 접근 → 거부", pub.status >= 400, `status=${pub.status}`);
+  const { data: playUrl } = await admin.storage.from("videos").createSignedUrl(path1, 60);
+  const play = await fetch(playUrl.signedUrl);
+  ok("signed URL 재생 → 200", play.status === 200, `status=${play.status}`);
+
+  console.log("\n[10] 판정 루프: 재연습 → 재제출 → 합격 → 카드 완성");
+  const { data: pendingList } = await teacher.from("submissions").select("id").eq("status", "pending");
+  ok("선생님 검토함에 1건", pendingList?.length === 1);
+  const { data: retried } = await teacher.from("submissions")
+    .update({ status: "needs_retry", teacher_comment: "박자 다시!", reviewed_by: teacherId, reviewed_at: new Date().toISOString() })
+    .eq("id", pendingList[0].id).select("id");
+  ok("재연습 판정 성공", retried?.length === 1);
+
+  // 재제출 + 나머지 포도알 채우기 → 전부 합격
+  for (const idx of [1, 2, 3]) {
+    const p = `${academy.id}/${studentId}/${card.id}/${idx}-${crypto.randomUUID()}.mp4`;
+    cleanup.paths.push(p);
+    const { data: s } = await admin.storage.from("videos").createSignedUploadUrl(p);
+    await student.storage.from("videos").uploadToSignedUrl(s.path, s.token, fakeVideo);
+    const { data: ins } = await student.from("submissions")
+      .insert({ card_id: card.id, student_id: studentId, academy_id: academy.id, grape_index: idx, video_path: p, video_size_bytes: 1024 })
+      .select("id").single();
+    await teacher.from("submissions")
+      .update({ status: "approved", reviewed_by: teacherId, reviewed_at: new Date().toISOString() })
+      .eq("id", ins.id);
+  }
+  const { data: allSubs } = await teacher.from("submissions").select("grape_index, status").eq("card_id", card.id);
+  const approvedIdx = new Set(allSubs.filter((s) => s.status === "approved").map((s) => s.grape_index));
+  ok("포도알 3개 전부 합격", approvedIdx.size === 3);
+  ok("재연습 이력 보존 (총 제출 4건)", allSubs.length === 4);
+  const { error: resubmitApproved } = await admin.from("submissions")
+    .insert({ card_id: card.id, student_id: studentId, academy_id: academy.id, grape_index: 1, video_path: path1, status: "approved" });
+  ok("합격 포도알에 재합격 → DB가 거부", !!resubmitApproved);
+
+  console.log("\n[11] 그룹(학원 공용) 초대코드");
+  const groupCode = `CLASS-E2E${ts % 10}`;
+  const { data: codeSet } = await teacher.from("academies")
+    .update({ join_code: groupCode }).eq("id", academy.id).select("join_code").maybeSingle();
+  ok("선생님이 공용 코드 발급(update 정책)", codeSet?.join_code === groupCode);
+  const { data: foundAcademy } = await admin.from("academies")
+    .select("id, name").eq("join_code", groupCode).maybeSingle();
+  ok("공용 코드로 학원 조회", foundAcademy?.id === academy.id);
+  // 그룹 코드로 두 번째 학생 가입 (이름은 학생이 직접 입력)
+  const student2Username = `berry${ts % 100000}`;
+  const { data: stu2 } = await admin.auth.admin.createUser({
+    email: `${student2Username}@student.grapenote.app`, password: PIN, email_confirm: true,
+    app_metadata: { role: "student", academy_id: academy.id },
+  });
+  cleanup.userIds.push(stu2.user.id);
+  const { error: prof2Err } = await admin.from("profiles").insert({
+    id: stu2.user.id, academy_id: academy.id, role: "student", display_name: "이베리", username: student2Username,
+  });
+  ok("그룹 코드 학생 가입 (이름 직접 입력)", !prof2Err, prof2Err?.message);
+
+  console.log("\n[12] 공통 카드 배정 (2명에게 같은 곡)");
+  const { data: bulkCards, error: bulkErr } = await teacher.from("progress_cards")
+    .insert([studentId, stu2.user.id].map((sid) => ({
+      academy_id: academy.id, student_id: sid, title: "하농 1번 (공통)", total_grapes: 5, created_by: teacherId,
+    })))
+    .select("id, student_id");
+  ok("2명 일괄 배정 성공", !bulkErr && bulkCards?.length === 2, bulkErr?.message);
+
+  console.log("\n[13] 같은 영상 재탕 방지 (video_hash)");
+  const dupHash = "a".repeat(64);
+  const { error: hash1Err } = await admin.from("submissions").insert({
+    card_id: bulkCards[0].id, student_id: studentId, academy_id: academy.id,
+    grape_index: 1, video_path: path1, video_hash: dupHash,
+  });
+  ok("첫 제출(해시 포함) 성공", !hash1Err, hash1Err?.message);
+  const { error: hash2Err } = await admin.from("submissions").insert({
+    card_id: bulkCards[0].id, student_id: studentId, academy_id: academy.id,
+    grape_index: 2, video_path: path1, video_hash: dupHash,
+  });
+  ok("같은 학생이 같은 해시 재제출 → DB가 거부", !!hash2Err &&
+    hash2Err.message.includes("submissions_unique_video_per_student"), hash2Err?.message);
+  const { error: hash3Err } = await admin.from("submissions").insert({
+    card_id: bulkCards[1].id, student_id: stu2.user.id, academy_id: academy.id,
+    grape_index: 1, video_path: path1, video_hash: dupHash,
+  });
+  ok("다른 학생은 같은 해시 제출 가능", !hash3Err, hash3Err?.message);
+} catch (e) {
+  fail++;
+  console.error("💥 예기치 못한 오류:", e);
+} finally {
+  console.log("\n[정리] 테스트 데이터 삭제");
+  if (cleanup.paths.length) await admin.storage.from("videos").remove(cleanup.paths);
+  if (cleanup.academyId) {
+    await admin.from("submissions").delete().eq("academy_id", cleanup.academyId);
+    await admin.from("progress_cards").delete().eq("academy_id", cleanup.academyId);
+    await admin.from("student_invites").delete().eq("academy_id", cleanup.academyId);
+    await admin.from("profiles").delete().eq("academy_id", cleanup.academyId);
+  }
+  for (const id of cleanup.userIds) await admin.auth.admin.deleteUser(id);
+  if (cleanup.academyId) await admin.from("academies").delete().eq("id", cleanup.academyId);
+}
+
+console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);
+process.exit(fail ? 1 : 0);

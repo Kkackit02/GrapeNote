@@ -1,0 +1,71 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { VideoPlayer } from "@/components/VideoPlayer";
+import { ReviewPanel } from "@/components/ReviewPanel";
+import type { Submission } from "@/lib/types";
+
+interface SubRow extends Submission {
+  progress_cards: { title: string; student_id: string } | null;
+  profiles: { display_name: string } | null;
+}
+
+export default async function ReviewDetailPage({
+  params,
+}: {
+  params: Promise<{ subId: string }>;
+}) {
+  const { subId } = await params;
+  const supabase = await createSupabaseServer();
+
+  const { data } = await supabase
+    .from("submissions")
+    .select(
+      "*, progress_cards(title, student_id), profiles!submissions_student_id_fkey(display_name)"
+    )
+    .eq("id", subId)
+    .maybeSingle();
+  if (!data) notFound();
+  const sub = data as unknown as SubRow;
+
+  return (
+    <div className="flex flex-col gap-4 max-w-lg mx-auto w-full">
+      <div>
+        <Link href="/teacher/review" className="text-sm text-gray-400">← 검토함</Link>
+        <h1 className="mt-2 text-xl font-extrabold text-violet-900">
+          🎹 {sub.profiles?.display_name} — {sub.progress_cards?.title}
+        </h1>
+        <p className="text-sm text-gray-500 mt-0.5">
+          포도알 #{sub.grape_index} ·{" "}
+          {new Date(sub.created_at).toLocaleString("ko-KR", {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </p>
+      </div>
+
+      <VideoPlayer submissionId={sub.id} />
+
+      {sub.status === "pending" ? (
+        <ReviewPanel submissionId={sub.id} />
+      ) : (
+        <div
+          className={`rounded-2xl p-4 ${
+            sub.status === "approved"
+              ? "bg-violet-50 border border-violet-200"
+              : "bg-orange-50 border border-orange-200"
+          }`}
+        >
+          <p className="font-bold">
+            {sub.status === "approved" ? "🍇 합격 처리됨" : "↺ 재연습 처리됨"}
+          </p>
+          {sub.teacher_comment && (
+            <p className="mt-1 text-sm text-gray-600">💬 {sub.teacher_comment}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

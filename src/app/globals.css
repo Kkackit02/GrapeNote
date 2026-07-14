@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+body {
+  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+}
+
+/* 포도알이 채워질 때 팝 애니메이션 */
+@keyframes grape-pop {
+  0% { transform: scale(0.3); }
+  70% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+.grape-pop {
+  animation: grape-pop 0.4s ease-out;
+}
+
+/* 축하 이모지 낙하 */
+@keyframes confetti-fall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(540deg); opacity: 0.6; }
+}
+.confetti-piece {
+  position: fixed;
+  top: 0;
+  animation: confetti-fall linear forwards;
+  pointer-events: none;
+  z-index: 60;
+}
