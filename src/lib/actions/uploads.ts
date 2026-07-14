@@ -27,7 +27,7 @@ export async function requestUpload(input: {
   if (!user) return { ok: false, error: "로그인이 필요해요." };
 
   if (input.fileSize > MAX_SIZE_BYTES) {
-    return { ok: false, error: "영상이 너무 커요 (최대 50MB). 1분 이내로 촬영해 주세요." };
+    return { ok: false, error: "영상이 너무 커요 (최대 50MB). 앱의 촬영 버튼으로 찍으면 5분까지 올릴 수 있어요." };
   }
   const ext = input.fileName.split(".").pop()?.toLowerCase() ?? "";
   if (!ALLOWED_EXTENSIONS.includes(ext)) {

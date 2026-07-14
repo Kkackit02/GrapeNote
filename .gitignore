@@ -42,3 +42,6 @@ next-env.d.ts
 
 # .env.example은 커밋 (키 없는 템플릿)
 !.env.example
+
+.vercel
+.env*

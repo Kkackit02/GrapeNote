@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { requestUpload, confirmUpload } from "@/lib/actions/uploads";
+import { VideoRecorder } from "./VideoRecorder";
 
 const MAX_SIZE_BYTES = 50 * 1024 * 1024;
 
@@ -29,6 +30,7 @@ export function VideoUploader({ cardId, grapeIndex, onDone }: Props) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [showRecorder, setShowRecorder] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleFile = async (file: File | undefined) => {
@@ -40,7 +42,7 @@ export function VideoUploader({ cardId, grapeIndex, onDone }: Props) {
       return;
     }
     if (file.size > MAX_SIZE_BYTES) {
-      setError("영상이 너무 커요 (최대 50MB). 1분 이내로 촬영해 주세요.");
+      setError("영상이 너무 커요 (최대 50MB). 앱의 촬영 버튼으로 찍으면 5분까지 올릴 수 있어요.");
       return;
     }
 
@@ -97,6 +99,20 @@ export function VideoUploader({ cardId, grapeIndex, onDone }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
+      {showRecorder && (
+        <VideoRecorder
+          onRecorded={(file) => {
+            setShowRecorder(false);
+            handleFile(file);
+          }}
+          onClose={() => setShowRecorder(false)}
+          onFallback={() => {
+            setShowRecorder(false);
+            cameraRef.current?.click();
+          }}
+        />
+      )}
+      {/* 인앱 녹화가 안 되는 기기용 폴백: 기본 카메라 앱 */}
       <input
         ref={cameraRef}
         type="file"
@@ -114,7 +130,7 @@ export function VideoUploader({ cardId, grapeIndex, onDone }: Props) {
       />
       <button
         type="button"
-        onClick={() => cameraRef.current?.click()}
+        onClick={() => setShowRecorder(true)}
         className="h-14 rounded-2xl bg-violet-600 text-white text-lg font-bold active:bg-violet-800"
       >
         📹 지금 촬영하기
@@ -126,7 +142,7 @@ export function VideoUploader({ cardId, grapeIndex, onDone }: Props) {
       >
         🎞️ 앨범에서 고르기
       </button>
-      <p className="text-center text-sm text-gray-500">1분 이내 영상으로 올려 주세요 (최대 50MB)</p>
+      <p className="text-center text-sm text-gray-500">최대 5분까지 찍을 수 있어요 (50MB)</p>
       {error && <p className="text-center text-sm text-red-500 font-medium">{error}</p>}
     </div>
   );
