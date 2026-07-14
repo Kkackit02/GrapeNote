@@ -47,6 +47,7 @@ create policy submissions_select_leader on submissions for select
   using (is_team_leader_of(student_id));
 
 -- 파트장은 팀원의 제출을 판정할 수 있다. 단 자기 제출은 불가(셀프 합격 차단).
+-- 주의: 이 정책은 0010에서 SECURITY DEFINER 함수로 교체된다 (컬럼 조작 취약점 수정).
 create policy submissions_update_leader on submissions for update
   using (student_id <> auth.uid() and is_team_leader_of(student_id))
   with check (student_id <> auth.uid() and is_team_leader_of(student_id));

@@ -21,34 +21,18 @@ export async function reviewSubmission(input: {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "로그인이 필요해요." };
 
-  // 학생이면 파트장으로서 팀원의 제출만 판정 가능 (RLS가 최종 강제, 여기선 친절한 에러용)
-  if (user.app_metadata?.role !== "teacher") {
-    const { data: target } = await supabase
-      .from("submissions")
-      .select("student_id")
-      .eq("id", input.submissionId)
-      .maybeSingle();
-    if (!target || target.student_id === user.id) {
-      return { ok: false, error: "검토 권한이 없어요. 파트장은 자기 팀원의 영상만 검토할 수 있어요." };
-    }
+  // 판정은 review_submission RPC로만 처리한다. 함수(security definer)가 상태(pending)·
+  // 권한(선생님/파트장, 본인 제출 제외)·수정 컬럼을 DB 레벨에서 강제하므로, 클라이언트가
+  // submissions를 직접 조작할 수 없다.
+  const { data: cardId, error } = await supabase.rpc("review_submission", {
+    sub_id: input.submissionId,
+    verdict: input.verdict,
+    comment: comment || null,
+  });
+  if (error || !cardId) {
+    return { ok: false, error: "판정에 실패했습니다. 권한이 없거나 이미 처리된 제출일 수 있어요." };
   }
-
-  // RLS: 선생님은 같은 학원, 파트장은 자기 팀원(본인 제외) submission만 update 가능
-  const { data: updated, error } = await supabase
-    .from("submissions")
-    .update({
-      status: input.verdict,
-      teacher_comment: comment || null,
-      reviewed_by: user.id,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq("id", input.submissionId)
-    .eq("status", "pending") // 이미 판정된 건 재판정 불가
-    .select("card_id")
-    .maybeSingle();
-  if (error || !updated) {
-    return { ok: false, error: "판정에 실패했습니다. 이미 처리된 제출일 수 있어요." };
-  }
+  const updated = { card_id: cardId as string };
 
   // 합격이면 카드 완성 여부 확인
   // (파트장은 progress_cards update 권한이 없으므로 admin으로 기록한다.
