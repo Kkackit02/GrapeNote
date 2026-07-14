@@ -52,6 +52,8 @@ export interface Submission {
   video_size_bytes: number | null;
   video_hash: string | null;
   status: SubmissionStatus;
+  student_title: string | null;
+  student_comment: string | null;
   teacher_comment: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;

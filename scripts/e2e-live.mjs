@@ -187,6 +187,33 @@ try {
     grape_index: 1, video_path: path1, video_hash: dupHash,
   });
   ok("다른 학생은 같은 해시 제출 가능", !hash3Err, hash3Err?.message);
+
+  console.log("\n[14] 학생 제목/코멘트 + 검토 대기 영상 삭제");
+  const { data: noted, error: noteErr } = await student.from("submissions").insert({
+    card_id: bulkCards[0].id, student_id: studentId, academy_id: academy.id,
+    grape_index: 2, video_path: path1, student_title: "오른손만 연습!", student_comment: "셋째 마디가 어려워요",
+  }).select("id").single();
+  ok("제목/코멘트와 함께 제출", !noteErr, noteErr?.message);
+  const { data: teacherView } = await teacher.from("submissions")
+    .select("student_title, student_comment").eq("id", noted.id).single();
+  ok("선생님이 학생 코멘트 확인 가능", teacherView?.student_title === "오른손만 연습!" && !!teacherView?.student_comment);
+
+  // 학생이 자기 pending 삭제 (RLS delete 정책)
+  const { data: delOk } = await student.from("submissions")
+    .delete().eq("id", noted.id).select("id");
+  ok("학생이 자기 검토 대기 영상 삭제 가능", delOk?.length === 1);
+  // 판정된 제출은 삭제 불가
+  const { data: anyApproved } = await student.from("submissions")
+    .select("id").eq("status", "approved").limit(1).single();
+  const { data: delBlocked } = await student.from("submissions")
+    .delete().eq("id", anyApproved.id).select("id");
+  ok("판정된 영상 삭제 → 0건 (차단)", (delBlocked ?? []).length === 0);
+  // 남의 pending도 삭제 불가
+  const { data: stu2Pending } = await admin.from("submissions")
+    .select("id").eq("student_id", stu2.user.id).eq("status", "pending").limit(1).single();
+  const { data: delOthers } = await student.from("submissions")
+    .delete().eq("id", stu2Pending.id).select("id");
+  ok("남의 영상 삭제 → 0건 (차단)", (delOthers ?? []).length === 0);
 } catch (e) {
   fail++;
   console.error("💥 예기치 못한 오류:", e);

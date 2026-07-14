@@ -15,6 +15,8 @@ function sub(grapeIndex: number, status: Submission["status"], createdAt?: strin
     video_size_bytes: 1000,
     video_hash: null,
     status,
+    student_title: null,
+    student_comment: null,
     teacher_comment: null,
     reviewed_by: null,
     reviewed_at: null,

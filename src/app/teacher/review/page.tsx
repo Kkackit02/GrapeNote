@@ -5,6 +5,7 @@ interface PendingRow {
   id: string;
   grape_index: number;
   created_at: string;
+  student_title: string | null;
   progress_cards: { title: string } | null;
   profiles: { display_name: string } | null;
 }
@@ -14,7 +15,7 @@ export default async function ReviewInboxPage() {
   const { data } = await supabase
     .from("submissions")
     .select(
-      "id, grape_index, created_at, progress_cards(title), profiles!submissions_student_id_fkey(display_name)"
+      "id, grape_index, created_at, student_title, progress_cards(title), profiles!submissions_student_id_fkey(display_name)"
     )
     .eq("status", "pending")
     .order("created_at", { ascending: true });
@@ -41,6 +42,9 @@ export default async function ReviewInboxPage() {
                   <p className="font-bold text-gray-800">
                     🎹 {row.profiles?.display_name} — {row.progress_cards?.title}
                   </p>
+                  {row.student_title && (
+                    <p className="text-sm text-gray-600 mt-0.5">🎬 {row.student_title}</p>
+                  )}
                   <p className="text-sm text-gray-400 mt-0.5">
                     포도알 #{row.grape_index} ·{" "}
                     {new Date(row.created_at).toLocaleString("ko-KR", {

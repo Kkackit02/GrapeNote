@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { GrapeBunch } from "./GrapeBunch";
 import { VideoUploader } from "./VideoUploader";
-import { VideoPlayer } from "./VideoPlayer";
+import { GrapeVideoSection } from "./GrapeVideoSection";
 import { Celebration } from "./Celebration";
+import { deleteSubmission } from "@/lib/actions/uploads";
 import { approvedCount, type GrapeState } from "@/lib/grapes";
 import type { ProgressCard } from "@/lib/types";
 
@@ -19,6 +20,7 @@ export function StudentCardView({ card, grapes }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<GrapeState | null>(null);
   const [justUploaded, setJustUploaded] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const done = approvedCount(grapes);
   const completed = !!card.completed_at;
@@ -30,6 +32,19 @@ export function StudentCardView({ card, grapes }: Props) {
 
   const onUploadDone = () => {
     setJustUploaded(true);
+    router.refresh();
+  };
+
+  const onDelete = async (submissionId: string) => {
+    if (!window.confirm("이 영상을 지울까요? 지운 뒤에 새로 찍어서 올릴 수 있어요.")) return;
+    setDeleting(true);
+    const result = await deleteSubmission(submissionId);
+    setDeleting(false);
+    if (!result.ok) {
+      window.alert(result.error);
+      return;
+    }
+    closeSheet();
     router.refresh();
   };
 
@@ -102,14 +117,26 @@ export function StudentCardView({ card, grapes }: Props) {
                   다시 도전해 봐요! 할 수 있어요 💪
                 </p>
                 <VideoUploader cardId={card.id} grapeIndex={selected.index} onDone={onUploadDone} />
+                <GrapeVideoSection history={selected.history} grapeIndex={selected.index} />
               </div>
             ) : selected.status === "pending" ? (
-              <div className="text-center py-4">
-                <div className="text-5xl">👀</div>
-                <p className="mt-2 font-bold text-lime-700">선생님이 보고 계세요!</p>
-                <p className="mt-1 text-sm text-gray-500">
-                  확인이 끝나면 포도알이 채워져요. 조금만 기다려 주세요.
-                </p>
+              <div className="flex flex-col gap-3">
+                <div className="text-center">
+                  <div className="text-4xl">👀</div>
+                  <p className="mt-1 font-bold text-lime-700">선생님이 보고 계세요!</p>
+                  <p className="mt-0.5 text-sm text-gray-500">
+                    확인이 끝나면 포도알이 채워져요.
+                  </p>
+                </div>
+                <GrapeVideoSection history={selected.history} grapeIndex={selected.index} />
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => onDelete(selected.history[0].id)}
+                  className="h-12 rounded-xl bg-red-50 text-red-500 text-sm font-bold active:bg-red-100 disabled:opacity-50"
+                >
+                  {deleting ? "지우는 중..." : "🗑 이 영상 지우고 다시 찍기"}
+                </button>
               </div>
             ) : (
               // approved
@@ -123,9 +150,7 @@ export function StudentCardView({ card, grapes }: Props) {
                     </p>
                   </div>
                 )}
-                <VideoPlayer
-                  submissionId={selected.history.find((s) => s.status === "approved")!.id}
-                />
+                <GrapeVideoSection history={selected.history} grapeIndex={selected.index} />
               </div>
             )}
           </div>

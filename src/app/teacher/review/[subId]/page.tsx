@@ -46,6 +46,19 @@ export default async function ReviewDetailPage({
         </p>
       </div>
 
+      {(sub.student_title || sub.student_comment) && (
+        <div className="rounded-2xl bg-lime-50 border border-lime-200 p-3">
+          {sub.student_title && (
+            <p className="font-bold text-gray-800">🎬 {sub.student_title}</p>
+          )}
+          {sub.student_comment && (
+            <p className="mt-1 text-sm text-gray-600">
+              💬 학생의 한마디: {sub.student_comment}
+            </p>
+          )}
+        </div>
+      )}
+
       <VideoPlayer submissionId={sub.id} />
 
       {sub.status === "pending" ? (

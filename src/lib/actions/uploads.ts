@@ -87,6 +87,9 @@ export async function confirmUpload(input: {
   path: string;
   fileSize: number;
   fileHash?: string;
+  /** 학생이 다는 제목 / 선생님께 보내는 코멘트 (선택) */
+  title?: string;
+  comment?: string;
 }): Promise<ActionResult> {
   const supabase = await createSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
@@ -115,6 +118,8 @@ export async function confirmUpload(input: {
     video_path: input.path,
     video_size_bytes: input.fileSize,
     video_hash: input.fileHash ?? null,
+    student_title: input.title?.trim().slice(0, 100) || null,
+    student_comment: input.comment?.trim().slice(0, 500) || null,
   });
   if (error) {
     if (error.message.includes("submissions_unique_video_per_student")) {
@@ -128,9 +133,50 @@ export async function confirmUpload(input: {
   return { ok: true, data: undefined };
 }
 
-/** 재생용 signed URL 발급 (1시간). RLS로 접근 가능한 제출물만 허용. */
+/** 학생이 자기 "검토 대기" 영상을 삭제한다 (다시 찍기용). 판정된 제출은 삭제 불가. */
+export async function deleteSubmission(submissionId: string): Promise<ActionResult> {
+  const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "로그인이 필요해요." };
+
+  // RLS delete 정책이 (내 것 + pending)을 강제하지만, 스토리지 정리를 위해 먼저 조회
+  const { data: submission } = await supabase
+    .from("submissions")
+    .select("id, card_id, video_path, status, student_id")
+    .eq("id", submissionId)
+    .maybeSingle();
+  if (!submission || submission.student_id !== user.id) {
+    return { ok: false, error: "영상을 찾을 수 없어요." };
+  }
+  if (submission.status !== "pending") {
+    return { ok: false, error: "선생님이 이미 확인한 영상은 지울 수 없어요." };
+  }
+
+  const { data: deleted, error } = await supabase
+    .from("submissions")
+    .delete()
+    .eq("id", submissionId)
+    .select("id");
+  if (error || !deleted || deleted.length === 0) {
+    return { ok: false, error: "삭제에 실패했어요. 선생님이 방금 확인하셨을 수 있어요." };
+  }
+
+  // 스토리지 정리 (실패해도 치명적이지 않음 — 고아 파일만 남음)
+  const admin = createSupabaseAdmin();
+  await admin.storage.from("videos").remove([submission.video_path]);
+
+  revalidatePath(`/me/cards/${submission.card_id}`);
+  revalidatePath("/teacher/review");
+  return { ok: true, data: undefined };
+}
+
+/**
+ * 재생/다운로드용 signed URL 발급 (1시간). RLS로 접근 가능한 제출물만 허용.
+ * downloadName을 주면 Content-Disposition attachment로 내려가 파일로 저장된다.
+ */
 export async function getPlaybackUrl(
-  submissionId: string
+  submissionId: string,
+  downloadName?: string
 ): Promise<ActionResult<{ url: string }>> {
   const supabase = await createSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
@@ -147,7 +193,11 @@ export async function getPlaybackUrl(
   const admin = createSupabaseAdmin();
   const { data: signed, error } = await admin.storage
     .from("videos")
-    .createSignedUrl(submission.video_path, 3600);
+    .createSignedUrl(
+      submission.video_path,
+      3600,
+      downloadName ? { download: downloadName } : undefined
+    );
   if (error || !signed) return { ok: false, error: "영상 재생 준비에 실패했어요." };
 
   return { ok: true, data: { url: signed.signedUrl } };

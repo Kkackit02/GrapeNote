@@ -32,6 +32,8 @@ export function VideoUploader({ cardId, grapeIndex, onDone }: Props) {
   const [uploading, setUploading] = useState(false);
   const [showRecorder, setShowRecorder] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [comment, setComment] = useState("");
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
@@ -76,6 +78,8 @@ export function VideoUploader({ cardId, grapeIndex, onDone }: Props) {
         path: req.data.path,
         fileSize: file.size,
         fileHash,
+        title,
+        comment,
       });
       if (!confirm.ok) {
         setError(confirm.error);
@@ -127,6 +131,21 @@ export function VideoUploader({ cardId, grapeIndex, onDone }: Props) {
         accept="video/*"
         className="hidden"
         onChange={(e) => handleFile(e.target.files?.[0])}
+      />
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        maxLength={100}
+        placeholder="영상 제목 (선택) — 예: 오른손만 연습!"
+        className="h-12 px-4 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+      />
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        maxLength={500}
+        rows={2}
+        placeholder="선생님께 한마디 (선택) — 예: 셋째 마디가 어려워요 🥲"
+        className="px-4 py-3 rounded-xl border border-gray-300 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-400"
       />
       <button
         type="button"
