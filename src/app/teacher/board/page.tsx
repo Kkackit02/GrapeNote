@@ -111,7 +111,9 @@ export default async function BoardPage() {
           아직 배정된 숙제가 없어요.
         </div>
       ) : (
-        <div className="rounded-2xl bg-white border border-violet-100 overflow-x-auto">
+        // 데스크톱에서 곡×멤버를 한눈에: 부모 max-width를 벗어나 화면 전체 폭 사용 (full-bleed)
+        <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen px-4">
+          <div className="rounded-2xl bg-white border border-violet-100 overflow-x-auto">
           <table className="text-sm border-collapse min-w-full">
             <thead>
               <tr className="bg-violet-50">
@@ -162,6 +164,7 @@ export default async function BoardPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
