@@ -15,7 +15,6 @@ export interface Profile {
   role: UserRole;
   display_name: string;
   username: string | null;
-  team_id: string | null;
   created_at: string;
 }
 
@@ -25,6 +24,14 @@ export interface Team {
   name: string;
   leader_id: string | null;
   created_at: string;
+}
+
+/** 팀 다중 소속 (M:N) — 학생 1명이 여러 팀에 속할 수 있다 */
+export interface TeamMember {
+  team_id: string;
+  profile_id: string;
+  academy_id: string;
+  added_at: string;
 }
 
 export interface StudentInvite {

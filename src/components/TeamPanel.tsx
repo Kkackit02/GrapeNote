@@ -6,24 +6,28 @@ import {
   createTeam,
   deleteTeam,
   renameTeam,
-  assignStudentTeam,
+  addTeamMember,
+  removeTeamMember,
   setTeamLeader,
 } from "@/lib/actions/teams";
-import type { ActionResult, Profile, Team } from "@/lib/types";
+import type { ActionResult, Profile, Team, TeamMember } from "@/lib/types";
 
 interface Props {
   teams: Team[];
   students: Profile[];
+  memberships: TeamMember[];
 }
 
-/** 팀 목록 + 팀원/파트장 관리 패널 */
-export function TeamPanel({ teams, students }: Props) {
+/** 팀 목록 + 팀원/파트장 관리 패널. 한 학생이 여러 팀에 동시 소속될 수 있다. */
+export function TeamPanel({ teams, students, memberships }: Props) {
   const router = useRouter();
   const [newName, setNewName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const unassigned = students.filter((s) => !s.team_id);
+  const teamIdsOf = (studentId: string) =>
+    memberships.filter((m) => m.profile_id === studentId).map((m) => m.team_id);
+  const unassigned = students.filter((s) => teamIdsOf(s.id).length === 0);
 
   const run = async (action: () => Promise<ActionResult>) => {
     setError(null);
@@ -50,7 +54,7 @@ export function TeamPanel({ teams, students }: Props) {
           required
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          placeholder="새 팀 이름 (예: 1팀)"
+          placeholder="새 팀 이름 (예: 1팀, Tomboy 합주팀)"
           className="flex-1 h-12 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400"
         />
         <button
@@ -71,8 +75,12 @@ export function TeamPanel({ teams, students }: Props) {
       )}
 
       {teams.map((team) => {
-        const members = students.filter((s) => s.team_id === team.id);
-        const candidates = students.filter((s) => s.team_id !== team.id);
+        const memberIds = memberships
+          .filter((m) => m.team_id === team.id)
+          .map((m) => m.profile_id);
+        const members = students.filter((s) => memberIds.includes(s.id));
+        // 이 팀에 아직 없는 학생은 전부 후보 — 다른 팀 소속이어도 추가 가능 (다중 소속)
+        const candidates = students.filter((s) => !memberIds.includes(s.id));
         return (
           <section key={team.id} className="rounded-2xl bg-white border border-violet-100 p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
@@ -88,7 +96,7 @@ export function TeamPanel({ teams, students }: Props) {
                 type="button"
                 disabled={busy}
                 onClick={() => {
-                  if (window.confirm(`'${team.name}' 팀을 없앨까요? 팀원들은 무소속이 돼요.`)) {
+                  if (window.confirm(`'${team.name}' 팀을 없앨까요?\n팀 묶음만 사라지고, 학생과 다른 팀 소속은 그대로예요.`)) {
                     run(() => deleteTeam(team.id));
                   }
                 }}
@@ -124,11 +132,16 @@ export function TeamPanel({ teams, students }: Props) {
                   >
                     {team.leader_id === m.id && "⭐ "}
                     {m.display_name}
+                    {teamIdsOf(m.id).length > 1 && (
+                      <span className="text-[10px] font-bold text-violet-400">
+                        +{teamIdsOf(m.id).length - 1}팀
+                      </span>
+                    )}
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => run(() => assignStudentTeam(m.id, null))}
-                      aria-label={`${m.display_name} 팀에서 빼기`}
+                      onClick={() => run(() => removeTeamMember(team.id, m.id))}
+                      aria-label={`${m.display_name} 이 팀에서 빼기`}
                       className="text-violet-400 active:text-violet-700"
                     >
                       ✕
@@ -143,17 +156,22 @@ export function TeamPanel({ teams, students }: Props) {
                 value=""
                 disabled={busy}
                 onChange={(e) => {
-                  if (e.target.value) run(() => assignStudentTeam(e.target.value, team.id));
+                  if (e.target.value) run(() => addTeamMember(team.id, e.target.value));
                 }}
                 className="h-11 px-3 rounded-xl border border-dashed border-violet-300 text-sm font-bold text-violet-600"
               >
-                <option value="">+ 팀원 넣기...</option>
-                {candidates.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.display_name}
-                    {s.team_id ? ` (${teams.find((t) => t.id === s.team_id)?.name ?? "다른 팀"} 소속)` : ""}
-                  </option>
-                ))}
+                <option value="">+ 팀원 넣기... (다른 팀 소속이어도 돼요)</option>
+                {candidates.map((s) => {
+                  const others = teamIdsOf(s.id)
+                    .map((id) => teams.find((t) => t.id === id)?.name)
+                    .filter(Boolean);
+                  return (
+                    <option key={s.id} value={s.id}>
+                      {s.display_name}
+                      {others.length > 0 ? ` (${others.join(", ")} 소속)` : ""}
+                    </option>
+                  );
+                })}
               </select>
             )}
           </section>

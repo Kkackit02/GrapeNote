@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Claude Code 워크트리/세션 파일 (다른 브랜치 사본과 빌드 산출물)
+    ".claude/**",
   ]),
 ]);
 

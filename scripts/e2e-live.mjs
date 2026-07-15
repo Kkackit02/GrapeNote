@@ -214,6 +214,51 @@ try {
   const { data: delOthers } = await student.from("submissions")
     .delete().eq("id", stu2Pending.id).select("id");
   ok("남의 영상 삭제 → 0건 (차단)", (delOthers ?? []).length === 0);
+
+  console.log("\n[15] 팀 다중 소속 (M:N) + 파트장 검토");
+  const { data: teamA } = await teacher.from("teams")
+    .insert({ academy_id: academy.id, name: "Tomboy 합주팀" }).select("id").single();
+  const { data: teamB } = await teacher.from("teams")
+    .insert({ academy_id: academy.id, name: "월수반" }).select("id").single();
+  // 학생1을 팀 2개에 동시 배정 + 학생2는 팀B만
+  const { error: memErr } = await teacher.from("team_members").insert([
+    { team_id: teamA.id, profile_id: studentId, academy_id: academy.id },
+    { team_id: teamB.id, profile_id: studentId, academy_id: academy.id },
+    { team_id: teamB.id, profile_id: stu2.user.id, academy_id: academy.id },
+  ]);
+  ok("학생1이 팀 2개에 동시 소속", !memErr, memErr?.message);
+  const { data: stu1Memberships } = await student.from("team_members")
+    .select("team_id").eq("profile_id", studentId);
+  ok("학생1 소속 2건 조회", stu1Memberships?.length === 2);
+
+  // 학생1을 팀B 파트장으로 → 팀B 팀원(학생2)의 제출을 검토할 수 있어야 한다
+  const { error: leaderErr } = await teacher.from("teams")
+    .update({ leader_id: studentId }).eq("id", teamB.id);
+  ok("파트장 지정", !leaderErr, leaderErr?.message);
+  const { data: visibleSubs } = await student.from("submissions")
+    .select("id, student_id").eq("student_id", stu2.user.id);
+  ok("파트장이 팀원 제출 조회 가능", (visibleSubs ?? []).length >= 1);
+  const { data: reviewedCard, error: rpcErr } = await student
+    .rpc("review_submission", { sub_id: stu2Pending.id, verdict: "approved", comment: "파트장 합격!" });
+  ok("파트장이 RPC로 팀원 제출 판정", !rpcErr && !!reviewedCard, rpcErr?.message);
+  // 파트장이 아닌 팀(다른 팀 소속) 학생 제출은 판정 불가 — 학생2가 학생1 것 판정 시도
+  const student2b = newAnon();
+  await student2b.auth.signInWithPassword({ email: `${student2Username}@student.grapenote.app`, password: PIN });
+  const { data: stu1Pending } = await admin.from("submissions")
+    .select("id").eq("student_id", studentId).eq("status", "pending").limit(1).maybeSingle();
+  if (stu1Pending) {
+    const { error: notLeaderErr } = await student2b
+      .rpc("review_submission", { sub_id: stu1Pending.id, verdict: "approved", comment: "해킹" });
+    ok("파트장 아닌 학생의 판정 → 거부", !!notLeaderErr);
+  } else {
+    ok("파트장 아닌 학생의 판정 → 거부 (대상 없음, 스킵)", true);
+  }
+  // 팀에서 빼면 여전히 다른 팀 소속은 유지
+  await teacher.from("team_members").delete()
+    .eq("team_id", teamA.id).eq("profile_id", studentId);
+  const { data: afterRemove } = await student.from("team_members")
+    .select("team_id").eq("profile_id", studentId);
+  ok("팀A에서 빼도 팀B 소속 유지", afterRemove?.length === 1 && afterRemove[0].team_id === teamB.id);
 } catch (e) {
   fail++;
   console.error("💥 예기치 못한 오류:", e);
@@ -221,6 +266,8 @@ try {
   console.log("\n[정리] 테스트 데이터 삭제");
   if (cleanup.paths.length) await admin.storage.from("videos").remove(cleanup.paths);
   if (cleanup.academyId) {
+    await admin.from("team_members").delete().eq("academy_id", cleanup.academyId);
+    await admin.from("teams").delete().eq("academy_id", cleanup.academyId);
     await admin.from("submissions").delete().eq("academy_id", cleanup.academyId);
     await admin.from("progress_cards").delete().eq("academy_id", cleanup.academyId);
     await admin.from("student_invites").delete().eq("academy_id", cleanup.academyId);

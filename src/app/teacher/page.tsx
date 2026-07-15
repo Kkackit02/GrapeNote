@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { JoinCodeCard } from "@/components/JoinCodeCard";
-import type { Academy, Profile, StudentInvite, Team } from "@/lib/types";
+import type { Academy, Profile, StudentInvite, Team, TeamMember } from "@/lib/types";
 
 export default async function TeacherDashboard() {
   const supabase = await createSupabaseServer();
 
-  const [{ data: students }, { count: pendingCount }, { data: invites }, { data: academyRow }, { data: teams }] = await Promise.all([
+  const [{ data: students }, { count: pendingCount }, { data: invites }, { data: academyRow }, { data: teams }, { data: memberships }] = await Promise.all([
     supabase
       .from("profiles")
       .select("*")
@@ -24,6 +24,7 @@ export default async function TeacherDashboard() {
       .order("created_at", { ascending: false }),
     supabase.from("academies").select("*").maybeSingle(),
     supabase.from("teams").select("*"),
+    supabase.from("team_members").select("*"),
   ]);
 
   const studentList = (students ?? []) as Profile[];
@@ -31,6 +32,12 @@ export default async function TeacherDashboard() {
   const academy = academyRow as Academy | null;
   const teamList = (teams ?? []) as Team[];
   const teamById = new Map(teamList.map((t) => [t.id, t]));
+  const memberList = (memberships ?? []) as TeamMember[];
+  const teamsOf = (studentId: string) =>
+    memberList
+      .filter((m) => m.profile_id === studentId)
+      .map((m) => teamById.get(m.team_id))
+      .filter((t): t is Team => !!t);
 
   return (
     <div className="flex flex-col gap-6">
@@ -102,12 +109,15 @@ export default async function TeacherDashboard() {
                 >
                   <span className="font-bold text-gray-800">
                     🎹 {student.display_name}
-                    {student.team_id && teamById.has(student.team_id) && (
-                      <span className="ml-2 text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
-                        {teamById.get(student.team_id)!.leader_id === student.id && "⭐ "}
-                        {teamById.get(student.team_id)!.name}
+                    {teamsOf(student.id).map((team) => (
+                      <span
+                        key={team.id}
+                        className="ml-2 text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full"
+                      >
+                        {team.leader_id === student.id && "⭐ "}
+                        {team.name}
                       </span>
-                    )}
+                    ))}
                   </span>
                   <span className="text-sm text-gray-400">
                     {student.username && `@${student.username}`} →

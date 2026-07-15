@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import type { ActionResult } from "@/lib/types";
 
 /** 선생님 권한 확인. 정상이면 { userId, academyId }, 아니면 에러 메시지. */
@@ -52,7 +51,7 @@ export async function renameTeam(teamId: string, name: string): Promise<ActionRe
   return { ok: true, data: undefined };
 }
 
-/** 팀 삭제 — 팀원들은 자동으로 무소속이 된다 (FK on delete set null) */
+/** 팀 삭제 — 소속 정보(team_members)만 cascade로 정리되고 학생/카드는 그대로다 */
 export async function deleteTeam(teamId: string): Promise<ActionResult> {
   const auth = await verifyTeacher();
   if (!auth.ok) return auth;
@@ -66,52 +65,67 @@ export async function deleteTeam(teamId: string): Promise<ActionResult> {
   return { ok: true, data: undefined };
 }
 
-/** 학생 팀 배정/이동/해제 (teamId를 null로 주면 무소속) */
-export async function assignStudentTeam(
-  studentId: string,
-  teamId: string | null
+/** 팀에 학생 추가 — 이미 다른 팀에 속해 있어도 그대로 두고 추가한다 (다중 소속). */
+export async function addTeamMember(
+  teamId: string,
+  studentId: string
 ): Promise<ActionResult> {
   const auth = await verifyTeacher();
   if (!auth.ok) return auth;
 
   const supabase = await createSupabaseServer();
 
-  // 우리 학원 학생인지 확인 (RLS 조회는 학원 범위)
+  // 우리 학원 학생/팀인지 확인 (RLS 조회는 학원 범위)
   const { data: student } = await supabase
     .from("profiles")
-    .select("id, team_id")
+    .select("id")
     .eq("id", studentId)
     .eq("role", "student")
     .maybeSingle();
   if (!student) return { ok: false, error: "학생을 찾을 수 없습니다." };
+  const { data: team } = await supabase
+    .from("teams")
+    .select("id")
+    .eq("id", teamId)
+    .maybeSingle();
+  if (!team) return { ok: false, error: "팀을 찾을 수 없습니다." };
 
-  // 우리 학원 팀인지 확인
-  if (teamId) {
-    const { data: team } = await supabase
-      .from("teams")
-      .select("id")
-      .eq("id", teamId)
-      .maybeSingle();
-    if (!team) return { ok: false, error: "팀을 찾을 수 없습니다." };
+  const { error } = await supabase.from("team_members").insert({
+    team_id: teamId,
+    profile_id: studentId,
+    academy_id: auth.academyId,
+  });
+  if (error && !error.message.includes("duplicate")) {
+    return { ok: false, error: "팀원 추가에 실패했습니다." };
   }
 
-  const admin = createSupabaseAdmin();
+  revalidatePath("/teacher/teams");
+  revalidatePath("/teacher");
+  return { ok: true, data: undefined };
+}
 
-  // 원래 팀의 파트장이었다면 파트장 자리를 비운다
-  if (student.team_id && student.team_id !== teamId) {
-    await admin
-      .from("teams")
-      .update({ leader_id: null })
-      .eq("id", student.team_id)
-      .eq("leader_id", studentId);
-  }
+/** 팀에서 학생 빼기 — 다른 팀 소속은 그대로 유지된다. */
+export async function removeTeamMember(
+  teamId: string,
+  studentId: string
+): Promise<ActionResult> {
+  const auth = await verifyTeacher();
+  if (!auth.ok) return auth;
 
-  // profiles 쓰기는 service role 경유 (RLS 정책상 클라이언트 쓰기 없음)
-  const { error } = await admin
-    .from("profiles")
-    .update({ team_id: teamId })
-    .eq("id", studentId);
-  if (error) return { ok: false, error: "팀 배정에 실패했습니다." };
+  const supabase = await createSupabaseServer();
+  const { error } = await supabase
+    .from("team_members")
+    .delete()
+    .eq("team_id", teamId)
+    .eq("profile_id", studentId);
+  if (error) return { ok: false, error: "팀원 제외에 실패했습니다." };
+
+  // 그 팀의 파트장이었다면 파트장 자리를 비운다
+  await supabase
+    .from("teams")
+    .update({ leader_id: null })
+    .eq("id", teamId)
+    .eq("leader_id", studentId);
 
   revalidatePath("/teacher/teams");
   revalidatePath("/teacher");
@@ -131,11 +145,10 @@ export async function setTeamLeader(
   if (studentId) {
     // 파트장은 그 팀 소속 학생이어야 한다
     const { data: member } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("id", studentId)
-      .eq("role", "student")
+      .from("team_members")
+      .select("profile_id")
       .eq("team_id", teamId)
+      .eq("profile_id", studentId)
       .maybeSingle();
     if (!member) return { ok: false, error: "그 팀에 속한 학생만 파트장이 될 수 있어요." };
   }
