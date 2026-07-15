@@ -95,6 +95,84 @@ export async function createCard(input: {
   return { ok: true, data: { count: studentIds.length } };
 }
 
+/**
+ * 현황판 빈칸 배정: 기존 곡을 학생 1명에게 배정한다.
+ * 곡이 팀에 연결되어 있으면 팀 합류로 처리 (트리거가 카드 생성 + 팀 명단도 일치).
+ */
+export async function assignSongToStudent(input: {
+  title: string;
+  studentId: string;
+}): Promise<ActionResult<{ viaTeam: boolean }>> {
+  const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.app_metadata?.role !== "teacher") {
+    return { ok: false, error: "선생님 계정으로 로그인해 주세요." };
+  }
+  const academyId = user.app_metadata.academy_id;
+
+  // 곡 템플릿 = 그 제목의 최신 카드 (RLS로 우리 학원 것만 조회됨)
+  const { data: template } = await supabase
+    .from("progress_cards")
+    .select("*")
+    .eq("title", input.title)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!template) return { ok: false, error: "곡을 찾을 수 없습니다." };
+
+  const { data: student } = await supabase
+    .from("profiles")
+    .select("id, display_name")
+    .eq("id", input.studentId)
+    .eq("role", "student")
+    .maybeSingle();
+  if (!student) return { ok: false, error: "학생을 찾을 수 없습니다." };
+
+  const { data: existing } = await supabase
+    .from("progress_cards")
+    .select("id")
+    .eq("student_id", input.studentId)
+    .eq("title", input.title)
+    .limit(1);
+  if ((existing ?? []).length > 0) {
+    return { ok: false, error: "이미 이 곡이 배정되어 있어요." };
+  }
+
+  const finish = (viaTeam: boolean): ActionResult<{ viaTeam: boolean }> => {
+    revalidatePath("/teacher/board");
+    revalidatePath("/teacher/teams");
+    revalidatePath(`/teacher/students/${input.studentId}`);
+    return { ok: true, data: { viaTeam } };
+  };
+
+  // 팀 곡이면 팀 합류 → 트리거가 카드를 만든다
+  if (template.team_id) {
+    const { error } = await supabase.from("team_members").insert({
+      team_id: template.team_id,
+      profile_id: input.studentId,
+      academy_id: academyId,
+    });
+    if (!error) return finish(true);
+    if (!error.message.includes("duplicate")) {
+      return { ok: false, error: "배정에 실패했습니다." };
+    }
+    // 이미 팀원인데 카드만 없는 경우 → 아래에서 직접 생성
+  }
+
+  const { error: insertError } = await supabase.from("progress_cards").insert({
+    academy_id: academyId,
+    student_id: input.studentId,
+    team_id: template.team_id,
+    title: template.title,
+    description: template.description,
+    total_grapes: template.total_grapes,
+    due_date: template.due_date,
+    created_by: user.id,
+  });
+  if (insertError) return { ok: false, error: "배정에 실패했습니다." };
+  return finish(false);
+}
+
 /** 학생이 자기 숙제(진도카드)를 직접 추가. RLS가 본인 카드 insert만 허용한다. */
 export async function createMyCard(input: {
   title: string;

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes, approvedCount } from "@/lib/grapes";
+import { AssignCell } from "@/components/AssignCell";
 import type { Profile, ProgressCard, Submission, Team } from "@/lib/types";
 
 interface Cell {
@@ -38,9 +39,9 @@ export default async function BoardPage() {
     ...studentList.filter((s) => !hasCard.has(s.id)),
   ];
 
-  const cellOf = (title: string, studentId: string): Cell => {
+  const cellOf = (title: string, studentId: string): Cell | null => {
     const card = cardList.find((c) => c.title === title && c.student_id === studentId);
-    if (!card) return { label: "—", className: "text-gray-300", href: "" };
+    if (!card) return null; // 미배정 → AssignCell 렌더
 
     const cardSubs = subList.filter((s) => s.card_id === card.id);
     const grapes = deriveGrapes(card.total_grapes, cardSubs);
@@ -86,7 +87,7 @@ export default async function BoardPage() {
           곡 × 멤버 진행 상태예요. 칸을 누르면 카드나 검토 화면으로 바로 이동해요.
         </p>
         <p className="mt-1 text-xs text-gray-400">
-          🍇 완료 · 👀 검토 대기 (누르면 바로 검토) · ↺ 재연습 중 · — 미배정
+          🍇 완료 · 👀 검토 대기 (누르면 바로 검토) · ↺ 재연습 중 · ＋ 미배정 (누르면 바로 배정)
         </p>
       </div>
 
@@ -131,9 +132,11 @@ export default async function BoardPage() {
                       return (
                         <td
                           key={s.id}
-                          className={`text-center border-b border-gray-100 whitespace-nowrap ${cell.className}`}
+                          className={`text-center border-b border-gray-100 whitespace-nowrap ${cell?.className ?? ""}`}
                         >
-                          {cell.href ? (
+                          {!cell ? (
+                            <AssignCell title={title} studentId={s.id} studentName={s.display_name} />
+                          ) : cell.href ? (
                             <Link href={cell.href} className="block px-2 py-2">
                               {cell.label}
                             </Link>
