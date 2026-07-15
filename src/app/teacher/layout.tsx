@@ -11,6 +11,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
           </Link>
           <nav className="flex items-center gap-4 text-sm font-medium text-gray-600">
             <Link href="/teacher" className="hover:text-violet-700">학생</Link>
+            <Link href="/teacher/board" className="hover:text-violet-700">현황판</Link>
             <Link href="/teacher/review" className="hover:text-violet-700">검토함</Link>
             <LogoutButton />
           </nav>

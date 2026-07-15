@@ -55,20 +55,27 @@ export default async function TeacherDashboard() {
 
       <JoinCodeCard code={academy?.join_code ?? null} />
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
+        <Link
+          href="/teacher/board"
+          className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
+        >
+          📊 현황판
+          <p className="mt-0.5 text-xs font-medium text-gray-400">곡×멤버 진행 한눈에</p>
+        </Link>
         <Link
           href="/teacher/cards"
           className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
         >
           📋 숙제 관리
-          <p className="mt-0.5 text-xs font-medium text-gray-400">배정한 숙제 수정·기한 설정</p>
+          <p className="mt-0.5 text-xs font-medium text-gray-400">배정한 숙제 수정·기한</p>
         </Link>
         <Link
           href="/teacher/teams"
           className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
         >
           👥 팀 관리
-          <p className="mt-0.5 text-xs font-medium text-gray-400">팀 나누기·파트장 지정</p>
+          <p className="mt-0.5 text-xs font-medium text-gray-400">팀·파트장 지정</p>
         </Link>
       </div>
 
