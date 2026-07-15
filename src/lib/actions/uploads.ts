@@ -112,21 +112,27 @@ export async function confirmUpload(input: {
     .createSignedUrl(input.path, 60);
   if (existsError) return { ok: false, error: "영상 업로드가 완료되지 않았어요. 다시 시도해 주세요." };
 
-  // RLS가 student_id = 본인 + status = pending을 강제한다
-  const { error } = await supabase.from("submissions").insert({
-    card_id: input.cardId,
-    student_id: user.id,
-    academy_id: academyId,
-    grape_index: input.grapeIndex,
-    video_path: input.path,
-    video_size_bytes: input.fileSize,
-    video_hash: input.fileHash ?? null,
-    student_title: input.title?.trim().slice(0, 100) || null,
-    student_comment: input.comment?.trim().slice(0, 500) || null,
+  // 제출 생성은 create_submission RPC로만 처리한다. 함수(security definer)가 카드 소유권·
+  // 포도알 상태·인덱스 범위·경로 접두사를 DB 레벨에서 강제하므로, 클라이언트가 anon 키로
+  // submissions에 직접 insert(남의 카드 주입 등)할 수 없다.
+  const { error } = await supabase.rpc("create_submission", {
+    p_card_id: input.cardId,
+    p_grape_index: input.grapeIndex,
+    p_video_path: input.path,
+    p_video_size: input.fileSize,
+    p_video_hash: input.fileHash ?? "",
+    p_title: input.title?.slice(0, 100) ?? "",
+    p_comment: input.comment?.slice(0, 500) ?? "",
   });
   if (error) {
     if (error.message.includes("submissions_unique_video_per_student")) {
       return { ok: false, error: "이미 올렸던 영상이에요! 새로 연습한 영상을 올려 주세요. 🎹" };
+    }
+    if (error.message.includes("already approved")) {
+      return { ok: false, error: "이미 합격한 포도알이에요! 🍇" };
+    }
+    if (error.message.includes("already pending")) {
+      return { ok: false, error: "선생님이 아직 보고 계신 영상이 있어요. 조금만 기다려 주세요." };
     }
     return { ok: false, error: "제출에 실패했어요. 다시 시도해 주세요." };
   }

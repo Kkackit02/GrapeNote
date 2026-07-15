@@ -90,20 +90,34 @@ try {
   const { data: signed1 } = await admin.storage.from("videos").createSignedUploadUrl(path1);
   const { error: upErr } = await student.storage.from("videos").uploadToSignedUrl(signed1.path, signed1.token, fakeVideo);
   ok("signed URL로 업로드 성공", !upErr, upErr?.message);
-  const { error: subErr } = await student.from("submissions")
-    .insert({ card_id: card.id, student_id: studentId, academy_id: academy.id, grape_index: 1, video_path: path1, video_size_bytes: 1024 });
-  ok("submission(pending) insert 성공", !subErr, subErr?.message);
+  const { data: subId, error: subErr } = await student.rpc("create_submission", {
+    p_card_id: card.id, p_grape_index: 1, p_video_path: path1,
+    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+  });
+  ok("submission(pending) 생성 (RPC)", !subErr && !!subId, subErr?.message);
 
-  console.log("\n[8] 보안: 셀프 합격 / 무단 수정 차단");
-  const { error: selfApprove } = await student.from("submissions")
-    .insert({ card_id: card.id, student_id: studentId, academy_id: academy.id, grape_index: 2, video_path: path1, status: "approved" });
-  ok("학생이 approved로 insert → 거부", !!selfApprove);
+  console.log("\n[8] 보안: 직접 insert / 셀프 합격 / 무단 수정 차단");
+  const { error: directInsert } = await student.from("submissions")
+    .insert({ card_id: card.id, student_id: studentId, academy_id: academy.id, grape_index: 2, video_path: path1 });
+  ok("학생 직접 insert → 거부 (정책 없음)", !!directInsert);
   const { data: hacked } = await student.from("submissions")
     .update({ status: "approved" }).eq("card_id", card.id).select("id");
   ok("학생이 status update → 0건", (hacked ?? []).length === 0);
-  const { error: dupPending } = await admin.from("submissions")
-    .insert({ card_id: card.id, student_id: studentId, academy_id: academy.id, grape_index: 1, video_path: path1 });
-  ok("같은 포도알에 pending 중복 → DB가 거부", !!dupPending);
+  const { error: badPath } = await student.rpc("create_submission", {
+    p_card_id: card.id, p_grape_index: 4, p_video_path: "evil/path.mp4",
+    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+  });
+  ok("RPC 경로 접두사 위조 → 거부", !!badPath);
+  const { error: badIndex } = await student.rpc("create_submission", {
+    p_card_id: card.id, p_grape_index: 999, p_video_path: `${academy.id}/${studentId}/${card.id}/999-x.mp4`,
+    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+  });
+  ok("RPC 포도알 인덱스 상한 초과 → 거부", !!badIndex);
+  const { error: dupPending } = await student.rpc("create_submission", {
+    p_card_id: card.id, p_grape_index: 1, p_video_path: path1,
+    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+  });
+  ok("같은 포도알 pending 중복 → 거부", !!dupPending);
 
   console.log("\n[9] 스토리지 보안");
   const pub = await fetch(`${URL_}/storage/v1/object/public/videos/${path1}`);
@@ -126,12 +140,13 @@ try {
     cleanup.paths.push(p);
     const { data: s } = await admin.storage.from("videos").createSignedUploadUrl(p);
     await student.storage.from("videos").uploadToSignedUrl(s.path, s.token, fakeVideo);
-    const { data: ins } = await student.from("submissions")
-      .insert({ card_id: card.id, student_id: studentId, academy_id: academy.id, grape_index: idx, video_path: p, video_size_bytes: 1024 })
-      .select("id").single();
+    const { data: insId } = await student.rpc("create_submission", {
+      p_card_id: card.id, p_grape_index: idx, p_video_path: p,
+      p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+    });
     await teacher.from("submissions")
       .update({ status: "approved", reviewed_by: teacherId, reviewed_at: new Date().toISOString() })
-      .eq("id", ins.id);
+      .eq("id", insId);
   }
   const { data: allSubs } = await teacher.from("submissions").select("grape_index, status").eq("card_id", card.id);
   const approvedIdx = new Set(allSubs.filter((s) => s.status === "approved").map((s) => s.grape_index));
@@ -189,18 +204,19 @@ try {
   ok("다른 학생은 같은 해시 제출 가능", !hash3Err, hash3Err?.message);
 
   console.log("\n[14] 학생 제목/코멘트 + 검토 대기 영상 삭제");
-  const { data: noted, error: noteErr } = await student.from("submissions").insert({
-    card_id: bulkCards[0].id, student_id: studentId, academy_id: academy.id,
-    grape_index: 2, video_path: path1, student_title: "오른손만 연습!", student_comment: "셋째 마디가 어려워요",
-  }).select("id").single();
-  ok("제목/코멘트와 함께 제출", !noteErr, noteErr?.message);
+  const notePath = `${academy.id}/${studentId}/${bulkCards[0].id}/3-${crypto.randomUUID()}.mp4`;
+  const { data: notedId, error: noteErr } = await student.rpc("create_submission", {
+    p_card_id: bulkCards[0].id, p_grape_index: 3, p_video_path: notePath,
+    p_video_size: 1024, p_video_hash: "", p_title: "오른손만 연습!", p_comment: "셋째 마디가 어려워요",
+  });
+  ok("제목/코멘트와 함께 제출 (RPC)", !noteErr && !!notedId, noteErr?.message);
   const { data: teacherView } = await teacher.from("submissions")
-    .select("student_title, student_comment").eq("id", noted.id).single();
+    .select("student_title, student_comment").eq("id", notedId).single();
   ok("선생님이 학생 코멘트 확인 가능", teacherView?.student_title === "오른손만 연습!" && !!teacherView?.student_comment);
 
   // 학생이 자기 pending 삭제 (RLS delete 정책)
   const { data: delOk } = await student.from("submissions")
-    .delete().eq("id", noted.id).select("id");
+    .delete().eq("id", notedId).select("id");
   ok("학생이 자기 검토 대기 영상 삭제 가능", delOk?.length === 1);
   // 판정된 제출은 삭제 불가
   const { data: anyApproved } = await student.from("submissions")
@@ -214,6 +230,22 @@ try {
   const { data: delOthers } = await student.from("submissions")
     .delete().eq("id", stu2Pending.id).select("id");
   ok("남의 영상 삭제 → 0건 (차단)", (delOthers ?? []).length === 0);
+
+  console.log("\n[14b] Finding 1: 남의 카드에 제출 주입 차단");
+  // 학생1이 학생2의 카드(bulkCards[1])에 RPC로 제출 시도 → 소유권 검증에 막혀야 한다
+  const victimCard = bulkCards.find((c) => c.student_id === stu2.user.id);
+  const { error: injectErr } = await student.rpc("create_submission", {
+    p_card_id: victimCard.id, p_grape_index: 1,
+    p_video_path: `${academy.id}/${studentId}/${victimCard.id}/1-x.mp4`,
+    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+  });
+  ok("학생이 남의 카드에 RPC 제출 → 거부", !!injectErr, injectErr?.message);
+  // 직접 insert로도 (정책 제거되어) 막힌다
+  const { error: injectDirect } = await student.from("submissions").insert({
+    card_id: victimCard.id, student_id: studentId, academy_id: academy.id,
+    grape_index: 2, video_path: "x.mp4",
+  });
+  ok("학생이 남의 카드에 직접 insert → 거부", !!injectDirect);
 
   console.log("\n[15] 팀 다중 소속 (M:N) + 파트장 검토");
   const { data: teamA } = await teacher.from("teams")
@@ -284,6 +316,16 @@ try {
   const { data: rejoinCards } = await student.from("progress_cards")
     .select("id").eq("student_id", studentId).eq("team_id", teamA.id);
   ok("재합류해도 같은 곡 중복 배정 없음", rejoinCards?.length === 1);
+
+  console.log("\n[17] Rate limit 함수 (Finding 2)");
+  const rlKey = `e2e-test:${ts}`;
+  cleanup.rlKey = rlKey;
+  let allowed = 0, blocked = 0;
+  for (let i = 0; i < 5; i++) {
+    const { data } = await admin.rpc("hit_rate_limit", { p_key: rlKey, p_limit: 3, p_window_seconds: 60 });
+    if (data) allowed++; else blocked++;
+  }
+  ok("한도 3회 후 초과 요청 차단", allowed === 3 && blocked === 2, `허용 ${allowed} 차단 ${blocked}`);
 } catch (e) {
   fail++;
   console.error("💥 예기치 못한 오류:", e);
@@ -300,6 +342,7 @@ try {
   }
   for (const id of cleanup.userIds) await admin.auth.admin.deleteUser(id);
   if (cleanup.academyId) await admin.from("academies").delete().eq("id", cleanup.academyId);
+  if (cleanup.rlKey) await admin.from("auth_rate_limits").delete().eq("key", cleanup.rlKey);
 }
 
 console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);
