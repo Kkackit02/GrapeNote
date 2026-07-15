@@ -173,6 +173,67 @@ export async function assignSongToStudent(input: {
   return finish(false);
 }
 
+/** 현황판/관리 화면에서 카드의 횟수(포도알)·조언(지시사항)을 수정한다. */
+export async function updateCardSettings(input: {
+  cardId: string;
+  totalGrapes: number;
+  description: string;
+}): Promise<ActionResult> {
+  if (!Number.isInteger(input.totalGrapes) || input.totalGrapes < 1 || input.totalGrapes > 60) {
+    return { ok: false, error: "포도알 개수는 1~60개 사이여야 합니다." };
+  }
+
+  const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.app_metadata?.role !== "teacher") {
+    return { ok: false, error: "선생님 계정으로 로그인해 주세요." };
+  }
+
+  const { data: card } = await supabase
+    .from("progress_cards")
+    .select("id, student_id, total_grapes, completed_at")
+    .eq("id", input.cardId)
+    .maybeSingle();
+  if (!card) return { ok: false, error: "카드를 찾을 수 없습니다." };
+
+  // 이미 제출 기록이 있는 포도알보다 작게 줄일 수 없다 (기록 은닉 방지)
+  const { data: subs } = await supabase
+    .from("submissions")
+    .select("*")
+    .eq("card_id", input.cardId);
+  const subList = (subs ?? []) as Submission[];
+  const maxIndex = subList.reduce((max, s) => Math.max(max, s.grape_index), 0);
+  if (input.totalGrapes < maxIndex) {
+    return {
+      ok: false,
+      error: `${maxIndex}번 포도알까지 제출 기록이 있어서 ${maxIndex}개 밑으로 줄일 수 없어요.`,
+    };
+  }
+
+  // 횟수가 바뀌면 완성 상태도 다시 계산 (늘리면 완성 해제, 딱 맞으면 완성)
+  const grapes = deriveGrapes(input.totalGrapes, subList);
+  const nowComplete = isCardComplete(grapes);
+  const { error } = await supabase
+    .from("progress_cards")
+    .update({
+      total_grapes: input.totalGrapes,
+      description: input.description.trim() || null,
+      completed_at: nowComplete
+        ? (card.completed_at ?? new Date().toISOString())
+        : null,
+    })
+    .eq("id", input.cardId);
+  if (error) return { ok: false, error: "수정에 실패했습니다." };
+
+  revalidatePath("/teacher/board");
+  revalidatePath("/teacher/cards");
+  revalidatePath(`/teacher/cards/${input.cardId}`);
+  revalidatePath(`/teacher/students/${card.student_id}`);
+  revalidatePath("/me");
+  revalidatePath(`/me/cards/${input.cardId}`);
+  return { ok: true, data: undefined };
+}
+
 /** 학생이 자기 숙제(진도카드)를 직접 추가. RLS가 본인 카드 insert만 허용한다. */
 export async function createMyCard(input: {
   title: string;

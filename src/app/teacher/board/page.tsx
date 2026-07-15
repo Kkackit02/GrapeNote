@@ -2,12 +2,12 @@ import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes, approvedCount } from "@/lib/grapes";
 import { AssignCell } from "@/components/AssignCell";
+import { BoardCell, type BoardCellData } from "@/components/BoardCell";
 import type { Profile, ProgressCard, Submission, Team } from "@/lib/types";
 
 interface Cell {
-  label: string;
+  data: BoardCellData;
   className: string;
-  href: string;
 }
 
 /** 곡 × 멤버 현황판 — 합주 편성표처럼 한눈에 보는 숙제 진행 상태 */
@@ -39,43 +39,58 @@ export default async function BoardPage() {
     ...studentList.filter((s) => !hasCard.has(s.id)),
   ];
 
-  const cellOf = (title: string, studentId: string): Cell | null => {
-    const card = cardList.find((c) => c.title === title && c.student_id === studentId);
+  const cellOf = (title: string, student: Profile): Cell | null => {
+    const card = cardList.find((c) => c.title === title && c.student_id === student.id);
     if (!card) return null; // 미배정 → AssignCell 렌더
 
     const cardSubs = subList.filter((s) => s.card_id === card.id);
     const grapes = deriveGrapes(card.total_grapes, cardSubs);
     const done = approvedCount(grapes);
     const progress = `${done}/${card.total_grapes}`;
-
-    const pending = cardSubs
+    const pendingList = cardSubs
       .filter((s) => s.status === "pending")
-      .sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
-    if (pending) {
-      return {
-        label: `👀 ${progress}`,
-        className: "bg-lime-100 text-lime-800 font-bold",
-        href: `/teacher/review/${pending.id}`,
-      };
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const retryCount = grapes.filter((g) => g.status === "retry").length;
+
+    let label: string;
+    let className: string;
+    let href: string;
+    if (pendingList.length > 0) {
+      label = `👀 ${progress}`;
+      className = "bg-lime-100 text-lime-800 font-bold";
+      href = `/teacher/review/${pendingList[0].id}`;
+    } else if (card.completed_at || done === card.total_grapes) {
+      label = `🍇 ${progress}`;
+      className = "bg-violet-100 text-violet-800 font-bold";
+      href = `/teacher/cards/${card.id}`;
+    } else if (retryCount > 0) {
+      label = `↺ ${progress}`;
+      className = "bg-orange-100 text-orange-700 font-bold";
+      href = `/teacher/cards/${card.id}`;
+    } else {
+      label = progress;
+      className = done > 0 ? "text-gray-600 font-medium" : "text-gray-400";
+      href = `/teacher/cards/${card.id}`;
     }
-    if (card.completed_at || done === card.total_grapes) {
-      return {
-        label: `🍇 ${progress}`,
-        className: "bg-violet-100 text-violet-800 font-bold",
-        href: `/teacher/cards/${card.id}`,
-      };
-    }
-    if (grapes.some((g) => g.status === "retry")) {
-      return {
-        label: `↺ ${progress}`,
-        className: "bg-orange-100 text-orange-700 font-bold",
-        href: `/teacher/cards/${card.id}`,
-      };
-    }
+
     return {
-      label: progress,
-      className: done > 0 ? "text-gray-600 font-medium" : "text-gray-400",
-      href: `/teacher/cards/${card.id}`,
+      className,
+      data: {
+        label,
+        className,
+        href,
+        studentName: student.display_name,
+        card: {
+          id: card.id,
+          title: card.title,
+          description: card.description,
+          totalGrapes: card.total_grapes,
+          dueDate: card.due_date,
+        },
+        done,
+        pendingCount: pendingList.length,
+        retryCount,
+      },
     };
   };
 
@@ -128,7 +143,7 @@ export default async function BoardPage() {
                       )}
                     </th>
                     {columns.map((s) => {
-                      const cell = cellOf(title, s.id);
+                      const cell = cellOf(title, s);
                       return (
                         <td
                           key={s.id}
@@ -136,12 +151,8 @@ export default async function BoardPage() {
                         >
                           {!cell ? (
                             <AssignCell title={title} studentId={s.id} studentName={s.display_name} />
-                          ) : cell.href ? (
-                            <Link href={cell.href} className="block px-2 py-2">
-                              {cell.label}
-                            </Link>
                           ) : (
-                            <span className="block px-2 py-2">{cell.label}</span>
+                            <BoardCell data={cell.data} />
                           )}
                         </td>
                       );
