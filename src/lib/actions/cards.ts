@@ -37,6 +37,8 @@ export async function createCard(input: {
   description: string;
   totalGrapes: number;
   dueDate?: string | null;
+  /** 팀 숙제로 배정 — 이후 이 팀에 새 멤버가 들어오면 자동으로 같은 카드를 받는다 */
+  teamId?: string | null;
 }): Promise<ActionResult<{ count: number }>> {
   const valid = validateCardInput(input);
   if (!valid.ok) return valid;
@@ -62,9 +64,22 @@ export async function createCard(input: {
     return { ok: false, error: "우리 학원 학생이 아닌 대상이 포함되어 있습니다." };
   }
 
+  // 팀 숙제라면 우리 학원 팀인지 검증
+  let teamId: string | null = null;
+  if (input.teamId) {
+    const { data: team } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("id", input.teamId)
+      .maybeSingle();
+    if (!team) return { ok: false, error: "팀을 찾을 수 없습니다." };
+    teamId = team.id;
+  }
+
   const rows = studentIds.map((studentId) => ({
     academy_id: academyId,
     student_id: studentId,
+    team_id: teamId,
     title: valid.title,
     description: input.description.trim() || null,
     total_grapes: input.totalGrapes,

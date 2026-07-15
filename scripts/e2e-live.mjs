@@ -259,6 +259,31 @@ try {
   const { data: afterRemove } = await student.from("team_members")
     .select("team_id").eq("profile_id", studentId);
   ok("팀A에서 빼도 팀B 소속 유지", afterRemove?.length === 1 && afterRemove[0].team_id === teamB.id);
+
+  console.log("\n[16] 팀 숙제: 새 팀원 자동 배정 (트리거)");
+  // 팀A에 팀 숙제 배정 (현재 팀A는 비어 있음 → 학생2에게 직접 + team_id 링크)
+  const { error: teamCardErr } = await teacher.from("progress_cards").insert({
+    academy_id: academy.id, student_id: stu2.user.id, team_id: teamA.id,
+    title: "혁오 - Tomboy", total_grapes: 5, created_by: teacherId,
+  });
+  await teacher.from("team_members").insert(
+    { team_id: teamA.id, profile_id: stu2.user.id, academy_id: academy.id });
+  ok("팀 숙제 배정 (team_id 링크)", !teamCardErr, teamCardErr?.message);
+  // 학생1이 팀A에 늦게 합류 → 트리거가 같은 숙제를 자동 생성해야 한다
+  const { error: joinErr } = await teacher.from("team_members").insert(
+    { team_id: teamA.id, profile_id: studentId, academy_id: academy.id });
+  ok("새 팀원 합류", !joinErr, joinErr?.message);
+  const { data: autoCards } = await student.from("progress_cards")
+    .select("id, title, team_id").eq("student_id", studentId).eq("team_id", teamA.id);
+  ok("늦게 합류한 팀원에게 팀 숙제 자동 배정", autoCards?.length === 1 && autoCards[0].title === "혁오 - Tomboy");
+  // 같은 팀에 다시 넣었다 빼도 중복 배정되지 않는지 (재합류)
+  await teacher.from("team_members").delete()
+    .eq("team_id", teamA.id).eq("profile_id", studentId);
+  await teacher.from("team_members").insert(
+    { team_id: teamA.id, profile_id: studentId, academy_id: academy.id });
+  const { data: rejoinCards } = await student.from("progress_cards")
+    .select("id").eq("student_id", studentId).eq("team_id", teamA.id);
+  ok("재합류해도 같은 곡 중복 배정 없음", rejoinCards?.length === 1);
 } catch (e) {
   fail++;
   console.error("💥 예기치 못한 오류:", e);

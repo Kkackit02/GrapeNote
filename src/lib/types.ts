@@ -50,6 +50,8 @@ export interface ProgressCard {
   id: string;
   academy_id: string;
   student_id: string;
+  /** 팀 숙제로 배정된 경우 그 팀. 새 팀원 합류 시 자동 배정의 기준이 된다. */
+  team_id: string | null;
   title: string;
   description: string | null;
   total_grapes: number;

@@ -6,14 +6,27 @@ import { createCard } from "@/lib/actions/cards";
 import { SongTitleField } from "./SongTitleField";
 import type { Profile } from "@/lib/types";
 
-interface Props {
-  students: Profile[];
+export interface TeamOption {
+  id: string;
+  name: string;
+  memberIds: string[];
 }
 
-/** 공통 카드 배정: 학생 선택(전체/개별) + 곡 정보 */
-export function BulkCardForm({ students }: Props) {
+interface Props {
+  students: Profile[];
+  teams?: TeamOption[];
+  /** 팀 페이지에서 넘어온 경우 최초 선택할 팀 */
+  initialTeamId?: string | null;
+}
+
+/** 공통 카드 배정: 팀/전체/개별 선택 + 곡 정보. 팀으로 배정하면 팀 숙제가 되어 새 팀원에게도 자동 배정된다. */
+export function BulkCardForm({ students, teams = [], initialTeamId = null }: Props) {
   const router = useRouter();
-  const [selected, setSelected] = useState<Set<string>>(new Set(students.map((s) => s.id)));
+  const initialTeam = teams.find((t) => t.id === initialTeamId) ?? null;
+  const [selected, setSelected] = useState<Set<string>>(
+    new Set(initialTeam ? initialTeam.memberIds : students.map((s) => s.id))
+  );
+  const [activeTeamId, setActiveTeamId] = useState<string | null>(initialTeam?.id ?? null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [totalGrapes, setTotalGrapes] = useState(10);
@@ -28,6 +41,12 @@ export function BulkCardForm({ students }: Props) {
     if (next.has(id)) next.delete(id);
     else next.add(id);
     setSelected(next);
+    setActiveTeamId(null); // 수동으로 바꾸면 개인 배정 (팀 연결 해제)
+  };
+
+  const selectTeam = (team: TeamOption) => {
+    setSelected(new Set(team.memberIds));
+    setActiveTeamId(team.id);
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -40,6 +59,7 @@ export function BulkCardForm({ students }: Props) {
       description,
       totalGrapes,
       dueDate: dueDate || null,
+      teamId: activeTeamId,
     });
     setSubmitting(false);
     if (!result.ok) {
@@ -59,12 +79,40 @@ export function BulkCardForm({ students }: Props) {
           </h2>
           <button
             type="button"
-            onClick={() => setSelected(allSelected ? new Set() : new Set(students.map((s) => s.id)))}
+            onClick={() => {
+              setSelected(allSelected ? new Set() : new Set(students.map((s) => s.id)));
+              setActiveTeamId(null);
+            }}
             className="text-sm font-bold text-violet-600"
           >
             {allSelected ? "전체 해제" : "전체 선택"}
           </button>
         </div>
+
+        {teams.length > 0 && (
+          <div className="mt-3 flex gap-1.5 flex-wrap items-center">
+            <span className="text-xs font-bold text-gray-400">팀 숙제로 배정:</span>
+            {teams.map((team) => (
+              <button
+                key={team.id}
+                type="button"
+                onClick={() => selectTeam(team)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold ${
+                  activeTeamId === team.id
+                    ? "bg-violet-600 text-white"
+                    : "bg-violet-50 text-violet-700 active:bg-violet-200"
+                }`}
+              >
+                👥 {team.name} ({team.memberIds.length})
+              </button>
+            ))}
+          </div>
+        )}
+        {activeTeamId && (
+          <p className="mt-2 text-xs text-violet-600 font-medium">
+            팀 숙제예요 — 나중에 이 팀에 들어오는 새 팀원에게도 자동으로 배정돼요!
+          </p>
+        )}
         <ul className="mt-3 grid grid-cols-2 gap-2">
           {students.map((student) => {
             const on = selected.has(student.id);

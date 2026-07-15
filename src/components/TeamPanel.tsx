@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   createTeam,
@@ -173,6 +174,15 @@ export function TeamPanel({ teams, students, memberships }: Props) {
                   );
                 })}
               </select>
+            )}
+
+            {members.length > 0 && (
+              <Link
+                href={`/teacher/cards/new?team=${team.id}`}
+                className="text-sm font-bold text-violet-600 self-start"
+              >
+                🍇 이 팀에게 숙제 배정하기 →
+              </Link>
             )}
           </section>
         );
