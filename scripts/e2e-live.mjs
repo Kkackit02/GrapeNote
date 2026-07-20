@@ -326,6 +326,26 @@ try {
     if (data) allowed++; else blocked++;
   }
   ok("한도 3회 후 초과 요청 차단", allowed === 3 && blocked === 2, `허용 ${allowed} 차단 ${blocked}`);
+
+  console.log("\n[18] 동기부여 RPC: 그룹 피드 + 주간 통계 (0015)");
+  // 포도송이 완성 이벤트를 만들기 위해 학생2의 팀 숙제 카드를 완성 처리
+  await teacher.from("progress_cards")
+    .update({ completed_at: new Date().toISOString() })
+    .eq("academy_id", academy.id).eq("student_id", stu2.user.id).eq("title", "혁오 - Tomboy");
+  const { data: feed, error: feedErr } = await student
+    .rpc("get_group_feed", { p_days: 7, p_limit: 30 });
+  ok("학생이 그룹 피드 조회", !feedErr && Array.isArray(feed), feedErr?.message);
+  ok("피드에 합격 이벤트 포함", (feed ?? []).some((e) => e.event_type === "grape_approved"));
+  ok("피드에 포도송이 완성 이벤트 포함", (feed ?? []).some((e) => e.event_type === "card_completed"));
+  ok("피드에 영상 경로/코멘트 미노출",
+    (feed ?? []).every((e) => !("video_path" in e) && !("teacher_comment" in e)));
+  const { data: weekly, error: weeklyErr } = await student.rpc("get_weekly_stats");
+  ok("학생이 주간 통계 조회", !weeklyErr && Array.isArray(weekly), weeklyErr?.message);
+  const myWeekly = (weekly ?? []).find((r) => r.student_id === studentId);
+  ok("내 이번 주 제출 수 집계", !!myWeekly && myWeekly.submitted_week >= 1,
+    JSON.stringify(myWeekly ?? null));
+  const { error: anonFeedErr } = await newAnon().rpc("get_group_feed", {});
+  ok("비로그인 피드 접근 → 거부", !!anonFeedErr);
 } catch (e) {
   fail++;
   console.error("💥 예기치 못한 오류:", e);

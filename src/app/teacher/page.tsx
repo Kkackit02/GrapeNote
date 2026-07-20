@@ -55,13 +55,20 @@ export default async function TeacherDashboard() {
 
       <JoinCodeCard code={academy?.join_code ?? null} />
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <Link
           href="/teacher/board"
           className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
         >
           📊 현황판
           <p className="mt-0.5 text-xs font-medium text-gray-400">곡×멤버 진행 한눈에</p>
+        </Link>
+        <Link
+          href="/teacher/stats"
+          className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
+        >
+          📈 주간 통계
+          <p className="mt-0.5 text-xs font-medium text-gray-400">이번 주 누가 열심히?</p>
         </Link>
         <Link
           href="/teacher/cards"

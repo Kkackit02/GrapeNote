@@ -2,18 +2,23 @@ import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes, approvedCount } from "@/lib/grapes";
 import { dueBadge } from "@/lib/due";
+import { calcStreak, practicedToday } from "@/lib/streaks";
+import { getGroupFeed, getWeeklyStats } from "@/lib/activity";
 import { AddMyCardForm } from "@/components/AddMyCardForm";
+import { GroupFeed } from "@/components/GroupFeed";
 import type { ProgressCard, Profile, Submission, Team } from "@/lib/types";
 
 export default async function MyCardsPage() {
   const supabase = await createSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const [{ data: profileRow }, { data: cards }, { data: subs }, { data: leadingTeams }] = await Promise.all([
+  const [{ data: profileRow }, { data: cards }, { data: subs }, { data: leadingTeams }, feed, weeklyStats] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user!.id).single(),
     supabase.from("progress_cards").select("*").order("created_at", { ascending: false }),
     supabase.from("submissions").select("*"),
     supabase.from("teams").select("*").eq("leader_id", user!.id),
+    getGroupFeed(),
+    getWeeklyStats(),
   ]);
 
   const profile = profileRow as Profile;
@@ -32,11 +37,28 @@ export default async function MyCardsPage() {
     ? subList.filter((s) => s.status === "pending" && s.student_id !== user!.id).length
     : 0;
 
+  // 스트릭 (내 제출 기준, KST) + 이번 주 연습왕
+  const myDates = subList
+    .filter((s) => s.student_id === user!.id)
+    .map((s) => s.created_at);
+  const streak = calcStreak(myDates);
+  const doneToday = practicedToday(myDates);
+  const champion =
+    weeklyStats.length > 0 && weeklyStats[0].submitted_week > 0 ? weeklyStats[0] : null;
+
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-extrabold text-violet-900">
         {profile.display_name} 님, 안녕하세요! 👋
       </h1>
+
+      {streak > 0 && (
+        <div className="rounded-2xl bg-orange-50 border border-orange-200 px-4 py-3 text-sm font-bold text-orange-800">
+          {doneToday
+            ? `🔥 ${streak}일 연속 연습 중! 오늘도 해냈어요`
+            : `🔥 ${streak}일 연속! 오늘 올리면 ${streak + 1}일이 돼요`}
+        </div>
+      )}
 
       {isLeader && (
         <Link
@@ -143,6 +165,8 @@ export default async function MyCardsPage() {
           })}
         </ul>
       )}
+
+      <GroupFeed events={feed.slice(0, 10)} champion={champion} myId={user!.id} />
 
       <AddMyCardForm />
     </div>
