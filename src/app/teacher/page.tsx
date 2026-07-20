@@ -65,6 +65,13 @@ export default async function TeacherDashboard() {
           <p className="mt-0.5 text-xs font-medium text-gray-400">곡×멤버 진행 한눈에</p>
         </Link>
         <Link
+          href="/teacher/songs"
+          className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
+        >
+          🎵 곡 관리
+          <p className="mt-0.5 text-xs font-medium text-gray-400">편성·미션·기한 수정</p>
+        </Link>
+        <Link
           href="/teacher/stats"
           className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
         >

@@ -24,7 +24,12 @@ export function GroupFeed({ events, champion, myId }: Props) {
       )}
 
       {events.length > 0 && (
-        <ul className="rounded-2xl bg-white border border-violet-100 divide-y divide-violet-50">
+        <details className="rounded-2xl bg-white border border-violet-100 overflow-hidden" open={events.length <= 4}>
+          <summary className="px-4 py-2.5 text-sm font-bold text-violet-700 cursor-pointer select-none list-none flex items-center justify-between">
+            최근 소식 {events.length}개
+            <span className="text-xs text-gray-400">펼치기/접기</span>
+          </summary>
+          <ul className="divide-y divide-violet-50 border-t border-violet-50">
           {events.map((ev, index) => (
             <li
               key={`${ev.event_type}-${ev.happened_at}-${index}`}
@@ -44,7 +49,8 @@ export function GroupFeed({ events, champion, myId }: Props) {
               <span className="shrink-0 text-xs text-gray-400">{formatAgo(ev.happened_at)}</span>
             </li>
           ))}
-        </ul>
+          </ul>
+        </details>
       )}
     </section>
   );

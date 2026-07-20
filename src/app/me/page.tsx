@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes, approvedCount } from "@/lib/grapes";
-import { dueBadge } from "@/lib/due";
+import { dueBadge, daysLeft } from "@/lib/due";
 import { calcStreak, practicedToday } from "@/lib/streaks";
 import { getGroupFeed, getWeeklyStats } from "@/lib/activity";
 import { AddMyCardForm } from "@/components/AddMyCardForm";
@@ -46,19 +46,31 @@ export default async function MyCardsPage() {
   const champion =
     weeklyStats.length > 0 && weeklyStats[0].submitted_week > 0 ? weeklyStats[0] : null;
 
+  // 카드 우선순위: ↺재연습 → 마감 임박(3일) → 👀검토 중 → 나머지 (기한 빠른 순)
+  const cardsWithMeta = cardList.map((card) => {
+    const grapes = deriveGrapes(
+      card.total_grapes,
+      subList.filter((s) => s.card_id === card.id)
+    );
+    const done = approvedCount(grapes);
+    const waiting = grapes.some((g) => g.status === "pending");
+    const retry = grapes.some((g) => g.status === "retry");
+    const left = card.due_date ? daysLeft(card.due_date) : null;
+    const priority = retry ? 0 : left !== null && left <= 3 ? 1 : waiting ? 2 : 3;
+    return { card, grapes, done, waiting, retry, priority };
+  });
+  cardsWithMeta.sort(
+    (a, b) =>
+      a.priority - b.priority ||
+      (a.card.due_date ?? "9999").localeCompare(b.card.due_date ?? "9999") ||
+      a.card.title.localeCompare(b.card.title, "ko")
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-extrabold text-violet-900">
         {profile.display_name} 님, 안녕하세요! 👋
       </h1>
-
-      {streak > 0 && (
-        <div className="rounded-2xl bg-orange-50 border border-orange-200 px-4 py-3 text-sm font-bold text-orange-800">
-          {doneToday
-            ? `🔥 ${streak}일 연속 연습 중! 오늘도 해냈어요`
-            : `🔥 ${streak}일 연속! 오늘 올리면 ${streak + 1}일이 돼요`}
-        </div>
-      )}
 
       {isLeader && (
         <Link
@@ -77,13 +89,30 @@ export default async function MyCardsPage() {
 
       <Link
         href="/me/vineyard"
-        className="rounded-2xl bg-gradient-to-r from-violet-500 to-purple-600 text-white p-4 flex items-center justify-between active:opacity-90"
+        className="rounded-2xl bg-gradient-to-r from-violet-500 to-purple-600 text-white p-4 active:opacity-90"
       >
-        <div>
-          <p className="font-extrabold">🍇 지금까지 포도알 {totalApproved}개!</p>
-          <p className="text-sm text-violet-100 mt-0.5">완성한 포도송이 {completedCount}개</p>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-5">
+            <span>
+              <span className="block text-lg font-extrabold leading-tight">🍇 {totalApproved}</span>
+              <span className="text-[11px] text-violet-200 font-medium">포도알</span>
+            </span>
+            <span>
+              <span className="block text-lg font-extrabold leading-tight">🏆 {completedCount}</span>
+              <span className="text-[11px] text-violet-200 font-medium">포도송이</span>
+            </span>
+            <span>
+              <span className="block text-lg font-extrabold leading-tight">🔥 {streak}</span>
+              <span className="text-[11px] text-violet-200 font-medium">연속일</span>
+            </span>
+          </div>
+          <span className="shrink-0 font-bold text-sm">내 포도밭 →</span>
         </div>
-        <span className="font-bold text-sm">내 포도밭 →</span>
+        {streak > 0 && !doneToday && (
+          <p className="mt-2 text-xs font-bold text-amber-200">
+            오늘 올리면 🔥 {streak + 1}일 연속이 돼요!
+          </p>
+        )}
       </Link>
 
       {cardList.length === 0 ? (
@@ -103,62 +132,57 @@ export default async function MyCardsPage() {
           )}
         </div>
       ) : (
-        <ul className="grid gap-3">
-          {cardList.map((card) => {
-            const grapes = deriveGrapes(
-              card.total_grapes,
-              subList.filter((s) => s.card_id === card.id)
-            );
-            const done = approvedCount(grapes);
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {cardsWithMeta.map(({ card, done, waiting, retry }) => {
             const percent = Math.round((done / card.total_grapes) * 100);
-            const waiting = grapes.some((g) => g.status === "pending");
-            const retry = grapes.some((g) => g.status === "retry");
             const due = dueBadge(card.due_date);
             return (
               <li key={card.id}>
                 <Link
                   href={`/me/cards/${card.id}`}
-                  className="block rounded-2xl bg-white border-2 border-violet-100 p-4 active:bg-violet-50"
+                  className="block h-full rounded-2xl bg-white border-2 border-violet-100 p-3 active:bg-violet-50"
                 >
-                  <div className="flex items-center justify-between">
-                    <p className="font-extrabold text-gray-800 text-lg">
+                  <div className="flex items-start justify-between gap-1.5">
+                    <p className="font-extrabold text-gray-800 truncate">
                       {card.completed_at ? "🏆 " : "🎵 "}
                       {card.title}
                     </p>
                     {retry && (
-                      <span className="text-xs font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded-full">
-                        ↺ 다시 도전!
+                      <span className="shrink-0 text-[11px] font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
+                        ↺ 다시!
                       </span>
                     )}
                     {!retry && waiting && (
-                      <span className="text-xs font-bold text-lime-700 bg-lime-100 px-2 py-1 rounded-full">
+                      <span className="shrink-0 text-[11px] font-bold text-lime-700 bg-lime-100 px-2 py-0.5 rounded-full">
                         👀 검토 중
                       </span>
                     )}
                   </div>
                   {(due || card.created_by === card.student_id) && (
-                    <div className="mt-1 flex flex-wrap gap-1.5">
+                    <div className="mt-1 flex flex-wrap gap-1">
                       {card.created_by === card.student_id && (
-                        <span className="text-xs font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full">
+                        <span className="text-[11px] font-bold text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded-full">
                           🙋 내가 고른 곡
                         </span>
                       )}
                       {due && (
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${due.className}`}>
+                        <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${due.className}`}>
                           {due.text}
                         </span>
                       )}
                     </div>
                   )}
-                  <div className="mt-3 h-3 rounded-full bg-violet-100 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-violet-400 to-purple-600 transition-all"
-                      style={{ width: `${percent}%` }}
-                    />
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex-1 h-2 rounded-full bg-violet-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-violet-400 to-purple-600 transition-all"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                    <p className="shrink-0 text-xs font-bold text-violet-600">
+                      {done}/{card.total_grapes}
+                    </p>
                   </div>
-                  <p className="mt-1.5 text-sm font-bold text-violet-600">
-                    🍇 {done} / {card.total_grapes}알
-                  </p>
                 </Link>
               </li>
             );

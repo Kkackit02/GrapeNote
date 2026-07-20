@@ -2,9 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { createCard } from "@/lib/actions/cards";
+import { deriveGrapes, isCardComplete } from "@/lib/grapes";
+import { DATE_RE } from "@/lib/due";
 import { instrumentEmoji, parseInstruments } from "@/lib/instruments";
-import type { ActionResult, Profile, ProgressCard, Team } from "@/lib/types";
+import type { ActionResult, Profile, ProgressCard, Submission, Team } from "@/lib/types";
 
 /** 선생님 권한 확인. 정상이면 { ok, academyId }, 아니면 에러 메시지. */
 async function verifyTeacher(): Promise<
@@ -195,6 +198,131 @@ export async function updateSongLineup(input: {
   revalidatePath("/teacher/teams");
   revalidatePath("/teacher");
   return { ok: true, data: { added, removed, kept } };
+}
+
+/**
+ * 곡 설정 일괄 수정: 이 곡의 모든 멤버 카드에 미션·기한·포도알 수를 적용한다.
+ * 제출 기록보다 작게 줄일 수 없는 카드는 포도알 수만 건너뛴다 (미션·기한은 적용).
+ */
+export async function updateSong(input: {
+  title: string;
+  mission: string;
+  dueDate?: string | null;
+  totalGrapes: number;
+}): Promise<ActionResult<{ updated: number; grapesSkipped: number }>> {
+  if (!Number.isInteger(input.totalGrapes) || input.totalGrapes < 1 || input.totalGrapes > 60) {
+    return { ok: false, error: "포도알 개수는 1~60개 사이여야 합니다." };
+  }
+  const dueDate = input.dueDate?.trim() || null;
+  if (dueDate && !DATE_RE.test(dueDate)) {
+    return { ok: false, error: "기한 날짜 형식이 올바르지 않습니다." };
+  }
+
+  const auth = await verifyTeacher();
+  if (!auth.ok) return auth;
+  const supabase = await createSupabaseServer();
+  const title = input.title.trim();
+
+  const { data: cardRows } = await supabase
+    .from("progress_cards")
+    .select("*")
+    .eq("title", title);
+  const cards = (cardRows ?? []) as ProgressCard[];
+  if (cards.length === 0) return { ok: false, error: "곡을 찾을 수 없습니다." };
+
+  const { data: subRows } = await supabase
+    .from("submissions")
+    .select("*")
+    .in("card_id", cards.map((c) => c.id));
+  const subs = (subRows ?? []) as Submission[];
+
+  let updated = 0;
+  let grapesSkipped = 0;
+  for (const card of cards) {
+    const cardSubs = subs.filter((s) => s.card_id === card.id);
+    const maxUsed = Math.max(
+      0,
+      ...cardSubs
+        .filter((s) => s.status === "approved" || s.status === "pending")
+        .map((s) => s.grape_index)
+    );
+    const nextGrapes = input.totalGrapes >= maxUsed ? input.totalGrapes : card.total_grapes;
+    if (nextGrapes !== input.totalGrapes) grapesSkipped++;
+
+    const grapes = deriveGrapes(nextGrapes, cardSubs);
+    const completedAt = isCardComplete(grapes)
+      ? card.completed_at ?? new Date().toISOString()
+      : null;
+
+    const { error } = await supabase
+      .from("progress_cards")
+      .update({
+        description: input.mission.trim() || null,
+        due_date: dueDate,
+        total_grapes: nextGrapes,
+        completed_at: completedAt,
+      })
+      .eq("id", card.id);
+    if (!error) updated++;
+  }
+
+  revalidatePath("/teacher/songs");
+  revalidatePath("/teacher/board");
+  revalidatePath("/teacher/cards");
+  revalidatePath("/me");
+  return { ok: true, data: { updated, grapesSkipped } };
+}
+
+/** 곡 삭제: 모든 멤버 카드(+영상)·곡 팀·MR까지 전부 정리한다. 되돌릴 수 없다. */
+export async function deleteSong(title: string): Promise<ActionResult> {
+  const auth = await verifyTeacher();
+  if (!auth.ok) return auth;
+  const supabase = await createSupabaseServer();
+
+  const { data: cardRows } = await supabase
+    .from("progress_cards")
+    .select("id, team_id")
+    .eq("title", title.trim());
+  const cards = cardRows ?? [];
+  if (cards.length === 0) return { ok: false, error: "곡을 찾을 수 없습니다." };
+
+  const admin = createSupabaseAdmin();
+
+  // 영상 파일 정리 (submissions 행은 카드 삭제 시 cascade)
+  const { data: subPaths } = await admin
+    .from("submissions")
+    .select("video_path")
+    .in("card_id", cards.map((c) => c.id))
+    .is("video_deleted_at", null);
+  const videoPaths = (subPaths ?? []).map((s) => s.video_path).filter(Boolean);
+  if (videoPaths.length > 0) await admin.storage.from("videos").remove(videoPaths);
+
+  const { error: cardError } = await supabase
+    .from("progress_cards")
+    .delete()
+    .in("id", cards.map((c) => c.id));
+  if (cardError) return { ok: false, error: "곡 삭제에 실패했습니다." };
+
+  // 곡 팀 정리 (team_members는 cascade)
+  const teamIds = [...new Set(cards.map((c) => c.team_id).filter(Boolean))] as string[];
+  if (teamIds.length > 0) await supabase.from("teams").delete().in("id", teamIds);
+
+  // MR 정리 (파일 + 행)
+  const { data: tracks } = await supabase
+    .from("song_tracks")
+    .select("id, file_path")
+    .eq("song_title", title.trim());
+  if ((tracks ?? []).length > 0) {
+    await admin.storage.from("tracks").remove((tracks ?? []).map((t) => t.file_path));
+    await supabase.from("song_tracks").delete().eq("song_title", title.trim());
+  }
+
+  revalidatePath("/teacher/songs");
+  revalidatePath("/teacher/board");
+  revalidatePath("/teacher/cards");
+  revalidatePath("/teacher/teams");
+  revalidatePath("/me");
+  return { ok: true, data: undefined };
 }
 
 /**
