@@ -218,12 +218,17 @@ export async function getPlaybackUrl(
   // RLS: 학생은 자기 것, 선생님은 같은 학원 것만 조회된다
   const { data: submission } = await supabase
     .from("submissions")
-    .select("video_path, video_deleted_at")
+    .select("video_path, video_deleted_at, drive_file_id")
     .eq("id", submissionId)
     .maybeSingle();
   if (!submission) return { ok: false, error: "영상을 찾을 수 없어요." };
   if (submission.video_deleted_at) {
-    return { ok: false, error: "오래된 영상이라 저장 공간을 위해 정리됐어요. (판정 기록은 남아 있어요)" };
+    return {
+      ok: false,
+      error: submission.drive_file_id
+        ? "저장 공간을 위해 정리된 영상이에요. 리더의 구글 드라이브 'GrapeNote 아카이브'에 보관되어 있어요."
+        : "오래된 영상이라 저장 공간을 위해 정리됐어요. (판정 기록은 남아 있어요)",
+    };
   }
 
   const admin = createSupabaseAdmin();

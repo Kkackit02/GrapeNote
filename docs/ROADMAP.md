@@ -56,7 +56,7 @@
 - 📋 **웹푸시 알림**: 새 제출 → 검토자, 판정/완성 → 멤버. (구독 테이블 + Web Push — 마지막 남은 큰 조각)
 - ✅ **그룹 프리미엄 토글** (0018, 결제 없이 is_premium 수동): 무료 500MB/7일/50MB/480p ↔ 프리미엄 5GB/30일/200MB/720p (lib/limits.ts groupLimits). is_premium은 컬럼 권한(grant 목록 제외)으로 API 수정 차단 — 운영자(service role)만 변경. videos 버킷 상한 200MB 상향, cleanup cron 2단계 보존.
 - 📋 프리미엄 잔여: **녹화 중 MR/반주 재생**, 영상 아카이브 다운로드, 고급 통계. 가격 월 4,900~9,900원 구간 추후 확정, 결제 수단 미정(토스페이먼츠 유력).
-- 💬 **구글 드라이브 아카이브** (2026-07-20 사용자 아이디어): 정리 삭제 전에 판정 영상을 그룹장의 Drive로 백업 → 1일 보존의 아쉬움을 무료로 해소. 실시간 스토리지 대체는 비추(재생 프록시 문제·비공개 보안 약화·OAuth 공수) — 아카이브 용도로만 검토.
+- ✅ **구글 드라이브 아카이브** (0019, 2026-07-20 구현): 그룹장이 대시보드에서 구글 연결(OAuth, drive.file 스코프) → 정리 크론이 삭제 직전에 'GrapeNote 아카이브' 폴더로 백업(`날짜_곡명_멤버_포도알N` 파일명). 백업 실패 시 삭제하지 않음(다음 실행 재시도, 유실 없음). refresh token은 정책 없는 drive_connections 테이블(service role 전용). 활성화 조건: GOOGLE_CLIENT_ID/SECRET 환경변수 (Google Cloud OAuth 클라이언트, 리디렉션 URI https://grapenote.vercel.app/api/google/callback).
 
 ### 저장 정책 확정 (2026-07-20, Supabase 무료 티어 1GB 대응)
 

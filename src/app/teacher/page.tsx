@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { instrumentBadge } from "@/lib/instruments";
+import { isDriveConfigured } from "@/lib/google-drive";
 import { getTerms } from "@/lib/terms-server";
 import { groupLimits, formatBytes } from "@/lib/limits";
 import { JoinCodeCard } from "@/components/JoinCodeCard";
 import { BoardShareToggle } from "@/components/BoardShareToggle";
+import { DriveArchiveCard } from "@/components/DriveArchiveCard";
 import type { Academy, Profile, StudentInvite, Team, TeamMember } from "@/lib/types";
 
 export default async function TeacherDashboard() {
@@ -41,6 +44,17 @@ export default async function TeacherDashboard() {
   const inviteList = (invites ?? []) as StudentInvite[];
   const academy = academyRow as Academy | null;
   const limits = groupLimits(academy?.is_premium);
+
+  // 드라이브 연결 여부 — 토큰 테이블은 service role 전용이라 여기서만 확인 (boolean만 노출)
+  let driveConnected = false;
+  if (academy) {
+    const { data: conn } = await createSupabaseAdmin()
+      .from("drive_connections")
+      .select("academy_id")
+      .eq("academy_id", academy.id)
+      .maybeSingle();
+    driveConnected = !!conn;
+  }
   const storagePercent = Math.min(
     100,
     Math.round((storageUsed / limits.storageBytes) * 100)
@@ -134,6 +148,8 @@ export default async function TeacherDashboard() {
       </div>
 
       <BoardShareToggle enabled={!!academy?.show_board} />
+
+      <DriveArchiveCard connected={driveConnected} configured={isDriveConfigured()} />
 
       <section>
         <div className="flex items-center justify-between">

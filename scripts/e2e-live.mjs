@@ -413,6 +413,15 @@ try {
   const { error: premiumErr } = await teacher.from("academies")
     .update({ is_premium: true }).eq("id", academy.id);
   ok("선생님이 is_premium 수정 → 거부", !!premiumErr);
+
+  console.log("\n[21] 드라이브 토큰 보호 (0019)");
+  // drive_connections는 정책 없는 RLS — API로는 아무도 못 읽어야 한다
+  const { data: connLeak, error: connError } = await teacher.from("drive_connections").select("*");
+  ok("선생님도 드라이브 토큰 조회 불가", !!connError || (connLeak ?? []).length === 0);
+  const { error: connInsertErr } = await student.from("drive_connections").insert({
+    academy_id: academy.id, refresh_token: "x", folder_id: "y", connected_by: studentId,
+  });
+  ok("드라이브 연결 직접 insert → 거부", !!connInsertErr);
 } catch (e) {
   fail++;
   console.error("💥 예기치 못한 오류:", e);
