@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { getTerms } from "@/lib/terms-server";
 import { VideosTable, type VideoRow } from "@/components/VideosTable";
 import type { Profile, ProgressCard, Submission } from "@/lib/types";
 
@@ -10,6 +11,7 @@ export const maxDuration = 60;
 /** 영상 관리: 전체 제출 영상을 엑셀 표처럼 보고 일괄 다운로드·백업·정리한다 */
 export default async function VideosPage() {
   const supabase = await createSupabaseServer();
+  const terms = await getTerms();
   const [{ data: subs }, { data: cards }, { data: students }] = await Promise.all([
     supabase
       .from("submissions")
@@ -57,7 +59,7 @@ export default async function VideosPage() {
       {/* 데스크톱에서 넓게: 부모 max-width를 벗어나 화면 전체 폭 사용 (full-bleed) */}
       <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen px-4">
         <div className="mx-auto max-w-5xl">
-          <VideosTable rows={rows} driveConnected={!!conn} />
+          <VideosTable rows={rows} driveConnected={!!conn} memberLabel={terms.member} />
         </div>
       </div>
     </div>

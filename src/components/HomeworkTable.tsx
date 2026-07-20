@@ -95,10 +95,19 @@ export function HomeworkTable({ rows, memberLabel }: Props) {
     });
 
   const remove = async (row: HomeworkRow) => {
-    if (
-      !window.confirm(
-        `${row.studentName} 님의 「${row.title}」 숙제를 삭제할까요?\n제출된 영상 이력도 함께 사라지고 되돌릴 수 없어요.`
-      )
+    // 제출 기록이 있으면 영상까지 사라지므로 곡명 입력을 요구한다 (오클릭 방지)
+    const videos = row.done + row.pending + row.retry;
+    if (videos > 0) {
+      const typed = window.prompt(
+        `${row.studentName} 님의 「${row.title}」 숙제를 삭제하면\n제출된 영상 ${videos}개와 판정 기록이 전부 사라져요. 되돌릴 수 없어요!\n\n정말 삭제하려면 곡 이름을 그대로 입력해 주세요:`
+      );
+      if (typed === null) return;
+      if (typed.trim() !== row.title) {
+        setError("곡 이름이 일치하지 않아 삭제하지 않았어요.");
+        return;
+      }
+    } else if (
+      !window.confirm(`${row.studentName} 님의 「${row.title}」 숙제를 삭제할까요?`)
     ) {
       return;
     }
@@ -269,7 +278,7 @@ export function HomeworkTable({ rows, memberLabel }: Props) {
                       type="button"
                       disabled={busyId === row.id}
                       onClick={() => remove(row)}
-                      className="ml-1 px-2 py-1 rounded-lg bg-red-50 text-red-500 font-bold disabled:opacity-50"
+                      className="ml-2 px-2 py-1 rounded-lg bg-red-50 text-red-500 font-bold disabled:opacity-50"
                     >
                       🗑
                     </button>
@@ -348,6 +357,7 @@ function EditModal({
         <h3 className="text-lg font-extrabold text-violet-900">
           ✏️ 숙제 수정 — {row.studentName}
         </h3>
+        <p className="-mt-2 text-xs text-gray-400">이 카드만 바뀌어요 (다른 멤버는 그대로).</p>
         <label className="flex flex-col gap-1 text-sm font-bold text-gray-700">
           곡 이름
           <input

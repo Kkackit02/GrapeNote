@@ -173,6 +173,9 @@ export function SongManageCard({ song, students, assignedIds }: Props) {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-extrabold text-violet-900">✏️ {song.title} 설정</h3>
+            <p className="-mt-1 text-xs font-bold text-orange-600">
+              ⚠️ 이 곡 편성 멤버 전원의 카드에 적용돼요.
+            </p>
             <label className="flex flex-col gap-1 text-sm font-bold text-gray-700">
               🎯 미션
               <textarea

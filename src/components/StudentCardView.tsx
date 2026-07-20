@@ -10,6 +10,7 @@ import { SongTracks } from "./SongTracks";
 import { ShareCompletionButton } from "./ShareCompletionButton";
 import { deleteSubmission } from "@/lib/actions/uploads";
 import { approvedCount, type GrapeState } from "@/lib/grapes";
+import { groupLimits } from "@/lib/limits";
 import type { ProgressCard, SongTrack } from "@/lib/types";
 
 interface Props {
@@ -116,7 +117,12 @@ export function StudentCardView({
       {selected && (
         <>
           <div className="fixed inset-0 bg-black/30 z-40" onClick={closeSheet} />
-          <div className="fixed bottom-0 inset-x-0 z-50 bg-white rounded-t-3xl p-5 pb-8 max-w-lg mx-auto shadow-2xl">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`포도알 ${selected.index}`}
+            className="fixed bottom-0 inset-x-0 z-50 bg-white rounded-t-3xl p-5 pb-8 max-w-lg mx-auto shadow-2xl max-h-[85vh] overflow-y-auto"
+          >
             <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto mb-4" />
             <h2 className="text-lg font-extrabold text-violet-900 text-center mb-3">
               포도알 #{selected.index}
@@ -140,7 +146,14 @@ export function StudentCardView({
                 </button>
               </div>
             ) : selected.status === "empty" ? (
-              <VideoUploader cardId={card.id} grapeIndex={selected.index} onDone={onUploadDone} />
+              <VideoUploader
+                cardId={card.id}
+                grapeIndex={selected.index}
+                onDone={onUploadDone}
+                premium={premium}
+                leaderLabel={leaderLabel}
+                tracks={recorderTracks}
+              />
             ) : selected.status === "retry" ? (
               <div className="flex flex-col gap-3">
                 <div className="rounded-xl bg-orange-50 border border-orange-200 p-3">
@@ -160,7 +173,11 @@ export function StudentCardView({
                   leaderLabel={leaderLabel}
                   tracks={recorderTracks}
                 />
-                <GrapeVideoSection history={selected.history} grapeIndex={selected.index} />
+                <GrapeVideoSection
+                  history={selected.history}
+                  grapeIndex={selected.index}
+                  retentionDays={groupLimits(premium).retentionDays}
+                />
               </div>
             ) : selected.status === "pending" ? (
               <div className="flex flex-col gap-3">
@@ -171,7 +188,11 @@ export function StudentCardView({
                     확인이 끝나면 포도알이 채워져요.
                   </p>
                 </div>
-                <GrapeVideoSection history={selected.history} grapeIndex={selected.index} />
+                <GrapeVideoSection
+                  history={selected.history}
+                  grapeIndex={selected.index}
+                  retentionDays={groupLimits(premium).retentionDays}
+                />
                 <button
                   type="button"
                   disabled={deleting}
@@ -193,7 +214,11 @@ export function StudentCardView({
                     </p>
                   </div>
                 )}
-                <GrapeVideoSection history={selected.history} grapeIndex={selected.index} />
+                <GrapeVideoSection
+                  history={selected.history}
+                  grapeIndex={selected.index}
+                  retentionDays={groupLimits(premium).retentionDays}
+                />
               </div>
             )}
           </div>

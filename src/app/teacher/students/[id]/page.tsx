@@ -100,7 +100,11 @@ export default async function StudentDetailPage({
         </ul>
       )}
 
-      <StudentAdminPanel studentId={id} displayName={profile.display_name} />
+      <StudentAdminPanel
+        studentId={id}
+        displayName={profile.display_name}
+        memberLabel={terms.member}
+      />
     </div>
   );
 }

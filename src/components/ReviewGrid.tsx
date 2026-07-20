@@ -119,9 +119,10 @@ export function ReviewGrid({ items, basePath, memberLabel = "학생" }: Props) {
                   key={m}
                   type="button"
                   onClick={() => pickMode(m)}
+                  // 4·6분할은 좁은 화면에서 세로로 쌓여 동시 재생 부담만 커진다
                   className={`w-8 h-8 rounded-lg text-sm font-bold ${
-                    mode === m ? "bg-violet-600 text-white" : "bg-violet-50 text-violet-600"
-                  }`}
+                    m >= 4 ? "hidden sm:block" : ""
+                  } ${mode === m ? "bg-violet-600 text-white" : "bg-violet-50 text-violet-600"}`}
                 >
                   {m}
                 </button>

@@ -126,13 +126,13 @@ export default async function BoardPage() {
           <table className="text-sm border-collapse min-w-full">
             <thead>
               <tr className="bg-violet-50">
-                <th className="sticky left-0 z-10 bg-violet-50 px-3 py-2.5 text-left font-extrabold text-violet-900 border-b border-violet-100 min-w-36">
+                <th className="sticky left-0 top-0 z-20 bg-violet-50 px-3 py-2.5 text-left font-extrabold text-violet-900 border-b border-violet-100 min-w-36">
                   곡명
                 </th>
                 {columns.map((s) => (
                   <th
                     key={s.id}
-                    className="px-2 py-2.5 font-bold text-gray-700 border-b border-violet-100 whitespace-nowrap min-w-16"
+                    className="sticky top-0 z-10 bg-violet-50 px-2 py-2.5 font-bold text-gray-700 border-b border-violet-100 whitespace-nowrap min-w-16"
                   >
                     <Link href={`/teacher/students/${s.id}`} className="hover:text-violet-700">
                       {s.display_name}
@@ -158,8 +158,8 @@ export default async function BoardPage() {
                   };
                 });
                 return (
-                  <tr key={title} className={rowIdx % 2 ? "bg-gray-50/60" : ""}>
-                    <th className="sticky left-0 z-10 bg-inherit px-3 py-2 text-left border-b border-gray-100 whitespace-nowrap bg-white">
+                  <tr key={title} className={rowIdx % 2 ? "bg-gray-50" : "bg-white"}>
+                    <th className="sticky left-0 z-10 bg-inherit px-3 py-2 text-left border-b border-gray-100 whitespace-nowrap">
                       <SongRowHeader
                         title={title}
                         teamLabel={team}

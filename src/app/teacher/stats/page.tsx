@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getWeeklyStats } from "@/lib/activity";
+import { getTerms } from "@/lib/terms-server";
 import { formatAgo } from "@/lib/time";
 
 const QUIET_DAYS = 7;
@@ -7,6 +8,7 @@ const QUIET_DAYS = 7;
 /** 주간 통계: 멤버별 이번 주 제출/합격 + 오래 조용한 멤버 표시 */
 export default async function WeeklyStatsPage() {
   const stats = await getWeeklyStats();
+  const terms = await getTerms();
   const now = new Date();
   const isQuiet = (last: string | null) =>
     !last || now.getTime() - new Date(last).getTime() > QUIET_DAYS * 24 * 60 * 60 * 1000;
@@ -19,8 +21,8 @@ export default async function WeeklyStatsPage() {
         <Link href="/teacher" className="text-sm text-gray-400">← 대시보드</Link>
         <h1 className="mt-2 text-2xl font-extrabold text-violet-900">📈 주간 통계</h1>
         <p className="mt-1 text-sm text-gray-500">
-          이번 주(월요일 시작) 멤버별 연습 현황이에요.
-          {quietCount > 0 && ` ${QUIET_DAYS}일 넘게 조용한 멤버가 ${quietCount}명 있어요.`}
+          이번 주(월요일 시작) {terms.member}별 연습 현황이에요.
+          {quietCount > 0 && ` ${QUIET_DAYS}일 넘게 조용한 ${terms.member}가 ${quietCount}명 있어요.`}
         </p>
       </div>
 
@@ -39,7 +41,7 @@ export default async function WeeklyStatsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-gray-400 border-b border-violet-50">
-                <th className="px-4 py-2.5 font-bold">멤버</th>
+                <th className="px-4 py-2.5 font-bold">{terms.member}</th>
                 <th className="px-2 py-2.5 font-bold text-center">이번 주 영상</th>
                 <th className="px-2 py-2.5 font-bold text-center">이번 주 합격</th>
                 <th className="px-4 py-2.5 font-bold text-right">마지막 제출</th>

@@ -33,10 +33,12 @@ type SortKey = "createdAt" | "songTitle" | "studentName" | "sizeBytes";
 interface Props {
   rows: VideoRow[];
   driveConnected: boolean;
+  /** 멤버 호칭 (학생/멤버) */
+  memberLabel?: string;
 }
 
 /** 영상 관리 표 (엑셀 스타일): 검색·필터·정렬 + 체크 선택 일괄 다운로드/백업/정리 */
-export function VideosTable({ rows, driveConnected }: Props) {
+export function VideosTable({ rows, driveConnected, memberLabel = "멤버" }: Props) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | VideoRow["status"]>("all");
@@ -194,7 +196,7 @@ export function VideosTable({ rows, driveConnected }: Props) {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="곡명·멤버 검색"
+          placeholder={`곡명·${memberLabel} 검색`}
           className="flex-1 min-w-40 h-10 px-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
         />
         <select
@@ -236,7 +238,7 @@ export function VideosTable({ rows, driveConnected }: Props) {
             type="button"
             disabled={busy !== null}
             onClick={bulkPurge}
-            className="px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold disabled:opacity-50"
+            className="px-3 py-1.5 rounded-lg bg-white border border-red-300 text-red-600 text-xs font-bold disabled:opacity-50"
           >
             {busy === "purge" ? "정리 중..." : "🗑 파일 정리"}
           </button>
@@ -282,7 +284,7 @@ export function VideosTable({ rows, driveConnected }: Props) {
                 className="px-2.5 py-2 text-left font-extrabold border-b border-r border-violet-100 whitespace-nowrap cursor-pointer"
                 onClick={() => toggleSort("studentName")}
               >
-                멤버{arrow("studentName")}
+                {memberLabel}{arrow("studentName")}
               </th>
               <th className="px-2 py-2 font-extrabold border-b border-r border-violet-100">알</th>
               <th className="px-2 py-2 font-extrabold border-b border-r border-violet-100">상태</th>

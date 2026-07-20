@@ -9,10 +9,12 @@ interface Props {
   /** 이 포도알의 제출 이력 (최신순) */
   history: Submission[];
   grapeIndex: number;
+  /** 판정 후 영상 파일 보존 일수 — 지나면 자동 정리된다 */
+  retentionDays?: number;
 }
 
 /** 내 영상 보기 + 이전 도전 영상 선택 + 다운로드 */
-export function GrapeVideoSection({ history, grapeIndex }: Props) {
+export function GrapeVideoSection({ history, grapeIndex, retentionDays }: Props) {
   const [selectedId, setSelectedId] = useState(history[0]?.id);
   const [downloading, setDownloading] = useState(false);
 
@@ -73,11 +75,16 @@ export function GrapeVideoSection({ history, grapeIndex }: Props) {
           type="button"
           onClick={download}
           disabled={downloading}
-          className="shrink-0 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-bold active:bg-gray-200 disabled:opacity-50"
+          className="shrink-0 px-3 py-2 rounded-lg bg-sky-600 text-white text-xs font-bold active:bg-sky-700 disabled:opacity-50"
         >
-          {downloading ? "준비 중..." : "⬇ 저장"}
+          {downloading ? "준비 중..." : "⬇ 내 폰에 저장"}
         </button>
       </div>
+      {retentionDays !== undefined && selected.status !== "pending" && (
+        <p className="text-xs text-amber-600 font-medium">
+          ⏳ 판정된 영상은 {retentionDays}일 뒤 저장 공간을 위해 지워져요. 남기고 싶으면 저장해 두세요!
+        </p>
+      )}
     </div>
   );
 }

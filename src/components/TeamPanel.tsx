@@ -21,7 +21,7 @@ interface Props {
   memberships: TeamMember[];
 }
 
-/** 팀 목록 + 팀원/파트장 관리 패널. 한 학생이 여러 팀에 동시 소속될 수 있다. */
+/** 팀 목록 + 팀원/파트장 관리 패널. 한 명이 여러 팀에 동시 소속될 수 있다. */
 export function TeamPanel({ teams, students, memberships }: Props) {
   const router = useRouter();
   const [newName, setNewName] = useState("");
@@ -93,7 +93,7 @@ export function TeamPanel({ teams, students, memberships }: Props) {
         disabled={busy}
         onClick={makeInstrumentTeams}
         className="self-start px-4 py-2 rounded-xl bg-white border border-violet-300 text-violet-700 text-sm font-bold disabled:opacity-50 active:bg-violet-100"
-        title={hasInstruments ? undefined : "학생 상세에서 악기를 먼저 지정해 주세요"}
+        title={hasInstruments ? undefined : "멤버 상세에서 악기를 먼저 지정해 주세요"}
       >
         🎸 악기 파트 팀 만들기
       </button>
@@ -112,7 +112,7 @@ export function TeamPanel({ teams, students, memberships }: Props) {
           .filter((m) => m.team_id === team.id)
           .map((m) => m.profile_id);
         const members = students.filter((s) => memberIds.includes(s.id));
-        // 이 팀에 아직 없는 학생은 전부 후보 — 다른 팀 소속이어도 추가 가능 (다중 소속)
+        // 이 팀에 아직 없는 멤버는 전부 후보 — 다른 팀 소속이어도 추가 가능 (다중 소속)
         const candidates = students.filter((s) => !memberIds.includes(s.id));
         return (
           <section key={team.id} className="rounded-2xl bg-white border border-violet-100 p-4 flex flex-col gap-3">
@@ -129,7 +129,7 @@ export function TeamPanel({ teams, students, memberships }: Props) {
                 type="button"
                 disabled={busy}
                 onClick={() => {
-                  if (window.confirm(`'${team.name}' 팀을 없앨까요?\n팀 묶음만 사라지고, 학생과 다른 팀 소속은 그대로예요.`)) {
+                  if (window.confirm(`'${team.name}' 팀을 없앨까요?\n팀 묶음만 사라지고, 멤버와 다른 팀 소속은 그대로예요.`)) {
                     run(() => deleteTeam(team.id));
                   }
                 }}

@@ -7,10 +7,12 @@ import { resetStudentPin, renameStudent, deleteStudent } from "@/lib/actions/stu
 interface Props {
   studentId: string;
   displayName: string;
+  /** 멤버 호칭 (학생/멤버) */
+  memberLabel?: string;
 }
 
-/** 학생 관리: PIN 재설정 / 이름 수정 / 학생 삭제 */
-export function StudentAdminPanel({ studentId, displayName }: Props) {
+/** 멤버 관리: PIN 재설정 / 이름 수정 / 계정 삭제 */
+export function StudentAdminPanel({ studentId, displayName, memberLabel = "학생" }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pin, setPin] = useState("");
@@ -23,13 +25,13 @@ export function StudentAdminPanel({ studentId, displayName }: Props) {
       setMessage({ ok: false, text: "PIN은 숫자 6자리여야 해요." });
       return;
     }
-    if (!window.confirm(`${displayName} 학생의 PIN을 ${pin}(으)로 바꿀까요?`)) return;
+    if (!window.confirm(`${displayName} 님의 PIN을 ${pin}(으)로 바꿀까요?`)) return;
     setBusy(true);
     const result = await resetStudentPin(studentId, pin);
     setBusy(false);
     setMessage(
       result.ok
-        ? { ok: true, text: `PIN이 변경됐어요. 학생에게 새 PIN(${pin})을 알려주세요!` }
+        ? { ok: true, text: `PIN이 변경됐어요. 새 PIN(${pin})을 알려주세요!` }
         : { ok: false, text: result.error }
     );
     if (result.ok) setPin("");
@@ -47,7 +49,7 @@ export function StudentAdminPanel({ studentId, displayName }: Props) {
 
   const doDelete = async () => {
     const typed = window.prompt(
-      `정말 삭제하려면 학생 이름(${displayName})을 똑같이 입력해 주세요.\n카드, 영상, 계정이 전부 삭제되고 되돌릴 수 없어요!`
+      `정말 삭제하려면 이름(${displayName})을 똑같이 입력해 주세요.\n카드, 영상, 계정이 전부 삭제되고 되돌릴 수 없어요!`
     );
     if (typed !== displayName) {
       if (typed !== null) setMessage({ ok: false, text: "이름이 일치하지 않아 취소했어요." });
@@ -71,7 +73,7 @@ export function StudentAdminPanel({ studentId, displayName }: Props) {
         onClick={() => setOpen(true)}
         className="text-sm text-gray-400 underline underline-offset-4 self-start"
       >
-        ⚙️ 학생 관리 (PIN 재설정 · 이름 · 삭제)
+        {`⚙️ ${memberLabel} 관리 (PIN 재설정 · 이름 · 삭제)`}
       </button>
     );
   }
@@ -79,7 +81,7 @@ export function StudentAdminPanel({ studentId, displayName }: Props) {
   return (
     <div className="rounded-2xl bg-white border border-gray-200 p-4 flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-bold text-gray-700">⚙️ 학생 관리</h3>
+        <h3 className="font-bold text-gray-700">⚙️ {memberLabel} 관리</h3>
         <button type="button" onClick={() => setOpen(false)} className="text-gray-400">
           접기
         </button>
@@ -137,7 +139,7 @@ export function StudentAdminPanel({ studentId, displayName }: Props) {
         onClick={doDelete}
         className="text-sm text-red-400 underline underline-offset-4 self-start disabled:opacity-50"
       >
-        🗑 학생 삭제 (모든 기록이 지워져요)
+        {`🗑 ${memberLabel} 삭제 (모든 기록이 지워져요)`}
       </button>
     </div>
   );

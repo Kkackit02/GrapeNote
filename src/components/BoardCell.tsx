@@ -76,7 +76,7 @@ export function BoardCell({ data }: { data: BoardCellData }) {
             <span>🍇 {data.done} / {data.card.totalGrapes}알 채움</span>
             {data.pendingCount > 0 && <span>👀 검토 대기 {data.pendingCount}개</span>}
             {data.retryCount > 0 && <span>↺ 재연습 중 {data.retryCount}개</span>}
-            <span>💬 조언: {data.card.description || "없음"}</span>
+            <span>🎯 미션: {data.card.description || "없음"}</span>
             {due && <span>📅 {due.text}</span>}
           </div>
           <div className="mt-2 flex gap-1.5">
@@ -106,6 +106,7 @@ export function BoardCell({ data }: { data: BoardCellData }) {
             <h3 className="font-extrabold text-violet-900">
               ✏️ {data.studentName} · {data.card.title}
             </h3>
+            <p className="mt-0.5 text-xs text-gray-400">이 카드만 바뀌어요 (다른 멤버는 그대로).</p>
             <label className="mt-4 flex items-center justify-between text-sm font-medium text-gray-700">
               포도알 개수 (연습 횟수)
               <input
@@ -122,7 +123,7 @@ export function BoardCell({ data }: { data: BoardCellData }) {
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               maxLength={500}
-              placeholder="조언/지시사항 (예: 손목 힘 빼고 천천히)"
+              placeholder="🎯 미션 (예: 1절은 악보 안 보고 치기)"
               className="mt-3 w-full rounded-xl border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
             />
             {error && <p className="mt-2 text-sm text-red-500">{error}</p>}

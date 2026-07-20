@@ -31,7 +31,15 @@ export function VideoPlayer({ submissionId, className, withRate }: Props) {
     };
   }, [submissionId]);
 
-  if (error) return <p className="text-sm text-red-500 py-4 text-center">{error}</p>;
+  if (error) {
+    return (
+      <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 text-center">
+        <div className="text-3xl">🗂</div>
+        <p className="mt-1 text-sm font-bold text-gray-600">영상을 볼 수 없어요</p>
+        <p className="mt-0.5 text-xs text-gray-500">{error}</p>
+      </div>
+    );
+  }
   if (!url) {
     return (
       <div className={`aspect-video bg-gray-100 rounded-xl flex items-center justify-center ${className ?? ""}`}>
