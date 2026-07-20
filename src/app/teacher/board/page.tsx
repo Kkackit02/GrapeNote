@@ -104,7 +104,10 @@ export default async function BoardPage() {
             곡 × 멤버 진행 상태예요. 곡명을 누르면 편성을 수정할 수 있어요.
           </p>
           <p className="mt-1 text-xs text-gray-400">
-            🍇 완료 · 👀 검토 대기 (누르면 바로 검토) · ↺ 재연습 중 · ＋ 미배정 (누르면 바로 배정)
+            🍇 완료 · 👀 검토 대기 · ↺ 재연습 중 · ＋ 미배정 (누르면 바로 배정)
+          </p>
+          <p className="mt-0.5 text-xs text-gray-400">
+            칸에 마우스를 올리면(폰은 탭하면) 진행·미션과 ✏️ 수정이 나와요.
           </p>
         </div>
         <Link

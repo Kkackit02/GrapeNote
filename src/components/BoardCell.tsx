@@ -23,7 +23,10 @@ export interface BoardCellData {
   retryCount: number;
 }
 
-/** 현황판 칸: 호버 팝업(요약 + 바로가기 + 수정) */
+/**
+ * 현황판 칸: 요약 팝업(진행·미션·기한 + 바로가기 + 수정).
+ * 마우스는 호버로, 터치는 탭으로 연다 — 터치 기기에서는 탭이 바로 이동하지 않는다.
+ */
 export function BoardCell({ data }: { data: BoardCellData }) {
   const router = useRouter();
   const [popup, setPopup] = useState<{ x: number; y: number } | null>(null);
@@ -35,9 +38,24 @@ export function BoardCell({ data }: { data: BoardCellData }) {
 
   const due = dueBadge(data.card.dueDate);
 
-  const showPopup = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
+  const openPopupAt = (el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
     setPopup({ x: rect.left + rect.width / 2, y: rect.top });
+  };
+
+  const isTouch = () =>
+    typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+
+  const showPopup = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isTouch()) return; // 터치 기기에서는 클릭으로만 연다
+    openPopupAt(e.currentTarget);
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isTouch()) return; // 마우스는 링크 그대로 동작
+    e.preventDefault();
+    if (popup) setPopup(null);
+    else openPopupAt(e.currentTarget);
   };
 
   const save = async () => {
@@ -59,15 +77,26 @@ export function BoardCell({ data }: { data: BoardCellData }) {
   };
 
   return (
-    <div onMouseEnter={showPopup} onMouseLeave={() => setPopup(null)} className="relative">
+    <div
+      onMouseEnter={showPopup}
+      onMouseLeave={() => !isTouch() && setPopup(null)}
+      onClick={handleClick}
+      className="relative"
+    >
       <Link href={data.href} className="block px-2 py-2">
         {data.label}
       </Link>
+
+      {/* 터치에서 바깥을 눌러 닫기 */}
+      {popup && (
+        <div className="fixed inset-0 z-40 sm:hidden" onClick={() => setPopup(null)} />
+      )}
 
       {popup && (
         <div
           className="fixed z-50 w-56 -translate-x-1/2 -translate-y-full rounded-xl bg-gray-900 text-white text-xs shadow-xl p-3 text-left"
           style={{ left: popup.x, top: popup.y }}
+          onClick={(e) => e.stopPropagation()}
         >
           <p className="font-bold text-sm">
             {data.studentName} · {data.card.title}
@@ -82,14 +111,14 @@ export function BoardCell({ data }: { data: BoardCellData }) {
           <div className="mt-2 flex gap-1.5">
             <Link
               href={data.href}
-              className="flex-1 text-center rounded-lg bg-white/15 py-1.5 font-bold hover:bg-white/25"
+              className="flex-1 text-center rounded-lg bg-white/15 py-2 font-bold hover:bg-white/25"
             >
               {data.pendingCount > 0 ? "검토하기" : "카드 보기"}
             </Link>
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="flex-1 rounded-lg bg-violet-500 py-1.5 font-bold hover:bg-violet-400"
+              className="flex-1 rounded-lg bg-violet-500 py-2 font-bold hover:bg-violet-400"
             >
               ✏️ 수정
             </button>
