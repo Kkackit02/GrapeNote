@@ -12,7 +12,9 @@ export interface GroupLimits {
 }
 
 export const FREE_LIMITS: GroupLimits = {
-  storageBytes: 500 * 1024 * 1024, // 500MB
+  // TODO: 너드더락 기존 사용량(~2.7GB)이 정리/프리미엄 전환으로 해소되면 500MB로 되돌릴 것.
+  // 한도 도입 시점에 이미 초과 상태라 업로드가 전면 차단되는 사고를 막기 위한 임시 상향.
+  storageBytes: 3 * 1024 * 1024 * 1024, // 임시 3GB (원래 500MB)
   retentionDays: 7,
   maxUploadBytes: 50 * 1024 * 1024,
   hd: false,
