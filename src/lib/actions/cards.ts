@@ -251,14 +251,19 @@ export async function shareCompletion(cardId: string): Promise<ActionResult> {
     .eq("student_id", user.id)
     .maybeSingle();
   if (!card) return { ok: false, error: "카드를 찾을 수 없어요." };
-  if (!card.completed_at) return { ok: false, error: "아직 완성하지 않은 포도송이예요." };
-  if (card.shared_at) return { ok: false, error: "이미 자랑했어요! 🎉" };
 
-  const { error } = await supabase
-    .from("progress_cards")
-    .update({ shared_at: new Date().toISOString() })
-    .eq("id", cardId);
-  if (error) return { ok: false, error: "자랑하기에 실패했어요." };
+  // 공개는 share_completion RPC로만 처리한다. 함수(security definer)가 소유권·완성 여부·
+  // 중복 공개를 DB 레벨에서 강제하므로, 학생이 카드의 다른 컬럼(완성 여부 등)을 조작할 수 없다.
+  const { error } = await supabase.rpc("share_completion", { p_card_id: cardId });
+  if (error) {
+    if (error.message.includes("not completed")) {
+      return { ok: false, error: "아직 완성하지 않은 포도송이예요." };
+    }
+    if (error.message.includes("already shared")) {
+      return { ok: false, error: "이미 자랑했어요! 🎉" };
+    }
+    return { ok: false, error: "자랑하기에 실패했어요." };
+  }
 
   // 그룹에 알림 (실패해도 공개 자체는 성공)
   try {

@@ -449,23 +449,35 @@ try {
   if (!doneCard) {
     ok("완성 카드 없음 (스킵)", true);
   } else {
-    // 남의 카드는 자랑할 수 없다
-    const other = doneCard.student_id === studentId ? student2b : student;
-    const { data: forged } = await other.from("progress_cards")
-      .update({ shared_at: new Date().toISOString() }).eq("id", doneCard.id).select("id");
-    ok("남의 완성 자랑 → 차단", (forged ?? []).length === 0);
-    // 본인은 공개 가능
     const owner = doneCard.student_id === studentId ? student : student2b;
-    const { data: sharedRow } = await owner.from("progress_cards")
+    const other = doneCard.student_id === studentId ? student2b : student;
+
+    // 남의 완성은 자랑할 수 없다 (RPC·직접 update 모두)
+    const { error: forgedRpc } = await other.rpc("share_completion", { p_card_id: doneCard.id });
+    ok("남의 완성 자랑(RPC) → 거부", !!forgedRpc);
+    const { data: forgedDirect } = await other.from("progress_cards")
       .update({ shared_at: new Date().toISOString() }).eq("id", doneCard.id).select("id");
-    ok("본인이 완성 자랑 가능", (sharedRow ?? []).length === 1);
+    ok("남의 완성 자랑(직접) → 0건", (forgedDirect ?? []).length === 0);
+
+    // [보안] 학생이 자기 카드를 셀프 완성/수정할 수 없어야 한다 (0022 회귀 방지)
+    const { data: selfDone } = await owner.from("progress_cards")
+      .update({ completed_at: new Date().toISOString() }).eq("id", doneCard.id).select("id");
+    ok("학생 셀프 완성 처리 → 0건", (selfDone ?? []).length === 0);
+    const { data: selfGrapes } = await owner.from("progress_cards")
+      .update({ total_grapes: 3 }).eq("id", doneCard.id).select("id");
+    ok("학생이 포도알 수 변경 → 0건", (selfGrapes ?? []).length === 0);
+    const { data: selfTitle } = await owner.from("progress_cards")
+      .update({ title: "해킹된곡" }).eq("id", doneCard.id).select("id");
+    ok("학생이 곡명 변경 → 0건", (selfTitle ?? []).length === 0);
+
+    // 본인은 RPC로 공개 가능 → 피드에 노출, 중복 공개는 거부
+    const { error: shareErr2 } = await owner.rpc("share_completion", { p_card_id: doneCard.id });
+    ok("본인이 완성 자랑 가능", !shareErr2, shareErr2?.message);
     const { data: feedAfter } = await student.rpc("get_group_feed", { p_days: 7, p_limit: 30 });
     ok("자랑 후 피드에 완성 노출",
       (feedAfter ?? []).some((e) => e.event_type === "card_completed"));
-    // 학생이 포도알 개수 같은 다른 컬럼은 못 바꾼다 (컬럼 권한)
-    const { error: colErr } = await owner.from("progress_cards")
-      .update({ total_grapes: 99 }).eq("id", doneCard.id);
-    ok("학생이 포도알 수 변경 → 거부", !!colErr);
+    const { error: dupErr } = await owner.rpc("share_completion", { p_card_id: doneCard.id });
+    ok("중복 자랑 → 거부", !!dupErr);
   }
 } catch (e) {
   fail++;
