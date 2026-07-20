@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getWeeklyStats, formatAgo } from "@/lib/activity";
+import { getWeeklyStats } from "@/lib/activity";
+import { formatAgo } from "@/lib/time";
 
 const QUIET_DAYS = 7;
 

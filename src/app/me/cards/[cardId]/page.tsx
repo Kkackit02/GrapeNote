@@ -25,13 +25,14 @@ export default async function MyCardPage({
   if (!cardRow) notFound();
   const card = cardRow as ProgressCard;
 
-  const [{ data: subs }, { data: trackRows }] = await Promise.all([
+  const [{ data: subs }, { data: trackRows }, { data: academyRow }] = await Promise.all([
     supabase.from("submissions").select("*").eq("card_id", cardId),
     supabase
       .from("song_tracks")
       .select("*")
       .eq("song_title", card.title)
       .order("created_at", { ascending: true }),
+    supabase.from("academies").select("is_premium").maybeSingle(),
   ]);
   const grapes = deriveGrapes(card.total_grapes, (subs ?? []) as Submission[]);
 
@@ -45,6 +46,7 @@ export default async function MyCardPage({
           tracks={(trackRows ?? []) as SongTrack[]}
           myId={user!.id}
           leaderLabel={(await getTerms()).leader}
+          premium={!!academyRow?.is_premium}
         />
       </div>
     </div>

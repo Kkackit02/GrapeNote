@@ -4,16 +4,19 @@ import { useRef, useState } from "react";
 import { VideoRecorder } from "./VideoRecorder";
 import { useUploadManager } from "./UploadManager";
 
-const MAX_SIZE_BYTES = 50 * 1024 * 1024;
+import { groupLimits, formatBytes } from "@/lib/limits";
 
 interface Props {
   cardId: string;
   grapeIndex: number;
   onDone: () => void;
+  /** 그룹 프리미엄 — 업로드 상한 확대 + 720p 녹화 */
+  premium?: boolean;
 }
 
 /** 촬영/파일 선택 → 백그라운드 업로드 시작 (진행률은 하단 칩에서 표시) */
-export function VideoUploader({ cardId, grapeIndex, onDone }: Props) {
+export function VideoUploader({ cardId, grapeIndex, onDone, premium = false }: Props) {
+  const limits = groupLimits(premium);
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const { startUpload } = useUploadManager();
@@ -30,8 +33,10 @@ export function VideoUploader({ cardId, grapeIndex, onDone }: Props) {
       setError("영상 파일만 올릴 수 있어요.");
       return;
     }
-    if (file.size > MAX_SIZE_BYTES) {
-      setError("영상이 너무 커요 (최대 50MB). 앱의 촬영 버튼으로 찍으면 5분까지 올릴 수 있어요.");
+    if (file.size > limits.maxUploadBytes) {
+      setError(
+        `영상이 너무 커요 (최대 ${formatBytes(limits.maxUploadBytes)}). 앱의 촬영 버튼으로 찍으면 5분까지 올릴 수 있어요.`
+      );
       return;
     }
 
@@ -47,6 +52,7 @@ export function VideoUploader({ cardId, grapeIndex, onDone }: Props) {
     <div className="flex flex-col gap-3">
       {showRecorder && (
         <VideoRecorder
+          hd={limits.hd}
           onRecorded={(file) => {
             setShowRecorder(false);
             handleFile(file);

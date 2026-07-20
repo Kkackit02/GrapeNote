@@ -5,10 +5,9 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { deriveGrapes } from "@/lib/grapes";
-import { FREE_GROUP_STORAGE_BYTES, formatBytes } from "@/lib/limits";
+import { groupLimits, formatBytes } from "@/lib/limits";
 import type { ActionResult, Submission } from "@/lib/types";
 
-const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50MB (버킷 설정과 동일)
 const ALLOWED_EXTENSIONS = ["mp4", "mov", "webm", "m4v", "3gp"];
 
 /**
@@ -27,8 +26,18 @@ export async function requestUpload(input: {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "로그인이 필요해요." };
 
-  if (input.fileSize > MAX_SIZE_BYTES) {
-    return { ok: false, error: "영상이 너무 커요 (최대 50MB). 앱의 촬영 버튼으로 찍으면 5분까지 올릴 수 있어요." };
+  // 그룹 프리미엄 여부에 따라 한도가 달라진다 (0018 이전엔 무료 기준)
+  const { data: academyRow } = await supabase
+    .from("academies")
+    .select("is_premium")
+    .maybeSingle();
+  const limits = groupLimits(academyRow?.is_premium);
+
+  if (input.fileSize > limits.maxUploadBytes) {
+    return {
+      ok: false,
+      error: `영상이 너무 커요 (최대 ${formatBytes(limits.maxUploadBytes)}). 앱의 촬영 버튼으로 찍으면 5분까지 올릴 수 있어요.`,
+    };
   }
   const ext = input.fileName.split(".").pop()?.toLowerCase() ?? "";
   if (!ALLOWED_EXTENSIONS.includes(ext)) {
@@ -71,7 +80,7 @@ export async function requestUpload(input: {
     return { ok: false, error: "아직 검토 중인 영상이 있어요. 조금만 기다려 주세요." };
   }
 
-  // 그룹 저장 한도 검사 — 판정 후 자동 정리(7일)로 공간이 다시 생긴다
+  // 그룹 저장 한도 검사 — 판정 후 자동 정리로 공간이 다시 생긴다
   const admin = createSupabaseAdmin();
   const { data: usageRows } = await admin
     .from("submissions")
@@ -79,10 +88,10 @@ export async function requestUpload(input: {
     .eq("academy_id", card.academy_id)
     .is("video_deleted_at", null);
   const used = (usageRows ?? []).reduce((sum, row) => sum + (row.video_size_bytes ?? 0), 0);
-  if (used + input.fileSize > FREE_GROUP_STORAGE_BYTES) {
+  if (used + input.fileSize > limits.storageBytes) {
     return {
       ok: false,
-      error: `그룹 저장 공간(${formatBytes(FREE_GROUP_STORAGE_BYTES)})이 가득 찼어요. 판정된 영상은 7일 후 자동 정리되니 잠시 후 다시 시도해 주세요.`,
+      error: `그룹 저장 공간(${formatBytes(limits.storageBytes)})이 가득 찼어요. 판정된 영상은 ${limits.retentionDays}일 후 자동 정리되니 잠시 후 다시 시도해 주세요.`,
     };
   }
 

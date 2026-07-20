@@ -2,8 +2,9 @@ import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { instrumentBadge } from "@/lib/instruments";
 import { getTerms } from "@/lib/terms-server";
-import { FREE_GROUP_STORAGE_BYTES, formatBytes } from "@/lib/limits";
+import { groupLimits, formatBytes } from "@/lib/limits";
 import { JoinCodeCard } from "@/components/JoinCodeCard";
+import { BoardShareToggle } from "@/components/BoardShareToggle";
 import type { Academy, Profile, StudentInvite, Team, TeamMember } from "@/lib/types";
 
 export default async function TeacherDashboard() {
@@ -35,14 +36,15 @@ export default async function TeacherDashboard() {
     (sum, row) => sum + (row.video_size_bytes ?? 0),
     0
   );
-  const storagePercent = Math.min(
-    100,
-    Math.round((storageUsed / FREE_GROUP_STORAGE_BYTES) * 100)
-  );
 
   const studentList = (students ?? []) as Profile[];
   const inviteList = (invites ?? []) as StudentInvite[];
   const academy = academyRow as Academy | null;
+  const limits = groupLimits(academy?.is_premium);
+  const storagePercent = Math.min(
+    100,
+    Math.round((storageUsed / limits.storageBytes) * 100)
+  );
   const teamList = (teams ?? []) as Team[];
   const teamById = new Map(teamList.map((t) => [t.id, t]));
   const memberList = (memberships ?? []) as TeamMember[];
@@ -108,9 +110,16 @@ export default async function TeacherDashboard() {
 
       <div className="rounded-2xl bg-white border border-violet-100 p-4">
         <div className="flex items-center justify-between text-sm">
-          <span className="font-bold text-gray-700">💾 영상 저장 공간</span>
+          <span className="font-bold text-gray-700">
+            💾 영상 저장 공간
+            {academy?.is_premium && (
+              <span className="ml-1.5 text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full align-middle">
+                ✨ 프리미엄
+              </span>
+            )}
+          </span>
           <span className={storagePercent >= 90 ? "font-bold text-red-500" : "text-gray-400"}>
-            {formatBytes(storageUsed)} / {formatBytes(FREE_GROUP_STORAGE_BYTES)}
+            {formatBytes(storageUsed)} / {formatBytes(limits.storageBytes)}
           </span>
         </div>
         <div className="mt-2 h-2 rounded-full bg-violet-100 overflow-hidden">
@@ -120,9 +129,11 @@ export default async function TeacherDashboard() {
           />
         </div>
         <p className="mt-1.5 text-xs text-gray-400">
-          판정 7일 뒤 영상 파일은 자동 정리돼요 (판정 기록·코멘트는 남아요).
+          판정 {limits.retentionDays}일 뒤 영상 파일은 자동 정리돼요 (판정 기록·코멘트는 남아요).
         </p>
       </div>
+
+      <BoardShareToggle enabled={!!academy?.show_board} />
 
       <section>
         <div className="flex items-center justify-between">

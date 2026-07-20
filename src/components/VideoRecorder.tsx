@@ -3,9 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const MAX_SECONDS = 300; // 최대 5분
-const MAX_BYTES = 48 * 1024 * 1024; // 버킷 50MB 제한보다 여유 있게 자동 종료
-const VIDEO_BPS = 1_000_000; // 480p 기준 ~1Mbps → 5분에 약 42MB
 const AUDIO_BPS = 128_000;
+
+// 화질 프리셋 — hd(720p)는 프리미엄 그룹 전용 (버킷 상한 200MB 안에서 동작)
+const QUALITY = {
+  sd: { width: 854, height: 480, videoBps: 1_000_000, maxBytes: 48 * 1024 * 1024 },
+  hd: { width: 1280, height: 720, videoBps: 2_000_000, maxBytes: 180 * 1024 * 1024 },
+} as const;
 
 function pickMimeType(): string {
   const candidates = [
@@ -30,14 +34,17 @@ interface Props {
   onClose: () => void;
   /** 카메라 사용 불가 시 기본 카메라 앱으로 폴백 */
   onFallback: () => void;
+  /** 720p 녹화 (프리미엄 그룹) */
+  hd?: boolean;
 }
 
 /**
- * 인앱 480p 녹화기 (전체화면 오버레이).
+ * 인앱 녹화기 (전체화면 오버레이). 기본 480p, 프리미엄은 720p.
  * 촬영 단계에서 해상도/비트레이트를 제한해 압축 없이 작은 파일을 만든다.
  * 피아노 음질을 위해 노이즈 억제/자동 음량을 끈다.
  */
-export function VideoRecorder({ onRecorded, onClose, onFallback }: Props) {
+export function VideoRecorder({ onRecorded, onClose, onFallback, hd = false }: Props) {
+  const quality = hd ? QUALITY.hd : QUALITY.sd;
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -67,8 +74,8 @@ export function VideoRecorder({ onRecorded, onClose, onFallback }: Props) {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode,
-          width: { ideal: 854 },
-          height: { ideal: 480 },
+          width: { ideal: quality.width },
+          height: { ideal: quality.height },
           frameRate: { ideal: 30 },
         },
         // 피아노 소리가 뭉개지지 않도록 통화용 보정 기능을 끈다
@@ -87,7 +94,7 @@ export function VideoRecorder({ onRecorded, onClose, onFallback }: Props) {
     } catch {
       setPhase("error");
     }
-  }, [stopStream]);
+  }, [stopStream, quality]);
 
   useEffect(() => {
     // 마이크로태스크로 미뤄 effect 본문에서의 동기 setState를 피한다 (react-hooks/set-state-in-effect)
@@ -119,7 +126,7 @@ export function VideoRecorder({ onRecorded, onClose, onFallback }: Props) {
     const mimeType = pickMimeType();
     const recorder = new MediaRecorder(stream, {
       ...(mimeType ? { mimeType } : {}),
-      videoBitsPerSecond: VIDEO_BPS,
+      videoBitsPerSecond: quality.videoBps,
       audioBitsPerSecond: AUDIO_BPS,
     });
     chunksRef.current = [];
@@ -129,8 +136,8 @@ export function VideoRecorder({ onRecorded, onClose, onFallback }: Props) {
       if (e.data.size > 0) {
         chunksRef.current.push(e.data);
         bytesRef.current += e.data.size;
-        // 기기가 비트레이트 지정을 무시해도 50MB를 넘기 전에 자동 종료
-        if (bytesRef.current >= MAX_BYTES && recorder.state === "recording") {
+        // 기기가 비트레이트 지정을 무시해도 상한을 넘기 전에 자동 종료
+        if (bytesRef.current >= quality.maxBytes && recorder.state === "recording") {
           recorder.stop();
         }
       }
@@ -190,7 +197,9 @@ export function VideoRecorder({ onRecorded, onClose, onFallback }: Props) {
             {formatTime(elapsed)} / {formatTime(MAX_SECONDS)}
           </span>
         ) : (
-          <span className="text-sm text-white/70">최대 5분까지 찍을 수 있어요</span>
+          <span className="text-sm text-white/70">
+            최대 5분까지 찍을 수 있어요{hd && " · ✨720p"}
+          </span>
         )}
         {phase === "ready" ? (
           <button type="button" onClick={flipCamera} className="text-2xl w-10 h-10" aria-label="카메라 전환">

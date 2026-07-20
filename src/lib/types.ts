@@ -6,6 +6,12 @@ export interface Academy {
   name: string;
   owner_id: string;
   join_code: string | null;
+  /** 그룹 유형 — 화면 용어 프리셋의 기준 (0017) */
+  group_type?: "academy" | "club" | "other";
+  /** 멤버에게 읽기 전용 현황판 공개 (0018) */
+  show_board?: boolean;
+  /** 그룹 프리미엄 — 저장/보존/화질 상향 (0018, 운영자만 변경) */
+  is_premium?: boolean;
   created_at: string;
 }
 

@@ -19,10 +19,19 @@ interface Props {
   myId?: string;
   /** 검토자 호칭 (선생님/운영진/리더) */
   leaderLabel?: string;
+  /** 그룹 프리미엄 — 업로드 상한 확대 + 720p 녹화 */
+  premium?: boolean;
 }
 
 /** 학생 핵심 화면: 포도송이 + 포도알 탭 → 상태별 바텀 시트 */
-export function StudentCardView({ card, grapes, tracks, myId, leaderLabel = "선생님" }: Props) {
+export function StudentCardView({
+  card,
+  grapes,
+  tracks,
+  myId,
+  leaderLabel = "선생님",
+  premium = false,
+}: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<GrapeState | null>(null);
   const [justUploaded, setJustUploaded] = useState(false);
@@ -134,7 +143,7 @@ export function StudentCardView({ card, grapes, tracks, myId, leaderLabel = "선
                 <p className="text-center text-sm font-bold text-gray-600">
                   다시 도전해 봐요! 할 수 있어요 💪
                 </p>
-                <VideoUploader cardId={card.id} grapeIndex={selected.index} onDone={onUploadDone} />
+                <VideoUploader cardId={card.id} grapeIndex={selected.index} onDone={onUploadDone} premium={premium} />
                 <GrapeVideoSection history={selected.history} grapeIndex={selected.index} />
               </div>
             ) : selected.status === "pending" ? (

@@ -3,7 +3,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes, approvedCount } from "@/lib/grapes";
 import { dueBadge, daysLeft } from "@/lib/due";
 import { calcStreak, practicedToday } from "@/lib/streaks";
-import { getGroupFeed, getWeeklyStats } from "@/lib/activity";
+import { getGroupFeed, getWeeklyStats, type FeedReaction } from "@/lib/activity";
 import { getTerms } from "@/lib/terms-server";
 import { AddMyCardForm } from "@/components/AddMyCardForm";
 import { GroupFeed } from "@/components/GroupFeed";
@@ -21,6 +21,17 @@ export default async function MyCardsPage() {
     getGroupFeed(),
     getWeeklyStats(),
   ]);
+
+  // 피드 리액션 + 현황판 공개 여부 (0018 이전엔 조용히 빈 값)
+  const targetIds = feed.map((e) => e.target_id).filter(Boolean) as string[];
+  const [{ data: reactionRows }, { data: academyRow }] = await Promise.all([
+    targetIds.length > 0
+      ? supabase.from("feed_reactions").select("*").in("target_id", targetIds)
+      : Promise.resolve({ data: [] }),
+    supabase.from("academies").select("show_board").maybeSingle(),
+  ]);
+  const reactions = (reactionRows ?? []) as FeedReaction[];
+  const boardShared = !!academyRow?.show_board;
 
   const profile = profileRow as Profile;
   const allCards = (cards ?? []) as ProgressCard[];
@@ -191,7 +202,22 @@ export default async function MyCardsPage() {
         </ul>
       )}
 
-      <GroupFeed events={feed.slice(0, 10)} champion={champion} myId={user!.id} />
+      {boardShared && (
+        <Link
+          href="/me/board"
+          className="rounded-2xl bg-white border border-violet-100 p-4 flex items-center justify-between active:bg-violet-50"
+        >
+          <span className="font-bold text-violet-800">📊 우리 그룹 현황판</span>
+          <span className="text-sm text-gray-400">누가 어디까지 했나 →</span>
+        </Link>
+      )}
+
+      <GroupFeed
+        events={feed.slice(0, 10)}
+        reactions={reactions}
+        champion={champion}
+        myId={user!.id}
+      />
 
       <AddMyCardForm leaderLabel={(await getTerms()).leader} />
     </div>

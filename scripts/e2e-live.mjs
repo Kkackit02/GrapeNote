@@ -377,6 +377,42 @@ try {
   const { data: delTeacher } = await teacher.from("song_tracks")
     .delete().eq("file_path", trackPath).select("id");
   ok("선생님이 MR 정리 가능", (delTeacher ?? []).length === 1);
+
+  console.log("\n[20] 리액션 + 멤버 현황판 + 프리미엄 보호 (0018)");
+  const { data: feedV2 } = await student.rpc("get_group_feed", { p_days: 7, p_limit: 30 });
+  const approvedEvent = (feedV2 ?? []).find((e) => e.event_type === "grape_approved" && e.target_id);
+  ok("피드 v2에 target_id 포함", !!approvedEvent);
+  if (approvedEvent) {
+    const { error: reactErr } = await student2b.from("feed_reactions").insert({
+      academy_id: academy.id, target_kind: approvedEvent.target_kind,
+      target_id: approvedEvent.target_id, reactor_id: stu2.user.id,
+      reactor_name: "김포도2", emoji: "🔥",
+    });
+    ok("멤버가 응원 리액션 등록", !reactErr, reactErr?.message);
+    const { data: seenReactions } = await student.from("feed_reactions")
+      .select("emoji").eq("target_id", approvedEvent.target_id);
+    ok("다른 멤버가 리액션 조회", (seenReactions ?? []).length === 1);
+    const { error: forgedReact } = await student.from("feed_reactions").insert({
+      academy_id: academy.id, target_kind: approvedEvent.target_kind,
+      target_id: approvedEvent.target_id, reactor_id: stu2.user.id,
+      reactor_name: "위조", emoji: "👏",
+    });
+    ok("남 명의 리액션 → 거부", !!forgedReact);
+  }
+  // 현황판: 비공개면 빈 결과 → 선생님이 공개하면 보인다
+  const { data: boardHidden } = await student.rpc("get_group_board");
+  ok("현황판 비공개 시 빈 결과", (boardHidden ?? []).length === 0);
+  const { error: shareErr } = await teacher.from("academies")
+    .update({ show_board: true }).eq("id", academy.id);
+  ok("선생님이 현황 공개 켬", !shareErr, shareErr?.message);
+  const { data: boardShown } = await student.rpc("get_group_board");
+  ok("공개 후 멤버가 현황판 조회", (boardShown ?? []).length > 0);
+  ok("현황판에 영상 경로 미노출",
+    (boardShown ?? []).every((r) => !("video_path" in r)));
+  // is_premium은 API로 수정 불가 (컬럼 권한)
+  const { error: premiumErr } = await teacher.from("academies")
+    .update({ is_premium: true }).eq("id", academy.id);
+  ok("선생님이 is_premium 수정 → 거부", !!premiumErr);
 } catch (e) {
   fail++;
   console.error("💥 예기치 못한 오류:", e);
@@ -384,6 +420,7 @@ try {
   console.log("\n[정리] 테스트 데이터 삭제");
   if (cleanup.paths.length) await admin.storage.from("videos").remove(cleanup.paths);
   if (cleanup.academyId) {
+    await admin.from("feed_reactions").delete().eq("academy_id", cleanup.academyId);
     await admin.from("song_tracks").delete().eq("academy_id", cleanup.academyId);
     await admin.from("team_members").delete().eq("academy_id", cleanup.academyId);
     await admin.from("teams").delete().eq("academy_id", cleanup.academyId);
