@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes } from "@/lib/grapes";
 import { StudentCardView } from "@/components/StudentCardView";
-import type { ProgressCard, Submission } from "@/lib/types";
+import type { ProgressCard, SongTrack, Submission } from "@/lib/types";
 
 export default async function MyCardPage({
   params,
@@ -24,17 +24,26 @@ export default async function MyCardPage({
   if (!cardRow) notFound();
   const card = cardRow as ProgressCard;
 
-  const { data: subs } = await supabase
-    .from("submissions")
-    .select("*")
-    .eq("card_id", cardId);
+  const [{ data: subs }, { data: trackRows }] = await Promise.all([
+    supabase.from("submissions").select("*").eq("card_id", cardId),
+    supabase
+      .from("song_tracks")
+      .select("*")
+      .eq("song_title", card.title)
+      .order("created_at", { ascending: true }),
+  ]);
   const grapes = deriveGrapes(card.total_grapes, (subs ?? []) as Submission[]);
 
   return (
     <div>
       <Link href="/me" className="text-sm text-gray-400">← 내 카드 목록</Link>
       <div className="mt-3">
-        <StudentCardView card={card} grapes={grapes} />
+        <StudentCardView
+          card={card}
+          grapes={grapes}
+          tracks={(trackRows ?? []) as SongTrack[]}
+          myId={user!.id}
+        />
       </div>
     </div>
   );

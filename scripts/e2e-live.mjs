@@ -346,6 +346,37 @@ try {
     JSON.stringify(myWeekly ?? null));
   const { error: anonFeedErr } = await newAnon().rpc("get_group_feed", {});
   ok("비로그인 피드 접근 → 거부", !!anonFeedErr);
+
+  console.log("\n[19] 악기 + 곡 트랙(MR) RLS (0016)");
+  await admin.from("profiles").update({ instrument: "기타" }).eq("id", studentId);
+  const { data: instRow } = await student.from("profiles")
+    .select("instrument").eq("id", studentId).single();
+  ok("악기 지정/조회", instRow?.instrument === "기타");
+  const trackPath = `${academy.id}/tracks/${crypto.randomUUID()}.mp3`;
+  const { error: trackErr } = await student.from("song_tracks").insert({
+    academy_id: academy.id, song_title: "MR테스트곡", uploaded_by: studentId,
+    uploader_name: "김포도", uploader_role: "student", file_path: trackPath, label: "느린 연습용",
+  });
+  ok("학생이 MR 등록", !trackErr, trackErr?.message);
+  const { error: badPathErr } = await student.from("song_tracks").insert({
+    academy_id: academy.id, song_title: "MR테스트곡", uploaded_by: studentId,
+    uploader_name: "김포도", uploader_role: "student", file_path: "other-academy/tracks/x.mp3",
+  });
+  ok("경로 접두사 위조 → 거부", !!badPathErr);
+  const { error: forgedErr } = await student.from("song_tracks").insert({
+    academy_id: academy.id, song_title: "MR테스트곡", uploaded_by: stu2.user.id,
+    uploader_name: "위조", uploader_role: "student", file_path: `${academy.id}/tracks/y.mp3`,
+  });
+  ok("남 명의 MR 등록 → 거부", !!forgedErr);
+  const { data: sharedTracks } = await student2b.from("song_tracks")
+    .select("id").eq("file_path", trackPath);
+  ok("같은 그룹 멤버가 MR 조회", (sharedTracks ?? []).length === 1);
+  const { data: delOther } = await student2b.from("song_tracks")
+    .delete().eq("file_path", trackPath).select("id");
+  ok("남의 MR 삭제 → 차단", (delOther ?? []).length === 0);
+  const { data: delTeacher } = await teacher.from("song_tracks")
+    .delete().eq("file_path", trackPath).select("id");
+  ok("선생님이 MR 정리 가능", (delTeacher ?? []).length === 1);
 } catch (e) {
   fail++;
   console.error("💥 예기치 못한 오류:", e);
@@ -353,6 +384,7 @@ try {
   console.log("\n[정리] 테스트 데이터 삭제");
   if (cleanup.paths.length) await admin.storage.from("videos").remove(cleanup.paths);
   if (cleanup.academyId) {
+    await admin.from("song_tracks").delete().eq("academy_id", cleanup.academyId);
     await admin.from("team_members").delete().eq("academy_id", cleanup.academyId);
     await admin.from("teams").delete().eq("academy_id", cleanup.academyId);
     await admin.from("submissions").delete().eq("academy_id", cleanup.academyId);

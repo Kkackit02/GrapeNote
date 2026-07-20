@@ -4,6 +4,8 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes, approvedCount } from "@/lib/grapes";
 import { NewCardForm } from "@/components/NewCardForm";
 import { StudentAdminPanel } from "@/components/StudentAdminPanel";
+import { InstrumentPicker } from "@/components/InstrumentPicker";
+import { instrumentEmoji } from "@/lib/instruments";
 import type { ProgressCard, Profile, Submission } from "@/lib/types";
 
 export default async function StudentDetailPage({
@@ -41,12 +43,17 @@ export default async function StudentDetailPage({
       <div>
         <Link href="/teacher" className="text-sm text-gray-400">← 학생 목록</Link>
         <h1 className="mt-2 text-2xl font-extrabold text-violet-900">
-          🎹 {profile.display_name}
+          {instrumentEmoji(profile.instrument)} {profile.display_name}
+          {profile.instrument && (
+            <span className="ml-2 text-sm font-bold text-violet-500">{profile.instrument}</span>
+          )}
           {profile.username && (
             <span className="ml-2 text-sm font-medium text-gray-400">@{profile.username}</span>
           )}
         </h1>
       </div>
+
+      <InstrumentPicker studentId={id} current={profile.instrument} />
 
       <NewCardForm studentId={id} />
 

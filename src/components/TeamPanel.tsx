@@ -11,6 +11,8 @@ import {
   removeTeamMember,
   setTeamLeader,
 } from "@/lib/actions/teams";
+import { createInstrumentTeams } from "@/lib/actions/songs";
+import { instrumentEmoji } from "@/lib/instruments";
 import type { ActionResult, Profile, Team, TeamMember } from "@/lib/types";
 
 interface Props {
@@ -24,7 +26,10 @@ export function TeamPanel({ teams, students, memberships }: Props) {
   const router = useRouter();
   const [newName, setNewName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const hasInstruments = students.some((s) => s.instrument);
 
   const teamIdsOf = (studentId: string) =>
     memberships.filter((m) => m.profile_id === studentId).map((m) => m.team_id);
@@ -48,6 +53,22 @@ export function TeamPanel({ teams, students, memberships }: Props) {
     if (await run(() => createTeam(newName))) setNewName("");
   };
 
+  const makeInstrumentTeams = async () => {
+    setNotice(null);
+    setError(null);
+    setBusy(true);
+    const result = await createInstrumentTeams();
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setNotice(
+      `악기 파트 팀 정리 완료 — 새 팀 ${result.data.teams}개, 멤버 ${result.data.added}명 추가. 이름 옆 ☆을 눌러 세션장을 지정해 보세요!`
+    );
+    router.refresh();
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <form onSubmit={addTeam} className="flex gap-2">
@@ -67,7 +88,18 @@ export function TeamPanel({ teams, students, memberships }: Props) {
         </button>
       </form>
 
+      <button
+        type="button"
+        disabled={busy}
+        onClick={makeInstrumentTeams}
+        className="self-start px-4 py-2 rounded-xl bg-white border border-violet-300 text-violet-700 text-sm font-bold disabled:opacity-50 active:bg-violet-100"
+        title={hasInstruments ? undefined : "학생 상세에서 악기를 먼저 지정해 주세요"}
+      >
+        🎸 악기 파트 팀 만들기
+      </button>
+
       {error && <p className="text-sm text-red-500">{error}</p>}
+      {notice && <p className="text-sm font-bold text-violet-700">{notice}</p>}
 
       {teams.length === 0 && (
         <div className="rounded-2xl bg-white border border-violet-100 p-8 text-center text-gray-500">
@@ -107,21 +139,6 @@ export function TeamPanel({ teams, students, memberships }: Props) {
               </button>
             </div>
 
-            <label className="flex items-center justify-between gap-2 text-sm font-medium text-gray-700">
-              ⭐ 파트장 (팀원 영상을 검토할 수 있어요)
-              <select
-                value={team.leader_id ?? ""}
-                disabled={busy}
-                onChange={(e) => run(() => setTeamLeader(team.id, e.target.value || null))}
-                className="h-10 px-3 rounded-lg border border-gray-300 font-bold text-violet-700"
-              >
-                <option value="">없음</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>{m.display_name}</option>
-                ))}
-              </select>
-            </label>
-
             {members.length === 0 ? (
               <p className="text-sm text-gray-400">아직 팀원이 없어요.</p>
             ) : (
@@ -129,9 +146,29 @@ export function TeamPanel({ teams, students, memberships }: Props) {
                 {members.map((m) => (
                   <li
                     key={m.id}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-violet-50 text-sm font-bold text-violet-800"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold ${
+                      team.leader_id === m.id
+                        ? "bg-amber-50 text-amber-800 border border-amber-300"
+                        : "bg-violet-50 text-violet-800"
+                    }`}
                   >
-                    {team.leader_id === m.id && "⭐ "}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        run(() => setTeamLeader(team.id, team.leader_id === m.id ? null : m.id))
+                      }
+                      aria-label={
+                        team.leader_id === m.id
+                          ? `${m.display_name} 파트장 해제`
+                          : `${m.display_name} 파트장으로 지정`
+                      }
+                      title={team.leader_id === m.id ? "파트장 해제" : "파트장으로 지정"}
+                      className="text-base leading-none"
+                    >
+                      {team.leader_id === m.id ? "⭐" : "☆"}
+                    </button>
+                    {m.instrument && `${instrumentEmoji(m.instrument)} `}
                     {m.display_name}
                     {teamIdsOf(m.id).length > 1 && (
                       <span className="text-[10px] font-bold text-violet-400">
@@ -150,6 +187,11 @@ export function TeamPanel({ teams, students, memberships }: Props) {
                   </li>
                 ))}
               </ul>
+            )}
+            {members.length > 0 && (
+              <p className="text-xs text-gray-400 -mt-1">
+                ☆을 누르면 파트장(세션장) 지정 — 파트장은 팀원 영상을 검토할 수 있어요.
+              </p>
             )}
 
             {candidates.length > 0 && (

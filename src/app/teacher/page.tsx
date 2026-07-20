@@ -91,12 +91,20 @@ export default async function TeacherDashboard() {
           <h2 className="text-xl font-extrabold text-violet-900">우리 학생들</h2>
           <div className="flex gap-2">
             {studentList.length > 0 && (
-              <Link
-                href="/teacher/cards/new"
-                className="px-4 py-2 rounded-xl bg-white border border-violet-300 text-violet-700 text-sm font-bold active:bg-violet-100"
-              >
-                🍇 카드 배정
-              </Link>
+              <>
+                <Link
+                  href="/teacher/songs/new"
+                  className="px-4 py-2 rounded-xl bg-white border border-violet-300 text-violet-700 text-sm font-bold active:bg-violet-100"
+                >
+                  🎵 곡 만들기
+                </Link>
+                <Link
+                  href="/teacher/cards/new"
+                  className="px-4 py-2 rounded-xl bg-white border border-violet-300 text-violet-700 text-sm font-bold active:bg-violet-100"
+                >
+                  🍇 카드 배정
+                </Link>
+              </>
             )}
             <Link
               href="/teacher/students/new"

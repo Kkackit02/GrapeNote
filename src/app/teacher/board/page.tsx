@@ -3,6 +3,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes, approvedCount } from "@/lib/grapes";
 import { AssignCell } from "@/components/AssignCell";
 import { BoardCell, type BoardCellData } from "@/components/BoardCell";
+import { SongRowHeader, type LineupStudent } from "@/components/SongRowHeader";
 import type { Profile, ProgressCard, Submission, Team } from "@/lib/types";
 
 interface Cell {
@@ -96,14 +97,22 @@ export default async function BoardPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-extrabold text-violet-900">📊 현황판</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          곡 × 멤버 진행 상태예요. 칸을 누르면 카드나 검토 화면으로 바로 이동해요.
-        </p>
-        <p className="mt-1 text-xs text-gray-400">
-          🍇 완료 · 👀 검토 대기 (누르면 바로 검토) · ↺ 재연습 중 · ＋ 미배정 (누르면 바로 배정)
-        </p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-extrabold text-violet-900">📊 현황판</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            곡 × 멤버 진행 상태예요. 곡명을 누르면 편성을 수정할 수 있어요.
+          </p>
+          <p className="mt-1 text-xs text-gray-400">
+            🍇 완료 · 👀 검토 대기 (누르면 바로 검토) · ↺ 재연습 중 · ＋ 미배정 (누르면 바로 배정)
+          </p>
+        </div>
+        <Link
+          href="/teacher/songs/new"
+          className="shrink-0 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold active:bg-violet-800"
+        >
+          🎵 새 곡
+        </Link>
       </div>
 
       {titles.length === 0 ? (
@@ -136,13 +145,27 @@ export default async function BoardPage() {
               {titles.map((title, rowIdx) => {
                 const anyCard = cardList.find((c) => c.title === title);
                 const team = teamName(anyCard?.team_id ?? null);
+                const songCards = cardList.filter((c) => c.title === title);
+                const assignedIds = songCards.map((c) => c.student_id);
+                const cardIdsWithSubs = new Set(subList.map((s) => s.card_id));
+                const lineupStudents: LineupStudent[] = studentList.map((s) => {
+                  const myCard = songCards.find((c) => c.student_id === s.id);
+                  return {
+                    id: s.id,
+                    name: s.display_name,
+                    instrument: s.instrument,
+                    hasRecords: !!myCard && cardIdsWithSubs.has(myCard.id),
+                  };
+                });
                 return (
                   <tr key={title} className={rowIdx % 2 ? "bg-gray-50/60" : ""}>
-                    <th className="sticky left-0 z-10 bg-inherit px-3 py-2 text-left font-bold text-gray-800 border-b border-gray-100 whitespace-nowrap bg-white">
-                      🎵 {title}
-                      {team && team !== title && (
-                        <span className="ml-1.5 text-[10px] font-bold text-violet-400">{team}</span>
-                      )}
+                    <th className="sticky left-0 z-10 bg-inherit px-3 py-2 text-left border-b border-gray-100 whitespace-nowrap bg-white">
+                      <SongRowHeader
+                        title={title}
+                        teamLabel={team}
+                        students={lineupStudents}
+                        assignedIds={assignedIds}
+                      />
                     </th>
                     {columns.map((s) => {
                       const cell = cellOf(title, s);

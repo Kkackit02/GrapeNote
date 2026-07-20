@@ -15,6 +15,21 @@ export interface Profile {
   role: UserRole;
   display_name: string;
   username: string | null;
+  /** 맡은 악기(세션) — 곡 편성 그룹핑과 악기 파트 팀의 기준 */
+  instrument: string | null;
+  created_at: string;
+}
+
+/** 곡별 연습 트랙(MR/반주) — 곡 정체성은 (academy_id, song_title) */
+export interface SongTrack {
+  id: string;
+  academy_id: string;
+  song_title: string;
+  uploaded_by: string;
+  uploader_name: string;
+  uploader_role: UserRole;
+  label: string | null;
+  file_path: string;
   created_at: string;
 }
 

@@ -63,6 +63,32 @@ export async function renameStudent(
   return { ok: true, data: undefined };
 }
 
+/** 학생 악기(세션) 지정 — 곡 편성 그룹핑과 악기 파트 팀의 기준 */
+export async function setStudentInstrument(
+  studentId: string,
+  instrument: string | null
+): Promise<ActionResult> {
+  const trimmed = instrument?.trim() || null;
+  if (trimmed && trimmed.length > 20) {
+    return { ok: false, error: "악기 이름은 20자 이내로 해주세요." };
+  }
+
+  const verifyError = await verifyStudent(studentId);
+  if (verifyError) return { ok: false, error: verifyError };
+
+  const admin = createSupabaseAdmin();
+  const { error } = await admin
+    .from("profiles")
+    .update({ instrument: trimmed })
+    .eq("id", studentId);
+  if (error) return { ok: false, error: "악기 지정에 실패했습니다." };
+
+  revalidatePath(`/teacher/students/${studentId}`);
+  revalidatePath("/teacher/teams");
+  revalidatePath("/teacher");
+  return { ok: true, data: undefined };
+}
+
 /** 학생 삭제 — 카드/영상/계정까지 전부 정리 (되돌릴 수 없음) */
 export async function deleteStudent(studentId: string): Promise<ActionResult> {
   const verifyError = await verifyStudent(studentId);

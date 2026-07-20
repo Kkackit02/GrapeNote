@@ -6,17 +6,21 @@ import { GrapeBunch } from "./GrapeBunch";
 import { VideoUploader } from "./VideoUploader";
 import { GrapeVideoSection } from "./GrapeVideoSection";
 import { Celebration } from "./Celebration";
+import { SongTracks } from "./SongTracks";
 import { deleteSubmission } from "@/lib/actions/uploads";
 import { approvedCount, type GrapeState } from "@/lib/grapes";
-import type { ProgressCard } from "@/lib/types";
+import type { ProgressCard, SongTrack } from "@/lib/types";
 
 interface Props {
   card: ProgressCard;
   grapes: GrapeState[];
+  /** 이 곡의 연습 음원(MR) — 미션 아래에 표시 */
+  tracks?: SongTrack[];
+  myId?: string;
 }
 
 /** 학생 핵심 화면: 포도송이 + 포도알 탭 → 상태별 바텀 시트 */
-export function StudentCardView({ card, grapes }: Props) {
+export function StudentCardView({ card, grapes, tracks, myId }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<GrapeState | null>(null);
   const [justUploaded, setJustUploaded] = useState(false);
@@ -55,7 +59,6 @@ export function StudentCardView({ card, grapes }: Props) {
           {completed ? "🏆 " : "🎵 "}
           {card.title}
         </h1>
-        {card.description && <p className="mt-1 text-sm text-gray-500">💬 {card.description}</p>}
         <p className="mt-2 text-lg font-extrabold text-violet-600">
           🍇 {done} / {card.total_grapes}알
         </p>
@@ -63,6 +66,17 @@ export function StudentCardView({ card, grapes }: Props) {
           <p className="mt-1 font-bold text-amber-600">포도송이 완성! 정말 대단해요! 🎉</p>
         )}
       </div>
+
+      {card.description && (
+        <div className="rounded-2xl bg-sky-50 border-2 border-sky-200 p-4 text-left">
+          <p className="text-sm font-extrabold text-sky-800">🎯 이번 곡 미션</p>
+          <p className="mt-1.5 text-sm text-gray-700 whitespace-pre-line">{card.description}</p>
+        </div>
+      )}
+
+      {tracks && myId && (
+        <SongTracks songTitle={card.title} tracks={tracks} myId={myId} isTeacher={false} />
+      )}
 
       <div className="rounded-3xl bg-white border-2 border-violet-100 p-5">
         <GrapeBunch

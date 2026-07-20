@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes, approvedCount } from "@/lib/grapes";
 import { GrapeBunch } from "@/components/GrapeBunch";
-import type { ProgressCard, Profile, Submission } from "@/lib/types";
+import { SongTracks } from "@/components/SongTracks";
+import type { ProgressCard, Profile, SongTrack, Submission } from "@/lib/types";
 
 const STATUS_LABEL = {
   pending: { text: "검토 대기", className: "bg-lime-100 text-lime-700" },
@@ -27,14 +28,21 @@ export default async function TeacherCardPage({
   if (!cardRow) notFound();
   const card = cardRow as ProgressCard;
 
-  const [{ data: studentRow }, { data: subs }] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", card.student_id).single(),
-    supabase
-      .from("submissions")
-      .select("*")
-      .eq("card_id", cardId)
-      .order("created_at", { ascending: false }),
-  ]);
+  const [{ data: studentRow }, { data: subs }, { data: trackRows }, { data: { user } }] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("id", card.student_id).single(),
+      supabase
+        .from("submissions")
+        .select("*")
+        .eq("card_id", cardId)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("song_tracks")
+        .select("*")
+        .eq("song_title", card.title)
+        .order("created_at", { ascending: true }),
+      supabase.auth.getUser(),
+    ]);
   const student = studentRow as Profile;
   const subList = (subs ?? []) as Submission[];
   const grapes = deriveGrapes(card.total_grapes, subList);
@@ -48,11 +56,23 @@ export default async function TeacherCardPage({
         <h1 className="mt-2 text-2xl font-extrabold text-violet-900">
           {card.completed_at ? "🏆 " : ""}{card.title}
         </h1>
-        {card.description && <p className="mt-1 text-sm text-gray-500">{card.description}</p>}
+        {card.description && (
+          <p className="mt-1 text-sm text-gray-600">
+            <span className="font-bold text-sky-700">🎯 미션:</span>{" "}
+            <span className="whitespace-pre-line">{card.description}</span>
+          </p>
+        )}
         <p className="mt-1 text-sm font-bold text-violet-600">
           🍇 {approvedCount(grapes)} / {card.total_grapes}알 완성
         </p>
       </div>
+
+      <SongTracks
+        songTitle={card.title}
+        tracks={(trackRows ?? []) as SongTrack[]}
+        myId={user?.id ?? ""}
+        isTeacher
+      />
 
       <div className="rounded-2xl bg-white border border-violet-100 p-4">
         <GrapeBunch grapes={grapes} className="max-w-xs mx-auto" />
