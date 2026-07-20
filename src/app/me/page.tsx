@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes, approvedCount } from "@/lib/grapes";
 import { dueBadge, daysLeft } from "@/lib/due";
@@ -13,11 +14,17 @@ import type { ProgressCard, Profile, Submission, Team } from "@/lib/types";
 export default async function MyCardsPage() {
   const supabase = await createSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/student/login");
 
   const [{ data: profileRow }, { data: cards }, { data: subs }, { data: leadingTeams }, feed, weeklyStats] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user!.id).single(),
-    supabase.from("progress_cards").select("*").order("created_at", { ascending: false }),
-    supabase.from("submissions").select("*"),
+    supabase.from("profiles").select("*").eq("id", user!.id).maybeSingle(),
+    // 파트장은 팀원 카드/제출도 RLS를 통과하므로 내 것만 가져온다 (불필요한 전송 방지)
+    supabase
+      .from("progress_cards")
+      .select("*")
+      .eq("student_id", user!.id)
+      .order("created_at", { ascending: false }),
+    supabase.from("submissions").select("*").eq("student_id", user!.id),
     supabase.from("teams").select("*").eq("leader_id", user!.id),
     getGroupFeed(),
     getWeeklyStats(),
@@ -34,27 +41,29 @@ export default async function MyCardsPage() {
   const reactions = (reactionRows ?? []) as FeedReaction[];
   const boardShared = !!academyRow?.show_board;
 
+  // 프로필이 없는 계정(가입 중 실패 등)은 무한 리다이렉트 대신 로그인으로 돌려보낸다
+  if (!profileRow) redirect("/student/login");
   const profile = profileRow as Profile;
-  const allCards = (cards ?? []) as ProgressCard[];
+  const myCards = ((cards ?? []) as ProgressCard[]).filter((c) => !c.closed_at); // 마감 숙제는 숨김 (0023)
   const subList = (subs ?? []) as Submission[];
-  // 파트장은 팀원 카드도 조회되므로 내 것만. 마감된 숙제는 화면에서 감춘다 (0023)
-  const myCards = allCards.filter((c) => c.student_id === user!.id && !c.closed_at);
   const cardList = myCards.filter((c) => !c.completed_at); // 진행 중만 (완성작은 포도밭에)
   const completedCount = myCards.length - cardList.length;
-  const totalApproved = subList.filter(
-    (s) => s.student_id === user!.id && s.status === "approved"
-  ).length;
+  const totalApproved = subList.filter((s) => s.status === "approved").length;
 
-  // 파트장이면 팀원들의 검토 대기 영상 수 (RLS로 팀원 것까지 조회됨, 내 것 제외)
+  // 파트장이면 팀원들의 검토 대기 수 (내 제출은 제외 — 본인 것은 검토할 수 없다)
   const isLeader = ((leadingTeams ?? []) as Team[]).length > 0;
-  const teamPending = isLeader
-    ? subList.filter((s) => s.status === "pending" && s.student_id !== user!.id).length
-    : 0;
+  let teamPending = 0;
+  if (isLeader) {
+    const { count } = await supabase
+      .from("submissions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending")
+      .neq("student_id", user!.id);
+    teamPending = count ?? 0;
+  }
 
   // 스트릭 (내 제출 기준, KST) + 이번 주 연습왕
-  const myDates = subList
-    .filter((s) => s.student_id === user!.id)
-    .map((s) => s.created_at);
+  const myDates = subList.map((s) => s.created_at);
   const streak = calcStreak(myDates);
   const doneToday = practicedToday(myDates);
   const champion =

@@ -49,11 +49,20 @@ export async function requestUpload(input: {
   if (input.fileHash) {
     const { data: dup } = await supabase
       .from("submissions")
-      .select("id")
+      .select("id, card_id, grape_index, status")
       .eq("student_id", user.id)
       .eq("video_hash", input.fileHash)
       .limit(1);
-    if (dup && dup.length > 0) {
+    const existing = dup?.[0];
+    if (existing) {
+      // 확인 응답만 유실된 재시도라면 이미 제출된 것 — 중복이라고 나무라지 않는다
+      const sameGrapePending =
+        existing.card_id === input.cardId &&
+        existing.grape_index === input.grapeIndex &&
+        existing.status === "pending";
+      if (sameGrapePending) {
+        return { ok: false, error: "이미 제출됐어요! 검토를 기다리는 중이에요. 👀" };
+      }
       return { ok: false, error: "이미 올렸던 영상이에요! 새로 연습한 영상을 올려 주세요. 🎵" };
     }
   }
@@ -61,11 +70,15 @@ export async function requestUpload(input: {
   // 내 카드인지 + 해당 포도알이 제출 가능한 상태인지 검증 (RLS로 내 카드만 조회됨)
   const { data: card } = await supabase
     .from("progress_cards")
-    .select("id, total_grapes, academy_id, student_id")
+    .select("id, total_grapes, academy_id, student_id, closed_at")
     .eq("id", input.cardId)
     .eq("student_id", user.id)
     .maybeSingle();
   if (!card) return { ok: false, error: "카드를 찾을 수 없어요." };
+  // 업로드를 시작하기 전에 막는다 (create_submission도 막지만 그땐 이미 다 올린 뒤)
+  if (card.closed_at) {
+    return { ok: false, error: "마감된 숙제예요. 더 이상 영상을 올릴 수 없어요. 🔒" };
+  }
   if (input.grapeIndex < 1 || input.grapeIndex > card.total_grapes) {
     return { ok: false, error: "잘못된 포도알이에요." };
   }
@@ -159,6 +172,9 @@ export async function confirmUpload(input: {
     if (error.message.includes("already pending")) {
       return { ok: false, error: "아직 검토 중인 영상이 있어요. 조금만 기다려 주세요." };
     }
+    if (error.message.includes("card closed")) {
+      return { ok: false, error: "마감된 숙제예요. 더 이상 영상을 올릴 수 없어요. 🔒" };
+    }
     return { ok: false, error: "제출에 실패했어요. 다시 시도해 주세요." };
   }
 
@@ -169,12 +185,17 @@ export async function confirmUpload(input: {
       supabase.from("progress_cards").select("title").eq("id", input.cardId).single(),
     ]);
     const reviewers = await reviewersOf(user.id, academyId);
-    await sendPushTo(reviewers, {
+    const payload = {
       title: "👀 새 연습 영상이 올라왔어요",
       body: `${profile?.display_name ?? "멤버"} · ${card?.title ?? "곡"} 포도알 ${input.grapeIndex}`,
-      url: "/teacher/review",
-      tag: "new-submission",
-    });
+      // 사람마다 알림이 쌓이도록 제출 단위 태그 (같은 태그면 서로를 덮어쓴다)
+      tag: `submission-${input.cardId}-${input.grapeIndex}`,
+    };
+    await Promise.all([
+      sendPushTo(reviewers.teachers, { ...payload, url: "/teacher/review" }),
+      // 파트장은 학생 계정이라 /teacher/*로 보내면 가드에 막힌다
+      sendPushTo(reviewers.leaders, { ...payload, url: "/me/review" }),
+    ]);
   } catch {
     // 무시
   }

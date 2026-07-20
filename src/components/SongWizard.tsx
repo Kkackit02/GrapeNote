@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createSong } from "@/lib/actions/songs";
 import { instrumentEmoji, parseInstruments } from "@/lib/instruments";
@@ -94,7 +95,13 @@ export function SongWizard({ students }: Props) {
           👥 편성 멤버 <span className="text-violet-600">{selected.size}명</span>
         </span>
         {students.length === 0 ? (
-          <p className="text-sm text-gray-400">아직 등록된 멤버가 없어요.</p>
+          <p className="text-sm text-gray-500">
+            아직 등록된 멤버가 없어요. 곡은 멤버에게 배정되니{" "}
+            <Link href="/teacher/students/new" className="font-bold text-violet-600 underline">
+              멤버부터 초대
+            </Link>
+            해 주세요!
+          </p>
         ) : (
           groupKeys.map((key) => (
             <div key={key || "none"}>

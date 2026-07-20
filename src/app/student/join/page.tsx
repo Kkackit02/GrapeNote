@@ -67,7 +67,7 @@ export default function StudentJoinPage() {
                 required
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="GRAPE-XXXX"
+                placeholder="GRAPE- 또는 CLASS-"
                 autoCapitalize="characters"
                 autoComplete="off"
                 className="h-14 px-4 rounded-xl border-2 border-violet-200 text-center text-xl font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-violet-400"

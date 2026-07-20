@@ -27,8 +27,10 @@ export async function createAcademy(formData: {
   const supabase = await createSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "로그인이 필요합니다." };
+  // 이미 만들어진 상태라면 성공으로 취급한다 — refreshSession이 실패해 온보딩으로
+  // 되돌아온 사용자가 영영 갇히지 않도록 (재시도하면 그냥 대시보드로 간다)
   if (user.app_metadata?.academy_id) {
-    return { ok: false, error: "이미 학원이 등록되어 있습니다." };
+    return { ok: true, data: undefined };
   }
 
   const admin = createSupabaseAdmin();

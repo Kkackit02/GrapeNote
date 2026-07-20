@@ -12,7 +12,7 @@ export async function reviewSubmission(input: {
   submissionId: string;
   verdict: "approved" | "needs_retry";
   comment: string;
-}): Promise<ActionResult<{ cardCompleted: boolean }>> {
+}): Promise<ActionResult<{ cardCompleted: boolean }> & { alreadyReviewed?: boolean }> {
   const comment = input.comment.trim();
   if (input.verdict === "needs_retry" && !comment) {
     return { ok: false, error: "재연습에는 코멘트를 남겨 주세요. 학생이 무엇을 고칠지 알아야 해요." };
@@ -31,6 +31,15 @@ export async function reviewSubmission(input: {
     comment: comment || null,
   });
   if (error || !cardId) {
+    // 선생님과 파트장이 같은 영상을 동시에 볼 수 있어 중복 판정은 흔한 상황이다.
+    // 호출자가 타일을 비우고 넘어갈 수 있도록 따로 알린다.
+    if (error?.message.includes("already reviewed")) {
+      return {
+        ok: false,
+        error: "이미 다른 검토자가 판정했어요.",
+        alreadyReviewed: true,
+      };
+    }
     return { ok: false, error: "판정에 실패했습니다. 권한이 없거나 이미 처리된 제출일 수 있어요." };
   }
   const updated = { card_id: cardId as string };

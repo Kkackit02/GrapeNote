@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { createAcademy } from "@/lib/actions/teacher-auth";
+import { LogoutButton } from "@/components/LogoutButton";
 import { TERMS, type GroupType } from "@/lib/terms";
 
 const TYPE_OPTIONS: { type: GroupType; label: string; example: string; namePlaceholder: string }[] = [
@@ -34,8 +35,16 @@ export default function OnboardingPage() {
       setSubmitting(false);
       return;
     }
-    // app_metadata가 갱신됐으므로 새 JWT를 받아야 RLS/가드가 동작한다
-    await createSupabaseBrowser().auth.refreshSession();
+    // app_metadata가 갱신됐으므로 새 JWT를 받아야 RLS/가드가 동작한다.
+    // 실패하면 /teacher가 다시 온보딩으로 튕기므로 한 번 더 시도한다.
+    const supabase = createSupabaseBrowser();
+    let refresh = await supabase.auth.refreshSession();
+    if (refresh.error) refresh = await supabase.auth.refreshSession();
+    if (refresh.error) {
+      setError("설정을 마무리하지 못했어요. 다시 시도하거나 로그아웃 후 로그인해 주세요.");
+      setSubmitting(false);
+      return;
+    }
     router.push("/teacher");
     router.refresh();
   };
@@ -43,6 +52,10 @@ export default function OnboardingPage() {
   return (
     <main className="flex-1 flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
+        {/* 잘못 들어온 사람이 빠져나갈 수 있어야 한다 (로그아웃 = 랜딩으로) */}
+        <div className="flex justify-end">
+          <LogoutButton />
+        </div>
         <div className="text-4xl">🍇</div>
         <h1 className="mt-2 text-2xl font-extrabold text-violet-900">그룹 만들기</h1>
         <p className="mt-1 text-sm text-gray-500">

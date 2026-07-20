@@ -209,6 +209,8 @@ export default async function TeacherDashboard() {
             위의 <span className="font-bold text-violet-700">공용 초대코드</span>를 단톡방에 공유하거나{" "}
             <span className="font-bold text-violet-700">{terms.member} 등록</span>으로 개인 코드를 만들어 보세요!
             <br />
+            <span className="text-sm">{terms.member}가 가입하면 🎵 곡 만들기가 열려요.</span>
+            <br />
             <Link href="/teacher/help" className="mt-3 inline-block font-bold text-violet-600 underline underline-offset-4">
               ❓ 처음이라면 도움말부터 보기
             </Link>

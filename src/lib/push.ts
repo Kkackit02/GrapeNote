@@ -73,10 +73,16 @@ export async function sendPushTo(profileIds: string[], payload: PushPayload): Pr
   return sent;
 }
 
-/** 이 학생의 제출을 검토할 수 있는 사람들 (같은 학원 선생님 + 소속 팀의 파트장, 본인 제외) */
-export async function reviewersOf(studentId: string, academyId: string): Promise<string[]> {
+/**
+ * 이 학생의 제출을 검토할 수 있는 사람들 (본인 제외).
+ * 선생님과 파트장은 검토함 경로가 달라서(/teacher/review vs /me/review) 따로 돌려준다.
+ */
+export async function reviewersOf(
+  studentId: string,
+  academyId: string
+): Promise<{ teachers: string[]; leaders: string[] }> {
   const admin = createSupabaseAdmin();
-  const [{ data: teachers }, { data: memberships }] = await Promise.all([
+  const [{ data: teacherRows }, { data: memberships }] = await Promise.all([
     admin.from("profiles").select("id").eq("academy_id", academyId).eq("role", "teacher"),
     admin.from("team_members").select("team_id").eq("profile_id", studentId),
   ]);
@@ -92,9 +98,14 @@ export async function reviewersOf(studentId: string, academyId: string): Promise
     leaders = (teams ?? []).map((t) => t.leader_id as string);
   }
 
-  return [...new Set([...(teachers ?? []).map((t) => t.id), ...leaders])].filter(
+  const teachers = [...new Set((teacherRows ?? []).map((t) => t.id))].filter(
     (id) => id !== studentId
   );
+  const teacherSet = new Set(teachers);
+  return {
+    teachers,
+    leaders: [...new Set(leaders)].filter((id) => id !== studentId && !teacherSet.has(id)),
+  };
 }
 
 /** 같은 그룹의 다른 멤버들 (완성 축하 알림용) */

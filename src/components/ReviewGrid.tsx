@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { reviewSubmission } from "@/lib/actions/review";
 import type { ReviewQueueItem } from "@/lib/review-queue";
@@ -73,6 +74,24 @@ export function ReviewGrid({ items, basePath, memberLabel = "학생" }: Props) {
     const timer = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  // 세션 중에 새로 올라온 영상을 대기열에 이어 붙인다 (판정 후 router.refresh로 items가 갱신됨).
+  // 이미 화면에 있거나 대기 중인 것은 건너뛰고, 판정해서 사라진 것은 다시 넣지 않는다.
+  const seenRef = useRef(new Set(items.map((item) => item.id)));
+  useEffect(() => {
+    const fresh = items.filter((item) => !seenRef.current.has(item.id));
+    if (fresh.length === 0) return;
+    fresh.forEach((item) => seenRef.current.add(item.id));
+    setBoard(({ slots, backlog }) => {
+      const nextSlots = [...slots];
+      const rest = [...fresh];
+      // 비어 있는 자리부터 채우고 나머지는 대기열로
+      for (let i = 0; i < nextSlots.length && rest.length > 0; i++) {
+        if (!nextSlots[i]) nextSlots[i] = rest.shift()!;
+      }
+      return { slots: nextSlots, backlog: [...backlog, ...rest] };
+    });
+  }, [items]);
 
   const pickMode = (m: Mode) => {
     applyMode(m);
@@ -215,9 +234,11 @@ interface TileProps {
 }
 
 function ReviewTile({ item, rate, basePath, memberLabel, soundOn, onToggleSound, onJudged }: TileProps) {
+  const router = useRouter();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
   const [ended, setEnded] = useState(false);
+  const [expired, setExpired] = useState(false);
   const [retryOpen, setRetryOpen] = useState(false);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
@@ -238,6 +259,11 @@ function ReviewTile({ item, rate, basePath, memberLabel, soundOn, onToggleSound,
     const result = await reviewSubmission({ submissionId: item.id, verdict, comment: trimmed });
     setBusy(false);
     if (!result.ok) {
+      // 다른 검토자가 먼저 판정한 경우 — 타일이 멈추지 않게 자리를 비운다
+      if (result.alreadyReviewed) {
+        onJudged(item.id, "이미 다른 검토자가 판정한 영상이라 넘어갔어요.");
+        return;
+      }
       setError(result.error);
       return;
     }
@@ -306,6 +332,8 @@ function ReviewTile({ item, rate, basePath, memberLabel, soundOn, onToggleSound,
               onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
               onEnded={() => setEnded(true)}
               onPlay={() => setEnded(false)}
+              // 서명 URL은 1시간 뒤 만료된다 — 검은 화면 대신 새로고침을 안내
+              onError={() => setExpired(true)}
               className="w-full h-full object-contain"
             />
             <button
@@ -318,14 +346,25 @@ function ReviewTile({ item, rate, basePath, memberLabel, soundOn, onToggleSound,
             >
               {soundOn ? "🔊" : "🔇"}
             </button>
-            {ended && (
+            {expired ? (
               <button
                 type="button"
-                onClick={replay}
-                className="absolute inset-0 flex items-center justify-center bg-black/50 text-white font-bold text-sm"
+                onClick={() => router.refresh()}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/70 text-white text-sm font-bold"
               >
-                ↻ 다시 보기
+                <span className="text-2xl">⏱</span>
+                재생 링크가 만료됐어요 — 새로고침
               </button>
+            ) : (
+              ended && (
+                <button
+                  type="button"
+                  onClick={replay}
+                  className="absolute inset-0 flex items-center justify-center bg-black/50 text-white font-bold text-sm"
+                >
+                  ↻ 다시 보기
+                </button>
+              )
             )}
           </>
         ) : (

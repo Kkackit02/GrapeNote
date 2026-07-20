@@ -20,7 +20,7 @@ export default function TeacherLoginPage() {
     const supabase = createSupabaseBrowser();
 
     if (mode === "signup") {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) {
         setError(
           error.message.includes("already registered")
@@ -28,6 +28,13 @@ export default function TeacherLoginPage() {
             : "가입에 실패했습니다. 비밀번호는 6자 이상이어야 합니다."
         );
         setSubmitting(false);
+        return;
+      }
+      // 이메일 인증이 켜진 프로젝트는 세션 없이 성공한다 — 그대로 진행하면 무한 튕김
+      if (!data.session) {
+        setError("메일함으로 인증 링크를 보냈어요. 링크를 누른 뒤 로그인해 주세요.");
+        setSubmitting(false);
+        setMode("login");
         return;
       }
       router.push("/onboarding");
