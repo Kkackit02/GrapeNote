@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes } from "@/lib/grapes";
 import { getTerms } from "@/lib/terms-server";
+import { isPremiumActive } from "@/lib/limits";
 import { StudentCardView } from "@/components/StudentCardView";
 import type { ProgressCard, SongTrack, Submission } from "@/lib/types";
 
@@ -32,7 +33,7 @@ export default async function MyCardPage({
       .select("*")
       .eq("song_title", card.title)
       .order("created_at", { ascending: true }),
-    supabase.from("academies").select("is_premium").maybeSingle(),
+    supabase.from("academies").select("is_premium, premium_until").maybeSingle(),
   ]);
   const grapes = deriveGrapes(card.total_grapes, (subs ?? []) as Submission[]);
 
@@ -46,7 +47,7 @@ export default async function MyCardPage({
           tracks={(trackRows ?? []) as SongTrack[]}
           myId={user!.id}
           leaderLabel={(await getTerms()).leader}
-          premium={!!academyRow?.is_premium}
+          premium={isPremiumActive(academyRow)}
           // 마감된 숙제는 지난 기록만 볼 수 있다 (제출은 DB가 막는다)
           readOnly={!!card.closed_at}
         />

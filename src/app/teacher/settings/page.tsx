@@ -3,7 +3,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { isDriveConfigured } from "@/lib/google-drive";
 import { getTerms } from "@/lib/terms-server";
-import { groupLimits, formatBytes } from "@/lib/limits";
+import { groupLimits, formatBytes, isPremiumActive } from "@/lib/limits";
 import { BoardShareToggle } from "@/components/BoardShareToggle";
 import { DriveArchiveCard } from "@/components/DriveArchiveCard";
 import { PushToggle } from "@/components/PushToggle";
@@ -19,7 +19,8 @@ export default async function SettingsPage() {
     supabase.from("submissions").select("video_size_bytes").is("video_deleted_at", null),
   ]);
   const academy = academyRow as Academy | null;
-  const limits = groupLimits(academy?.is_premium);
+  const premium = isPremiumActive(academy);
+  const limits = groupLimits(premium);
   const storageUsed = ((subRows ?? []) as Submission[]).reduce(
     (sum, sub) => sum + (sub.video_size_bytes ?? 0),
     0
@@ -53,7 +54,7 @@ export default async function SettingsPage() {
         <div className="flex items-center justify-between text-sm">
           <span className="font-bold text-gray-700">
             💾 영상 저장 공간
-            {academy?.is_premium && (
+            {premium && (
               <span className="ml-1.5 text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full align-middle">
                 ✨ 프리미엄
               </span>
@@ -72,6 +73,12 @@ export default async function SettingsPage() {
         <p className="mt-1.5 text-xs text-gray-400">
           판정 {limits.retentionDays}일 뒤 영상 파일은 자동 정리돼요 (판정 기록·코멘트는 남아요).
         </p>
+        <Link
+          href="/teacher/premium"
+          className="mt-2 inline-block text-sm font-bold text-violet-600"
+        >
+          {premium ? "✨ 프리미엄 정보 보기 →" : "✨ 저장 공간이 부족하다면? 프리미엄 보기 →"}
+        </Link>
       </div>
 
       <PushToggle vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />

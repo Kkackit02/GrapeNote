@@ -509,6 +509,27 @@ try {
     .update({ closed_at: null }).eq("id", openCard.id).select("id");
   ok("학생이 마감 해제 → 0건", (selfReopen ?? []).length === 0);
   await admin.from("progress_cards").delete().eq("id", openCard.id);
+
+  console.log("\n[25] 프리미엄 문의 RLS (0025)");
+  const { error: inquiryErr } = await teacher.from("premium_orders").insert({
+    academy_id: academy.id, requested_by: teacherId, status: "inquiry",
+    months: 3, amount: 20700, contact: "test@example.com",
+  });
+  ok("선생님이 문의 접수", !inquiryErr, inquiryErr?.message);
+  const { data: myOrders } = await teacher.from("premium_orders").select("id, status");
+  ok("본인 그룹 문의 조회", (myOrders ?? []).length === 1);
+  // 학생은 문의를 보거나 남길 수 없다
+  const { data: studentOrders } = await student.from("premium_orders").select("id");
+  ok("학생은 문의 조회 불가", (studentOrders ?? []).length === 0);
+  // 금액·상태를 클라이언트가 조작할 수 없다 (update 정책 없음)
+  const { data: tampered } = await teacher.from("premium_orders")
+    .update({ status: "paid" }).eq("academy_id", academy.id).select("id");
+  ok("선생님이 결제 완료로 변경 → 0건", (tampered ?? []).length === 0);
+  const { error: paidInsertErr } = await teacher.from("premium_orders").insert({
+    academy_id: academy.id, requested_by: teacherId, status: "paid",
+    months: 12, amount: 0, contact: "x",
+  });
+  ok("paid 상태로 직접 접수 → 거부", !!paidInsertErr);
 } catch (e) {
   fail++;
   console.error("💥 예기치 못한 오류:", e);
@@ -516,6 +537,7 @@ try {
   console.log("\n[정리] 테스트 데이터 삭제");
   if (cleanup.paths.length) await admin.storage.from("videos").remove(cleanup.paths);
   if (cleanup.academyId) {
+    await admin.from("premium_orders").delete().eq("academy_id", cleanup.academyId);
     await admin.from("push_subscriptions").delete().eq("academy_id", cleanup.academyId);
     await admin.from("feed_reactions").delete().eq("academy_id", cleanup.academyId);
     await admin.from("song_tracks").delete().eq("academy_id", cleanup.academyId);

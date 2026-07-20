@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getTerms } from "@/lib/terms-server";
 import { getWeeklyStats } from "@/lib/activity";
-import { groupLimits, formatBytes } from "@/lib/limits";
+import { groupLimits, formatBytes, isPremiumActive } from "@/lib/limits";
 import { MembersTable, type MemberRow } from "@/components/MembersTable";
 import { JoinCodeCard } from "@/components/JoinCodeCard";
 import type {
@@ -60,7 +60,7 @@ export default async function TeacherDashboard() {
   const studentList = (students ?? []) as Profile[];
   const inviteList = (invites ?? []) as StudentInvite[];
   const academy = academyRow as Academy | null;
-  const limits = groupLimits(academy?.is_premium);
+  const limits = groupLimits(isPremiumActive(academy));
 
   const storagePercent = Math.min(
     100,

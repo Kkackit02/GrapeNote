@@ -58,7 +58,9 @@
 - ✅ **그룹 프리미엄 토글** (0018, 결제 없이 is_premium 수동): 무료 500MB/7일/50MB/480p ↔ 프리미엄 5GB/30일/200MB/720p (lib/limits.ts groupLimits). is_premium은 컬럼 권한(grant 목록 제외)으로 API 수정 차단 — 운영자(service role)만 변경. videos 버킷 상한 200MB 상향, cleanup cron 2단계 보존.
 - ✅ **녹화 중 MR/반주 재생** (2026-07-20): 인앱 녹화기에서 곡의 MR을 골라 반주를 틀면서 녹음. Web Audio(AudioContext)로 마이크 + MR을 MediaStreamDestination에 믹싱해 한 영상에 담고, 동시에 스피커로도 출력(이어폰 권장 안내). 반주 볼륨 슬라이더, 녹화 시작과 함께 반주 처음부터 재생. 믹싱 실패 시 반주 없이 녹음으로 자동 폴백.
   - ⚠️ **게이팅 보류**: 원래 프리미엄 예정이었으나, 프리미엄(5GB/30일)이 Supabase 무료 티어와 충돌해 너드더락에서 켤 수 없는 상태 → 서버 비용이 0인 기능이라 우선 전원 공개. 결제 도입 시 게이팅 재검토.
-- 📋 프리미엄 잔여: 영상 아카이브 다운로드(✅ 영상 관리 일괄 다운로드로 대체 가능), 고급 통계, 결제. 가격 월 4,900~9,900원 구간 추후 확정, 결제 수단 미정(토스페이먼츠 유력).
+- 🔨 **결제 연동 준비** (0025, 2026-07-20): academies.premium_until(구독 만료 — 지나면 자동 무료), premium_orders(문의/주문, RLS: 리더는 inquiry 접수·조회만, 상태·금액 변경은 service role), /teacher/premium 요금제 안내 + 문의 폼, /api/billing/webhook(BILLING_SECRET 검증 → paid 처리 + 기간 연장, PG 연동 시 그대로 사용). 가격 월 6,900원 그룹 단위로 잠정 확정.
+  - 📋 남은 것: 실제 PG 연동(사업자등록 → 토스페이먼츠 심사 필요), 운영자용 문의 확인 화면(현재는 DB 직접 조회), 만료 임박 알림.
+- 📋 프리미엄 잔여: 고급 통계. 영상 아카이브 다운로드는 영상 관리 일괄 다운로드로 대체됨.
 - ✅ **구글 드라이브 아카이브** (0019, 2026-07-20 구현): 그룹장이 대시보드에서 구글 연결(OAuth, drive.file 스코프) → 정리 크론이 삭제 직전에 'GrapeNote 아카이브' 폴더로 백업(`날짜_곡명_멤버_포도알N` 파일명). 백업 실패 시 삭제하지 않음(다음 실행 재시도, 유실 없음). refresh token은 정책 없는 drive_connections 테이블(service role 전용). 활성화 조건: GOOGLE_CLIENT_ID/SECRET 환경변수 (Google Cloud OAuth 클라이언트, 리디렉션 URI https://grapenote.vercel.app/api/google/callback).
 
 ### 저장 정책 확정 (2026-07-20, Supabase 무료 티어 1GB 대응)

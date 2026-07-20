@@ -32,6 +32,9 @@ export default async function TeacherLayout({ children }: { children: React.Reac
                 >
                   ⚙️ 그룹 설정
                 </Link>
+                <Link href="/teacher/premium" className="px-3 py-2 hover:bg-violet-50">
+                  ✨ 프리미엄
+                </Link>
                 <Link href="/teacher/help" className="px-3 py-2 hover:bg-violet-50">
                   ❓ 도움말
                 </Link>

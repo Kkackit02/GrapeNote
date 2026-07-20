@@ -12,6 +12,8 @@ export interface Academy {
   show_board?: boolean;
   /** 그룹 프리미엄 — 저장/보존/화질 상향 (0018, 운영자만 변경) */
   is_premium?: boolean;
+  /** 구독 만료일 — 지나면 자동으로 무료 한도 (0025). null이면 무기한 */
+  premium_until?: string | null;
   created_at: string;
 }
 

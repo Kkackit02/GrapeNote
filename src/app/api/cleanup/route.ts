@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { FREE_LIMITS, PREMIUM_LIMITS } from "@/lib/limits";
+import { FREE_LIMITS, PREMIUM_LIMITS, isPremiumActive } from "@/lib/limits";
 import { getAccessToken, uploadToDrive } from "@/lib/google-drive";
 import { archiveFileName } from "@/lib/archive";
 
@@ -45,9 +45,12 @@ export async function GET(request: Request) {
   // 프리미엄 그룹은 보존이 길다 (0018 이전엔 조회 실패 → 전부 무료 기준)
   const { data: premiumRows } = await admin
     .from("academies")
-    .select("id")
+    .select("id, is_premium, premium_until")
     .eq("is_premium", true);
-  const premiumIds = (premiumRows ?? []).map((row) => row.id);
+  // 구독이 만료된 그룹은 무료 보존 기간으로 되돌아간다
+  const premiumIds = (premiumRows ?? [])
+    .filter((row) => isPremiumActive(row))
+    .map((row) => row.id);
 
   const SELECT =
     "id, video_path, academy_id, card_id, student_id, grape_index, status, created_at, reviewed_at";

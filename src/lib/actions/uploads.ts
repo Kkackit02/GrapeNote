@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { deriveGrapes } from "@/lib/grapes";
-import { groupLimits, formatBytes } from "@/lib/limits";
+import { groupLimits, formatBytes, isPremiumActive } from "@/lib/limits";
 import { sendPushTo, reviewersOf } from "@/lib/push";
 import type { ActionResult, Submission } from "@/lib/types";
 
@@ -30,9 +30,9 @@ export async function requestUpload(input: {
   // 그룹 프리미엄 여부에 따라 한도가 달라진다 (0018 이전엔 무료 기준)
   const { data: academyRow } = await supabase
     .from("academies")
-    .select("is_premium")
+    .select("is_premium, premium_until")
     .maybeSingle();
-  const limits = groupLimits(academyRow?.is_premium);
+  const limits = groupLimits(isPremiumActive(academyRow));
 
   if (input.fileSize > limits.maxUploadBytes) {
     return {
