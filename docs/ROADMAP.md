@@ -53,7 +53,7 @@
 
 ### Phase 4 — 알림 + 프리미엄 🔨
 
-- 📋 **웹푸시 알림**: 새 제출 → 검토자, 판정/완성 → 멤버. (구독 테이블 + Web Push — 마지막 남은 큰 조각)
+- ✅ **웹푸시 알림** (0020, 2026-07-20): push_subscriptions(RLS 본인 것만) + web-push + public/sw.js. 발송 지점 — 새 제출 → 검토자(선생님+소속 팀 파트장), 판정 → 멤버, 포도송이 완성 → 그룹 전체. 알림 실패는 본 동작을 막지 않음(try/catch), 만료 구독(404/410) 자동 정리. 켜기 토글은 멤버 홈·리더 대시보드, 켜면 테스트 알림 발송. 환경변수 NEXT_PUBLIC_VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY/VAPID_SUBJECT.
 - ✅ **그룹 프리미엄 토글** (0018, 결제 없이 is_premium 수동): 무료 500MB/7일/50MB/480p ↔ 프리미엄 5GB/30일/200MB/720p (lib/limits.ts groupLimits). is_premium은 컬럼 권한(grant 목록 제외)으로 API 수정 차단 — 운영자(service role)만 변경. videos 버킷 상한 200MB 상향, cleanup cron 2단계 보존.
 - 📋 프리미엄 잔여: **녹화 중 MR/반주 재생**, 영상 아카이브 다운로드, 고급 통계. 가격 월 4,900~9,900원 구간 추후 확정, 결제 수단 미정(토스페이먼츠 유력).
 - ✅ **구글 드라이브 아카이브** (0019, 2026-07-20 구현): 그룹장이 대시보드에서 구글 연결(OAuth, drive.file 스코프) → 정리 크론이 삭제 직전에 'GrapeNote 아카이브' 폴더로 백업(`날짜_곡명_멤버_포도알N` 파일명). 백업 실패 시 삭제하지 않음(다음 실행 재시도, 유실 없음). refresh token은 정책 없는 drive_connections 테이블(service role 전용). 활성화 조건: GOOGLE_CLIENT_ID/SECRET 환경변수 (Google Cloud OAuth 클라이언트, 리디렉션 URI https://grapenote.vercel.app/api/google/callback).

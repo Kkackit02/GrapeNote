@@ -6,6 +6,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { deriveGrapes } from "@/lib/grapes";
 import { groupLimits, formatBytes } from "@/lib/limits";
+import { sendPushTo, reviewersOf } from "@/lib/push";
 import type { ActionResult, Submission } from "@/lib/types";
 
 const ALLOWED_EXTENSIONS = ["mp4", "mov", "webm", "m4v", "3gp"];
@@ -159,6 +160,23 @@ export async function confirmUpload(input: {
       return { ok: false, error: "아직 검토 중인 영상이 있어요. 조금만 기다려 주세요." };
     }
     return { ok: false, error: "제출에 실패했어요. 다시 시도해 주세요." };
+  }
+
+  // 검토자에게 알림 (실패해도 제출 자체는 성공 — 알림은 부가 기능)
+  try {
+    const [{ data: profile }, { data: card }] = await Promise.all([
+      supabase.from("profiles").select("display_name").eq("id", user.id).single(),
+      supabase.from("progress_cards").select("title").eq("id", input.cardId).single(),
+    ]);
+    const reviewers = await reviewersOf(user.id, academyId);
+    await sendPushTo(reviewers, {
+      title: "👀 새 연습 영상이 올라왔어요",
+      body: `${profile?.display_name ?? "멤버"} · ${card?.title ?? "곡"} 포도알 ${input.grapeIndex}`,
+      url: "/teacher/review",
+      tag: "new-submission",
+    });
+  } catch {
+    // 무시
   }
 
   revalidatePath(`/me/cards/${input.cardId}`);

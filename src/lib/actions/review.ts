@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { deriveGrapes, isCardComplete } from "@/lib/grapes";
+import { sendPushTo, groupMembersExcept } from "@/lib/push";
 import type { ActionResult, Submission } from "@/lib/types";
 
 /** 선생님/파트장 판정: 합격(포도알 채움) 또는 재연습(코멘트와 함께 다시 비움) */
@@ -58,6 +59,42 @@ export async function reviewSubmission(input: {
         cardCompleted = true;
       }
     }
+  }
+
+  // 판정 결과를 멤버에게, 포도송이 완성은 그룹 전체에 알린다 (실패해도 판정은 유효)
+  try {
+    const { data: card } = await supabase
+      .from("progress_cards")
+      .select("title, student_id, academy_id")
+      .eq("id", updated.card_id)
+      .single();
+    if (card) {
+      await sendPushTo([card.student_id], {
+        title: input.verdict === "approved" ? "🍇 합격이에요!" : "↺ 다시 도전해 볼까요?",
+        body:
+          input.verdict === "approved"
+            ? `${card.title} 포도알이 채워졌어요!`
+            : `${card.title} — ${comment}`,
+        url: `/me/cards/${updated.card_id}`,
+        tag: `verdict-${updated.card_id}`,
+      });
+      if (cardCompleted) {
+        const { data: student } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", card.student_id)
+          .single();
+        const others = await groupMembersExcept(card.academy_id, card.student_id);
+        await sendPushTo(others, {
+          title: "🎉 포도송이 완성!",
+          body: `${student?.display_name ?? "멤버"} 님이 「${card.title}」를 완성했어요!`,
+          url: "/me",
+          tag: `completed-${updated.card_id}`,
+        });
+      }
+    }
+  } catch {
+    // 무시
   }
 
   revalidatePath("/teacher/review");

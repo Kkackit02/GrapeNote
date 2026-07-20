@@ -8,6 +8,7 @@ import { groupLimits, formatBytes } from "@/lib/limits";
 import { JoinCodeCard } from "@/components/JoinCodeCard";
 import { BoardShareToggle } from "@/components/BoardShareToggle";
 import { DriveArchiveCard } from "@/components/DriveArchiveCard";
+import { PushToggle } from "@/components/PushToggle";
 import type { Academy, Profile, StudentInvite, Team, TeamMember } from "@/lib/types";
 
 export default async function TeacherDashboard() {
@@ -153,6 +154,8 @@ export default async function TeacherDashboard() {
           판정 {limits.retentionDays}일 뒤 영상 파일은 자동 정리돼요 (판정 기록·코멘트는 남아요).
         </p>
       </div>
+
+      <PushToggle vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />
 
       <BoardShareToggle enabled={!!academy?.show_board} />
 

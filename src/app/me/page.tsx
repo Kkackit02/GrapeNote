@@ -7,6 +7,7 @@ import { getGroupFeed, getWeeklyStats, type FeedReaction } from "@/lib/activity"
 import { getTerms } from "@/lib/terms-server";
 import { AddMyCardForm } from "@/components/AddMyCardForm";
 import { GroupFeed } from "@/components/GroupFeed";
+import { PushToggle } from "@/components/PushToggle";
 import type { ProgressCard, Profile, Submission, Team } from "@/lib/types";
 
 export default async function MyCardsPage() {
@@ -218,6 +219,8 @@ export default async function MyCardsPage() {
         champion={champion}
         myId={user!.id}
       />
+
+      <PushToggle vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />
 
       <AddMyCardForm leaderLabel={(await getTerms()).leader} />
     </div>

@@ -422,6 +422,24 @@ try {
     academy_id: academy.id, refresh_token: "x", folder_id: "y", connected_by: studentId,
   });
   ok("드라이브 연결 직접 insert → 거부", !!connInsertErr);
+
+  console.log("\n[22] 웹푸시 구독 RLS (0020)");
+  const { error: pushErr } = await student.from("push_subscriptions").insert({
+    academy_id: academy.id, profile_id: studentId,
+    endpoint: `https://push.example.com/${ts}`, p256dh: "key", auth: "auth",
+  });
+  ok("본인 푸시 구독 등록", !pushErr, pushErr?.message);
+  const { error: pushForgeErr } = await student.from("push_subscriptions").insert({
+    academy_id: academy.id, profile_id: stu2.user.id,
+    endpoint: `https://push.example.com/forged-${ts}`, p256dh: "key", auth: "auth",
+  });
+  ok("남 명의 푸시 구독 → 거부", !!pushForgeErr);
+  const { data: othersPush } = await student2b.from("push_subscriptions")
+    .select("endpoint").eq("profile_id", studentId);
+  ok("남의 푸시 엔드포인트 조회 → 차단", (othersPush ?? []).length === 0);
+  const { data: myPush } = await student.from("push_subscriptions")
+    .select("endpoint").eq("profile_id", studentId);
+  ok("내 푸시 구독은 조회 가능", (myPush ?? []).length === 1);
 } catch (e) {
   fail++;
   console.error("💥 예기치 못한 오류:", e);
@@ -429,6 +447,7 @@ try {
   console.log("\n[정리] 테스트 데이터 삭제");
   if (cleanup.paths.length) await admin.storage.from("videos").remove(cleanup.paths);
   if (cleanup.academyId) {
+    await admin.from("push_subscriptions").delete().eq("academy_id", cleanup.academyId);
     await admin.from("feed_reactions").delete().eq("academy_id", cleanup.academyId);
     await admin.from("song_tracks").delete().eq("academy_id", cleanup.academyId);
     await admin.from("team_members").delete().eq("academy_id", cleanup.academyId);
