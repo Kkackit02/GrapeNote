@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updateSong, deleteSong } from "@/lib/actions/songs";
 import { closeCards, reopenCards } from "@/lib/actions/cards";
 import { LineupModal, type LineupStudent } from "@/components/LineupModal";
+import { SongTracks } from "@/components/SongTracks";
 import { instrumentBadge } from "@/lib/instruments";
+import type { SongTrack } from "@/lib/types";
 
 export interface SongSummary {
   title: string;
@@ -16,8 +17,6 @@ export interface SongSummary {
   completedIds: string[];
   pendingCount: number;
   trackCount: number;
-  /** 이 곡의 첫 카드 id — MR 관리를 위한 카드 상세 진입점 */
-  firstCardId: string;
   /** 이 곡의 모든 카드 id (마감/해제 대상) */
   cardIds: string[];
   /** 마감된 카드 수 */
@@ -28,13 +27,18 @@ interface Props {
   song: SongSummary;
   students: LineupStudent[];
   assignedIds: string[];
+  /** 이 곡의 MR 목록 (모달에서 재생·추가·삭제) */
+  tracks: SongTrack[];
+  /** 로그인한 리더 id — 내가 올린 MR 삭제 판단용 */
+  myId: string;
 }
 
 /** 곡 관리 카드: 편성·미션·기한·진행을 한 곳에서 보고 고친다 */
-export function SongManageCard({ song, students, assignedIds }: Props) {
+export function SongManageCard({ song, students, assignedIds, tracks, myId }: Props) {
   const router = useRouter();
   const [lineupOpen, setLineupOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tracksOpen, setTracksOpen] = useState(false);
   const [mission, setMission] = useState(song.mission ?? "");
   const [dueDate, setDueDate] = useState(song.dueDate ?? "");
   const [totalGrapes, setTotalGrapes] = useState(song.totalGrapes);
@@ -184,12 +188,13 @@ export function SongManageCard({ song, students, assignedIds }: Props) {
         >
           ✏️ 설정
         </button>
-        <Link
-          href={`/teacher/cards/${song.firstCardId}`}
+        <button
+          type="button"
+          onClick={() => setTracksOpen(true)}
           className="px-3 py-2 rounded-xl bg-violet-50 text-violet-700 text-sm font-bold active:bg-violet-100"
         >
-          🎧 MR
-        </Link>
+          🎧 MR{song.trackCount > 0 && ` ${song.trackCount}`}
+        </button>
         {song.closedCount >= song.cardIds.length && song.cardIds.length > 0 ? (
           <button
             type="button"
@@ -226,6 +231,27 @@ export function SongManageCard({ song, students, assignedIds }: Props) {
           assignedIds={assignedIds}
           onClose={() => setLineupOpen(false)}
         />
+      )}
+
+      {tracksOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => setTracksOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <SongTracks songTitle={song.title} tracks={tracks} myId={myId} isTeacher />
+            <button
+              type="button"
+              onClick={() => setTracksOpen(false)}
+              className="mt-2 w-full h-12 rounded-2xl bg-white/90 text-gray-700 font-bold"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
       )}
 
       {settingsOpen && (

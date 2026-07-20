@@ -7,12 +7,13 @@ import type { Profile, ProgressCard, SongTrack, Submission } from "@/lib/types";
 /** 곡 관리: 곡별 편성·미션·기한·진행·MR을 한 화면에서 */
 export default async function SongsPage() {
   const supabase = await createSupabaseServer();
-  const [{ data: students }, { data: cards }, { data: subs }, { data: tracks }] =
+  const [{ data: students }, { data: cards }, { data: subs }, { data: tracks }, { data: { user } }] =
     await Promise.all([
       supabase.from("profiles").select("*").eq("role", "student").order("display_name"),
       supabase.from("progress_cards").select("*").order("created_at", { ascending: false }),
       supabase.from("submissions").select("*"),
-      supabase.from("song_tracks").select("*"),
+      supabase.from("song_tracks").select("*").order("created_at", { ascending: true }),
+      supabase.auth.getUser(),
     ]);
 
   const studentList = (students ?? []) as Profile[];
@@ -39,7 +40,6 @@ export default async function SongsPage() {
         (s) => s.status === "pending" && songCards.some((c) => c.id === s.card_id)
       ).length,
       trackCount: trackList.filter((t) => t.song_title === title).length,
-      firstCardId: template.id,
       cardIds: songCards.map((c) => c.id),
       closedCount: songCards.filter((c) => c.closed_at).length,
     };
@@ -52,7 +52,12 @@ export default async function SongsPage() {
         hasRecords: !!myCard && cardIdsWithSubs.has(myCard.id),
       };
     });
-    return { song, lineupStudents, assignedIds };
+    return {
+      song,
+      lineupStudents,
+      assignedIds,
+      tracks: trackList.filter((t) => t.song_title === title),
+    };
   });
 
   return (
@@ -78,12 +83,14 @@ export default async function SongsPage() {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {songs.map(({ song, lineupStudents, assignedIds }) => (
+          {songs.map(({ song, lineupStudents, assignedIds, tracks: songTracks }) => (
             <SongManageCard
               key={song.title}
               song={song}
               students={lineupStudents}
               assignedIds={assignedIds}
+              tracks={songTracks}
+              myId={user?.id ?? ""}
             />
           ))}
         </div>
