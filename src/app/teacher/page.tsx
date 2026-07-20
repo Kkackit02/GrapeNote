@@ -120,6 +120,13 @@ export default async function TeacherDashboard() {
           👥 팀 관리
           <p className="mt-0.5 text-xs font-medium text-gray-400">팀·파트장 지정</p>
         </Link>
+        <Link
+          href="/teacher/videos"
+          className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
+        >
+          🎬 영상 관리
+          <p className="mt-0.5 text-xs font-medium text-gray-400">전체 영상 표·다운로드</p>
+        </Link>
       </div>
 
       <div className="rounded-2xl bg-white border border-violet-100 p-4">

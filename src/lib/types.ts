@@ -98,6 +98,8 @@ export interface Submission {
   reviewed_by: string | null;
   reviewed_at: string | null;
   video_deleted_at: string | null;
+  /** 정리 삭제 전 드라이브로 백업된 파일 id (0019) */
+  drive_file_id?: string | null;
   created_at: string;
 }
 
