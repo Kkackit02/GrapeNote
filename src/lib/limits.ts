@@ -12,10 +12,10 @@ export interface GroupLimits {
 }
 
 export const FREE_LIMITS: GroupLimits = {
-  // TODO: 기존 사용량(~2.7GB)이 1일 보존 정리로 해소되면 500MB로 되돌릴 것.
-  storageBytes: 3 * 1024 * 1024 * 1024, // 임시 3GB (원래 500MB)
-  // Supabase 무료 티어(1GB)를 지키기 위한 결정(2026-07-20): 판정 후 1일만 파일 보존.
-  // 판정 기록·코멘트는 영구 보존. 인앱 촬영만 허용해 파일 크기도 억제한다.
+  // Supabase 무료 티어(스토리지 1GB)에 맞춘 그룹 한도.
+  // 판정 후 1일 보존 + 인앱 촬영 전용으로 하루치(~500MB)만 상시 유지되는 구조.
+  storageBytes: 1024 * 1024 * 1024, // 1GB
+  // 판정 기록·코멘트는 영구 보존, 파일만 판정 후 1일 뒤 정리 (2026-07-20 결정)
   retentionDays: 1,
   maxUploadBytes: 50 * 1024 * 1024,
   hd: false,
