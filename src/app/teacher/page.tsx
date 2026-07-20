@@ -1,15 +1,10 @@
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { isDriveConfigured } from "@/lib/google-drive";
 import { getTerms } from "@/lib/terms-server";
 import { getWeeklyStats } from "@/lib/activity";
 import { groupLimits, formatBytes } from "@/lib/limits";
 import { MembersTable, type MemberRow } from "@/components/MembersTable";
 import { JoinCodeCard } from "@/components/JoinCodeCard";
-import { BoardShareToggle } from "@/components/BoardShareToggle";
-import { DriveArchiveCard } from "@/components/DriveArchiveCard";
-import { PushToggle } from "@/components/PushToggle";
 import type {
   Academy,
   Profile,
@@ -67,16 +62,6 @@ export default async function TeacherDashboard() {
   const academy = academyRow as Academy | null;
   const limits = groupLimits(academy?.is_premium);
 
-  // 드라이브 연결 여부 — 토큰 테이블은 service role 전용이라 여기서만 확인 (boolean만 노출)
-  let driveConnected = false;
-  if (academy) {
-    const { data: conn } = await createSupabaseAdmin()
-      .from("drive_connections")
-      .select("academy_id")
-      .eq("academy_id", academy.id)
-      .maybeSingle();
-    driveConnected = !!conn;
-  }
   const storagePercent = Math.min(
     100,
     Math.round((storageUsed / limits.storageBytes) * 100)
@@ -174,36 +159,19 @@ export default async function TeacherDashboard() {
         </Link>
       </div>
 
-      <div className="rounded-2xl bg-white border border-violet-100 p-4">
-        <div className="flex items-center justify-between text-sm">
-          <span className="font-bold text-gray-700">
-            💾 영상 저장 공간
-            {academy?.is_premium && (
-              <span className="ml-1.5 text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full align-middle">
-                ✨ 프리미엄
-              </span>
-            )}
+      {/* 설정은 /teacher/settings로 옮겼다. 여유가 없을 때만 여기서 알린다 */}
+      {storagePercent >= 80 && (
+        <Link
+          href="/teacher/settings"
+          className="rounded-2xl bg-orange-50 border border-orange-300 px-4 py-3 flex items-center justify-between text-sm active:bg-orange-100"
+        >
+          <span className="font-bold text-orange-800">
+            💾 저장 공간 {storagePercent}% 사용 중 ({formatBytes(storageUsed)} /{" "}
+            {formatBytes(limits.storageBytes)})
           </span>
-          <span className={storagePercent >= 90 ? "font-bold text-red-500" : "text-gray-400"}>
-            {formatBytes(storageUsed)} / {formatBytes(limits.storageBytes)}
-          </span>
-        </div>
-        <div className="mt-2 h-2 rounded-full bg-violet-100 overflow-hidden">
-          <div
-            className={`h-full rounded-full ${storagePercent >= 90 ? "bg-red-400" : "bg-violet-400"}`}
-            style={{ width: `${storagePercent}%` }}
-          />
-        </div>
-        <p className="mt-1.5 text-xs text-gray-400">
-          판정 {limits.retentionDays}일 뒤 영상 파일은 자동 정리돼요 (판정 기록·코멘트는 남아요).
-        </p>
-      </div>
-
-      <PushToggle vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />
-
-      <BoardShareToggle enabled={!!academy?.show_board} />
-
-      <DriveArchiveCard connected={driveConnected} configured={isDriveConfigured()} />
+          <span className="shrink-0 font-bold text-orange-600">설정 →</span>
+        </Link>
+      )}
 
       <section>
         <div className="flex items-center justify-between">

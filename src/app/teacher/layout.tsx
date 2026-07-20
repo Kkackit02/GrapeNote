@@ -26,6 +26,12 @@ export default async function TeacherLayout({ children }: { children: React.Reac
                 <Link href="/teacher/videos" className="px-3 py-2 hover:bg-violet-50">🎬 영상 관리</Link>
                 <Link href="/teacher/teams" className="px-3 py-2 hover:bg-violet-50">👥 팀 관리</Link>
                 <Link href="/teacher/stats" className="px-3 py-2 hover:bg-violet-50">📈 주간 통계</Link>
+                <Link
+                  href="/teacher/settings"
+                  className="px-3 py-2 hover:bg-violet-50 border-t border-violet-50"
+                >
+                  ⚙️ 그룹 설정
+                </Link>
               </div>
             </details>
             <LogoutButton />
