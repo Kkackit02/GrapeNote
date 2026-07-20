@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { FREE_LIMITS, PREMIUM_LIMITS } from "@/lib/limits";
 import { getAccessToken, uploadToDrive } from "@/lib/google-drive";
+import { archiveFileName } from "@/lib/archive";
 
 // 드라이브 백업(다운로드+업로드)이 있어 여유를 준다 (Vercel Hobby 상한)
 export const maxDuration = 60;
@@ -24,9 +25,6 @@ interface StaleRow {
   created_at: string;
   reviewed_at: string | null;
 }
-
-/** 드라이브 파일명에 못 쓰는 문자 제거 */
-const safeName = (value: string) => value.replace(/[\\/:*?"<>|]/g, " ").trim();
 
 /**
  * 판정(합격/재연습) 후 보존 기간이 지난 영상 파일을 정리한다.
@@ -132,14 +130,15 @@ export async function GET(request: Request) {
       toDelete.push(sub); // 파일이 이미 없음 — 마킹만
       continue;
     }
-    // 예: 2026-07-18제출_TOMBOY_정근녕_포도알3_합격(07-19).mp4
-    const submitted = sub.created_at.slice(0, 10);
-    const reviewed = (sub.reviewed_at ?? "").slice(5, 10);
-    const verdict = sub.status === "approved" ? "합격" : "재연습";
-    const ext = sub.video_path.split(".").pop() ?? "mp4";
-    const fileName = `${submitted}제출_${safeName(cardTitles.get(sub.card_id) ?? "곡")}_${
-      safeName(studentNames.get(sub.student_id) ?? "멤버")
-    }_포도알${sub.grape_index}_${verdict}${reviewed ? `(${reviewed})` : ""}.${ext}`;
+    const fileName = archiveFileName({
+      songTitle: cardTitles.get(sub.card_id) ?? "곡",
+      memberName: studentNames.get(sub.student_id) ?? "멤버",
+      grapeIndex: sub.grape_index,
+      status: sub.status,
+      createdAt: sub.created_at,
+      reviewedAt: sub.reviewed_at,
+      videoPath: sub.video_path,
+    });
 
     const fileId = await uploadToDrive(token, conn.folder_id, fileName, blob);
     if (!fileId) {
