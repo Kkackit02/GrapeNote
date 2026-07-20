@@ -4,7 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getPlaybackUrl } from "@/lib/actions/uploads";
-import { archiveSubmissions, purgeSubmissions } from "@/lib/actions/videos";
+import { purgeSubmissions } from "@/lib/actions/videos";
+import { getDriveUploadSession, markSubmissionArchived } from "@/lib/actions/drive";
+import { uploadToDriveFromBrowser, DriveAuthExpired } from "@/lib/drive-client";
+import { archiveFileName } from "@/lib/archive";
 import { formatBytes } from "@/lib/limits";
 
 export interface VideoRow {
@@ -16,6 +19,8 @@ export interface VideoRow {
   grapeIndex: number;
   status: "pending" | "approved" | "needs_retry";
   sizeBytes: number;
+  /** 백업 파일명 확장자 판단용 (스토리지 경로) */
+  videoPath: string;
   /** 파일 상태: live(보관 중) / drive(정리됨+드라이브 백업) / gone(정리됨) */
   fileState: "live" | "drive" | "gone";
   /** 보관 중이면서 드라이브 백업도 이미 된 영상 */
@@ -126,6 +131,10 @@ export function VideosTable({ rows, driveConnected, memberLabel = "멤버" }: Pr
     setNotice(`⬇ ${done}개 다운로드를 시작했어요. (브라우저가 여러 파일 허용을 물으면 허용해 주세요)`);
   };
 
+  /**
+   * 드라이브 백업: 브라우저가 Supabase에서 영상을 받아 드라이브로 직접 올린다.
+   * 서버를 거치지 않으므로 함수 실행 시간 제한이 없고, 개수 제한도 없다.
+   */
   const bulkArchive = async () => {
     const targets = selectedRows.filter((row) => row.fileState === "live" && !row.driveBacked);
     if (targets.length === 0) {
@@ -135,31 +144,56 @@ export function VideosTable({ rows, driveConnected, memberLabel = "멤버" }: Pr
     setError(null);
     setBusy("backup");
 
-    // 서버 함수는 30초 예산으로 끊기므로, 남은 게 있으면 이어서 반복 호출한다.
-    // 진전이 없으면(전부 실패) 무한 루프를 피하려고 멈춘다.
-    let remaining = targets.map((row) => row.id);
+    let session = await getDriveUploadSession();
+    if (!session.ok) {
+      setBusy(null);
+      setError(session.error);
+      return;
+    }
+
     let archived = 0;
     let failed = 0;
-    while (remaining.length > 0) {
-      setNotice(
-        `🗂 백업 중... ${archived}/${targets.length}개 완료 (남은 ${remaining.length}개)`
-      );
-      const result = await archiveSubmissions(remaining);
-      if (!result.ok) {
-        setBusy(null);
-        setError(result.error);
-        return;
+    for (const [index, row] of targets.entries()) {
+      setNotice(`🗂 백업 중... ${index + 1}/${targets.length} — ${row.songTitle} · ${row.studentName}`);
+      try {
+        const signed = await getPlaybackUrl(row.id);
+        if (!signed.ok) throw new Error(signed.error);
+        const blob = await (await fetch(signed.data.url)).blob();
+
+        const fileName = archiveFileName({
+          songTitle: row.songTitle,
+          memberName: row.studentName,
+          grapeIndex: row.grapeIndex,
+          status: row.status === "approved" ? "approved" : "needs_retry",
+          createdAt: row.createdAt,
+          reviewedAt: row.reviewedAt,
+          videoPath: row.videoPath,
+        });
+
+        let fileId: string;
+        try {
+          fileId = await uploadToDriveFromBrowser({ ...session.data, fileName, blob });
+        } catch (e) {
+          // 토큰이 만료되면 한 번만 새로 받아 재시도한다 (1시간짜리)
+          if (!(e instanceof DriveAuthExpired)) throw e;
+          const refreshed = await getDriveUploadSession();
+          if (!refreshed.ok) throw new Error(refreshed.error);
+          session = refreshed;
+          fileId = await uploadToDriveFromBrowser({ ...refreshed.data, fileName, blob });
+        }
+
+        const marked = await markSubmissionArchived(row.id, fileId);
+        if (!marked.ok) throw new Error(marked.error);
+        archived++;
+      } catch {
+        failed++;
       }
-      archived += result.data.archived;
-      failed += result.data.failed;
-      if (result.data.archived === 0) break; // 더 진행되지 않음
-      // 이번 회차에 처리된 만큼만 남긴다 (실패한 건 다시 시도하지 않음)
-      remaining = remaining.slice(result.data.archived + result.data.failed);
     }
 
     setBusy(null);
     setNotice(
-      `🗂 ${archived}개를 드라이브로 백업했어요.` + (failed ? ` (실패 ${failed}개)` : "")
+      `🗂 ${archived}개를 드라이브에 백업했어요.` +
+        (failed ? ` (실패 ${failed}개 — 다시 시도해 주세요)` : "")
     );
     router.refresh();
   };

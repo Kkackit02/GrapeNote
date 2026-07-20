@@ -34,6 +34,7 @@ export default async function VideosPage() {
     grapeIndex: sub.grape_index,
     status: sub.status,
     sizeBytes: sub.video_size_bytes ?? 0,
+    videoPath: sub.video_path,
     fileState: sub.video_deleted_at ? (sub.drive_file_id ? "drive" : "gone") : "live",
     driveBacked: !sub.video_deleted_at && !!sub.drive_file_id,
   }));
