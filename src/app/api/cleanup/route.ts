@@ -20,8 +20,13 @@ interface StaleRow {
   card_id: string;
   student_id: string;
   grape_index: number;
+  status: "approved" | "needs_retry";
+  created_at: string;
   reviewed_at: string | null;
 }
+
+/** 드라이브 파일명에 못 쓰는 문자 제거 */
+const safeName = (value: string) => value.replace(/[\\/:*?"<>|]/g, " ").trim();
 
 /**
  * 판정(합격/재연습) 후 보존 기간이 지난 영상 파일을 정리한다.
@@ -46,7 +51,8 @@ export async function GET(request: Request) {
     .eq("is_premium", true);
   const premiumIds = (premiumRows ?? []).map((row) => row.id);
 
-  const SELECT = "id, video_path, academy_id, card_id, student_id, grape_index, reviewed_at";
+  const SELECT =
+    "id, video_path, academy_id, card_id, student_id, grape_index, status, created_at, reviewed_at";
   const freeQuery = admin
     .from("submissions")
     .select(SELECT)
@@ -126,11 +132,14 @@ export async function GET(request: Request) {
       toDelete.push(sub); // 파일이 이미 없음 — 마킹만
       continue;
     }
-    const date = (sub.reviewed_at ?? new Date().toISOString()).slice(0, 10);
+    // 예: 2026-07-18제출_TOMBOY_정근녕_포도알3_합격(07-19).mp4
+    const submitted = sub.created_at.slice(0, 10);
+    const reviewed = (sub.reviewed_at ?? "").slice(5, 10);
+    const verdict = sub.status === "approved" ? "합격" : "재연습";
     const ext = sub.video_path.split(".").pop() ?? "mp4";
-    const fileName = `${date}_${cardTitles.get(sub.card_id) ?? "곡"}_${
-      studentNames.get(sub.student_id) ?? "멤버"
-    }_포도알${sub.grape_index}.${ext}`;
+    const fileName = `${submitted}제출_${safeName(cardTitles.get(sub.card_id) ?? "곡")}_${
+      safeName(studentNames.get(sub.student_id) ?? "멤버")
+    }_포도알${sub.grape_index}_${verdict}${reviewed ? `(${reviewed})` : ""}.${ext}`;
 
     const fileId = await uploadToDrive(token, conn.folder_id, fileName, blob);
     if (!fileId) {
