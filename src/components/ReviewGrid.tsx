@@ -31,18 +31,40 @@ interface Props {
  * 동시 재생 검토 그리드: 밀린 영상들을 음소거 상태로 한꺼번에 틀어놓고
  * 영상 길이·손 움직임으로 훑으면서 타일에서 바로 판정한다. 소리는 한 타일만.
  */
+const DEFAULT_MODE: Mode = 2;
+
+/** 화면에 깔린 슬롯(자리 고정)과 아직 안 보인 대기열. 판정해도 다른 타일이 밀리지 않도록 분리한다. */
+interface Board {
+  slots: (ReviewQueueItem | null)[];
+  backlog: ReviewQueueItem[];
+}
+
 export function ReviewGrid({ items, basePath, memberLabel = "학생" }: Props) {
-  const [queue, setQueue] = useState(items);
-  const [mode, setMode] = useState<Mode>(2);
+  const [mode, setMode] = useState<Mode>(DEFAULT_MODE);
+  const [board, setBoard] = useState<Board>(() => ({
+    slots: items.slice(0, DEFAULT_MODE),
+    backlog: items.slice(DEFAULT_MODE),
+  }));
   const [rate, setRate] = useState(1);
   const [soundId, setSoundId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  const applyMode = (m: Mode) => {
+    setMode(m);
+    // 모드 변경은 레이아웃 자체가 바뀌는 순간이라 슬롯을 대기열과 합쳐 다시 깐다
+    setBoard(({ slots, backlog }) => {
+      const pool = [...slots.filter((s): s is ReviewQueueItem => s !== null), ...backlog];
+      return { slots: pool.slice(0, m), backlog: pool.slice(m) };
+    });
+  };
 
   useEffect(() => {
     // SSR과 첫 클라이언트 렌더를 일치시키기 위해 저장된 분할 모드는 마운트 후에 복원한다
     queueMicrotask(() => {
       const stored = Number(localStorage.getItem(MODE_STORAGE_KEY));
-      if ((MODES as readonly number[]).includes(stored)) setMode(stored as Mode);
+      if ((MODES as readonly number[]).includes(stored) && stored !== DEFAULT_MODE) {
+        applyMode(stored as Mode);
+      }
     });
   }, []);
 
@@ -53,17 +75,27 @@ export function ReviewGrid({ items, basePath, memberLabel = "학생" }: Props) {
   }, [toast]);
 
   const pickMode = (m: Mode) => {
-    setMode(m);
+    applyMode(m);
     localStorage.setItem(MODE_STORAGE_KEY, String(m));
   };
 
   const handleJudged = (id: string, completedMessage: string | null) => {
-    setQueue((q) => q.filter((item) => item.id !== id));
+    // 판정된 슬롯 자리에만 다음 대기 영상을 채운다 — 나머지 타일은 그대로 (오클릭 방지)
+    setBoard(({ slots, backlog }) => {
+      const idx = slots.findIndex((s) => s?.id === id);
+      if (idx === -1) return { slots, backlog };
+      const nextSlots = [...slots];
+      nextSlots[idx] = backlog[0] ?? null;
+      return { slots: nextSlots, backlog: backlog.slice(1) };
+    });
     setSoundId((current) => (current === id ? null : current));
     if (completedMessage) setToast(completedMessage);
   };
 
-  if (queue.length === 0) {
+  const remaining =
+    board.slots.filter(Boolean).length + board.backlog.length;
+
+  if (remaining === 0) {
     return (
       <div className="rounded-2xl bg-white border border-violet-100 p-10 text-center text-gray-500">
         모두 확인했어요! 🎉
@@ -71,7 +103,6 @@ export function ReviewGrid({ items, basePath, memberLabel = "학생" }: Props) {
     );
   }
 
-  const visible = queue.slice(0, mode);
   const layout = MODE_LAYOUT[mode];
 
   return (
@@ -79,7 +110,7 @@ export function ReviewGrid({ items, basePath, memberLabel = "학생" }: Props) {
     <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen px-4">
       <div className={`mx-auto ${layout.width} flex flex-col gap-3`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-bold text-gray-600">👀 대기 {queue.length}개</p>
+          <p className="text-sm font-bold text-gray-600">👀 대기 {remaining}개</p>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
               <span className="text-xs text-gray-400 mr-0.5">분할</span>
@@ -114,25 +145,35 @@ export function ReviewGrid({ items, basePath, memberLabel = "학생" }: Props) {
         </div>
 
         <div className={`grid gap-3 ${layout.grid}`}>
-          {visible.map((item) => (
-            <ReviewTile
-              key={item.id}
-              item={item}
-              rate={rate}
-              basePath={basePath}
-              memberLabel={memberLabel}
-              soundOn={soundId === item.id}
-              onToggleSound={() =>
-                setSoundId(soundId === item.id ? null : item.id)
-              }
-              onJudged={handleJudged}
-            />
-          ))}
+          {board.slots.map((item, index) =>
+            item ? (
+              <ReviewTile
+                key={item.id}
+                item={item}
+                rate={rate}
+                basePath={basePath}
+                memberLabel={memberLabel}
+                soundOn={soundId === item.id}
+                onToggleSound={() =>
+                  setSoundId(soundId === item.id ? null : item.id)
+                }
+                onJudged={handleJudged}
+              />
+            ) : (
+              // 다 본 자리 — 다른 타일이 밀리지 않게 자리를 지킨다
+              <div
+                key={`empty-${index}`}
+                className="rounded-2xl border border-dashed border-violet-200 bg-violet-50/40 flex items-center justify-center min-h-40 text-3xl"
+              >
+                🍇
+              </div>
+            )
+          )}
         </div>
 
-        {queue.length > visible.length && (
+        {board.backlog.length > 0 && (
           <p className="text-center text-xs text-gray-400">
-            판정하면 다음 영상이 이어서 나와요 · 대기 {queue.length - visible.length}개 더
+            판정하면 그 자리에 다음 영상이 나와요 · 대기 {board.backlog.length}개 더
           </p>
         )}
       </div>
