@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { deriveGrapes, isCardComplete } from "@/lib/grapes";
+import { sendPushTo, groupMembersExcept } from "@/lib/push";
 import { DATE_RE } from "@/lib/due";
 import type { ActionResult, Submission } from "@/lib/types";
 
@@ -231,6 +232,55 @@ export async function updateCardSettings(input: {
   revalidatePath(`/teacher/students/${card.student_id}`);
   revalidatePath("/me");
   revalidatePath(`/me/cards/${input.cardId}`);
+  return { ok: true, data: undefined };
+}
+
+/**
+ * 완성한 포도송이를 그룹에 자랑한다 (본인만, 완성한 카드만, 한 번만).
+ * 이걸 누르기 전까지 완성 사실은 그룹 피드·알림에 올라가지 않는다.
+ */
+export async function shareCompletion(cardId: string): Promise<ActionResult> {
+  const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "로그인이 필요해요." };
+
+  const { data: card } = await supabase
+    .from("progress_cards")
+    .select("id, title, student_id, academy_id, completed_at, shared_at")
+    .eq("id", cardId)
+    .eq("student_id", user.id)
+    .maybeSingle();
+  if (!card) return { ok: false, error: "카드를 찾을 수 없어요." };
+  if (!card.completed_at) return { ok: false, error: "아직 완성하지 않은 포도송이예요." };
+  if (card.shared_at) return { ok: false, error: "이미 자랑했어요! 🎉" };
+
+  const { error } = await supabase
+    .from("progress_cards")
+    .update({ shared_at: new Date().toISOString() })
+    .eq("id", cardId);
+  if (error) return { ok: false, error: "자랑하기에 실패했어요." };
+
+  // 그룹에 알림 (실패해도 공개 자체는 성공)
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .single();
+    const others = await groupMembersExcept(card.academy_id, user.id);
+    await sendPushTo(others, {
+      title: "🎉 포도송이 완성!",
+      body: `${profile?.display_name ?? "멤버"} 님이 「${card.title}」를 완성했어요!`,
+      url: "/me",
+      tag: `completed-${cardId}`,
+    });
+  } catch {
+    // 무시
+  }
+
+  revalidatePath("/me");
+  revalidatePath(`/me/cards/${cardId}`);
+  revalidatePath("/me/vineyard");
   return { ok: true, data: undefined };
 }
 

@@ -336,7 +336,8 @@ try {
     .rpc("get_group_feed", { p_days: 7, p_limit: 30 });
   ok("학생이 그룹 피드 조회", !feedErr && Array.isArray(feed), feedErr?.message);
   ok("피드에 합격 이벤트 포함", (feed ?? []).some((e) => e.event_type === "grape_approved"));
-  ok("피드에 포도송이 완성 이벤트 포함", (feed ?? []).some((e) => e.event_type === "card_completed"));
+  ok("자랑 전 완성은 피드에 미노출",
+    !(feed ?? []).some((e) => e.event_type === "card_completed"));
   ok("피드에 영상 경로/코멘트 미노출",
     (feed ?? []).every((e) => !("video_path" in e) && !("teacher_comment" in e)));
   const { data: weekly, error: weeklyErr } = await student.rpc("get_weekly_stats");
@@ -440,6 +441,32 @@ try {
   const { data: myPush } = await student.from("push_subscriptions")
     .select("endpoint").eq("profile_id", studentId);
   ok("내 푸시 구독은 조회 가능", (myPush ?? []).length === 1);
+
+  console.log("\n[23] 완성 자랑하기 공개 제어 (0021)");
+  const { data: doneCard } = await admin.from("progress_cards")
+    .select("id, student_id").eq("academy_id", academy.id)
+    .not("completed_at", "is", null).limit(1).maybeSingle();
+  if (!doneCard) {
+    ok("완성 카드 없음 (스킵)", true);
+  } else {
+    // 남의 카드는 자랑할 수 없다
+    const other = doneCard.student_id === studentId ? student2b : student;
+    const { data: forged } = await other.from("progress_cards")
+      .update({ shared_at: new Date().toISOString() }).eq("id", doneCard.id).select("id");
+    ok("남의 완성 자랑 → 차단", (forged ?? []).length === 0);
+    // 본인은 공개 가능
+    const owner = doneCard.student_id === studentId ? student : student2b;
+    const { data: sharedRow } = await owner.from("progress_cards")
+      .update({ shared_at: new Date().toISOString() }).eq("id", doneCard.id).select("id");
+    ok("본인이 완성 자랑 가능", (sharedRow ?? []).length === 1);
+    const { data: feedAfter } = await student.rpc("get_group_feed", { p_days: 7, p_limit: 30 });
+    ok("자랑 후 피드에 완성 노출",
+      (feedAfter ?? []).some((e) => e.event_type === "card_completed"));
+    // 학생이 포도알 개수 같은 다른 컬럼은 못 바꾼다 (컬럼 권한)
+    const { error: colErr } = await owner.from("progress_cards")
+      .update({ total_grapes: 99 }).eq("id", doneCard.id);
+    ok("학생이 포도알 수 변경 → 거부", !!colErr);
+  }
 } catch (e) {
   fail++;
   console.error("💥 예기치 못한 오류:", e);

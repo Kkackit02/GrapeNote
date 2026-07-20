@@ -53,6 +53,7 @@
 
 ### Phase 4 — 알림 + 프리미엄 🔨
 
+- ✅ **완성 공개는 본인 선택** (0021, 사용자 요청 "무조건 공개하지 마"): progress_cards.shared_at — 완성해도 자동으로 안 퍼지고, 멤버가 "📣 자랑하기"를 눌러야 그룹 피드·알림에 올라간다. 판정 알림은 본인에게만. 학생의 카드 update는 shared_at 컬럼만 허용(컬럼 권한).
 - ✅ **웹푸시 알림** (0020, 2026-07-20): push_subscriptions(RLS 본인 것만) + web-push + public/sw.js. 발송 지점 — 새 제출 → 검토자(선생님+소속 팀 파트장), 판정 → 멤버, 포도송이 완성 → 그룹 전체. 알림 실패는 본 동작을 막지 않음(try/catch), 만료 구독(404/410) 자동 정리. 켜기 토글은 멤버 홈·리더 대시보드, 켜면 테스트 알림 발송. 환경변수 NEXT_PUBLIC_VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY/VAPID_SUBJECT.
 - ✅ **그룹 프리미엄 토글** (0018, 결제 없이 is_premium 수동): 무료 500MB/7일/50MB/480p ↔ 프리미엄 5GB/30일/200MB/720p (lib/limits.ts groupLimits). is_premium은 컬럼 권한(grant 목록 제외)으로 API 수정 차단 — 운영자(service role)만 변경. videos 버킷 상한 200MB 상향, cleanup cron 2단계 보존.
 - 📋 프리미엄 잔여: **녹화 중 MR/반주 재생**, 영상 아카이브 다운로드, 고급 통계. 가격 월 4,900~9,900원 구간 추후 확정, 결제 수단 미정(토스페이먼츠 유력).

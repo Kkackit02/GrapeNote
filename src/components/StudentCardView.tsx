@@ -7,6 +7,7 @@ import { VideoUploader } from "./VideoUploader";
 import { GrapeVideoSection } from "./GrapeVideoSection";
 import { Celebration } from "./Celebration";
 import { SongTracks } from "./SongTracks";
+import { ShareCompletionButton } from "./ShareCompletionButton";
 import { deleteSubmission } from "@/lib/actions/uploads";
 import { approvedCount, type GrapeState } from "@/lib/grapes";
 import type { ProgressCard, SongTrack } from "@/lib/types";
@@ -77,6 +78,8 @@ export function StudentCardView({
           <p className="mt-1 font-bold text-amber-600">포도송이 완성! 정말 대단해요! 🎉</p>
         )}
       </div>
+
+      {completed && <ShareCompletionButton cardId={card.id} shared={!!card.shared_at} />}
 
       {card.description && (
         <div className="rounded-2xl bg-sky-50 border-2 border-sky-200 p-4 text-left">

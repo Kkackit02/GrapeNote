@@ -102,6 +102,9 @@ export default async function VineyardPage() {
                   <p className="mt-2 text-sm font-extrabold text-gray-800 truncate">
                     🏆 {card.title}
                   </p>
+                  {!card.shared_at && (
+                    <p className="text-[11px] font-bold text-amber-600">📣 자랑하기</p>
+                  )}
                   <p className="text-xs text-gray-400 mt-0.5">
                     {card.completed_at &&
                       new Date(card.completed_at).toLocaleDateString("ko-KR", {

@@ -78,6 +78,8 @@ export interface ProgressCard {
   total_grapes: number;
   due_date: string | null;
   completed_at: string | null;
+  /** 본인이 "자랑하기"를 눌러 그룹에 공개한 시각 (0021) */
+  shared_at?: string | null;
   created_by: string;
   created_at: string;
 }
