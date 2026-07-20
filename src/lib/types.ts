@@ -80,6 +80,8 @@ export interface ProgressCard {
   completed_at: string | null;
   /** 본인이 "자랑하기"를 눌러 그룹에 공개한 시각 (0021) */
   shared_at?: string | null;
+  /** 리더가 마감한 시각 — 멤버 화면에서 숨겨지고 제출 불가 (0023) */
+  closed_at?: string | null;
   created_by: string;
   created_at: string;
 }

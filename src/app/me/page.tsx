@@ -37,7 +37,8 @@ export default async function MyCardsPage() {
   const profile = profileRow as Profile;
   const allCards = (cards ?? []) as ProgressCard[];
   const subList = (subs ?? []) as Submission[];
-  const myCards = allCards.filter((c) => c.student_id === user!.id); // 파트장은 팀원 카드도 조회되므로 내 것만
+  // 파트장은 팀원 카드도 조회되므로 내 것만. 마감된 숙제는 화면에서 감춘다 (0023)
+  const myCards = allCards.filter((c) => c.student_id === user!.id && !c.closed_at);
   const cardList = myCards.filter((c) => !c.completed_at); // 진행 중만 (완성작은 포도밭에)
   const completedCount = myCards.length - cardList.length;
   const totalApproved = subList.filter(

@@ -37,12 +37,14 @@ export default async function HomeworkAdminPage() {
       retry: grapes.filter((g) => g.status === "retry").length,
       dueDate: card.due_date,
       completedAt: card.completed_at,
+      closedAt: card.closed_at ?? null,
       createdAt: card.created_at,
       selfAdded: card.created_by === card.student_id,
     };
   });
 
-  const active = rows.filter((row) => !row.completedAt).length;
+  const active = rows.filter((row) => !row.completedAt && !row.closedAt).length;
+  const closed = rows.filter((row) => row.closedAt).length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -58,7 +60,8 @@ export default async function HomeworkAdminPage() {
           </Link>
         </div>
         <p className="mt-1 text-sm text-gray-500">
-          전체 {rows.length}개 · 진행 중 {active}개 — ✏️로 곡명·미션·포도알·기한을 고쳐요.
+          전체 {rows.length}개 · 진행 중 {active}개{closed > 0 && ` · 🔒 마감 ${closed}개`} — 체크해서
+          일괄 수정·마감할 수 있어요.
         </p>
       </div>
 

@@ -23,6 +23,7 @@ export default async function VineyardPage() {
   const cardList = (cards ?? []) as ProgressCard[];
   const subList = (subs ?? []) as Submission[];
 
+  // 마감된 숙제도 완성작이면 트로피는 남긴다 (기록은 사라지지 않음)
   const completed = cardList.filter((c) => c.completed_at);
   const totalApproved = subList.filter((s) => s.status === "approved").length;
   const totalVideos = subList.length;

@@ -40,6 +40,8 @@ export default async function SongsPage() {
       ).length,
       trackCount: trackList.filter((t) => t.song_title === title).length,
       firstCardId: template.id,
+      cardIds: songCards.map((c) => c.id),
+      closedCount: songCards.filter((c) => c.closed_at).length,
     };
     const lineupStudents: LineupStudent[] = studentList.map((s) => {
       const myCard = songCards.find((c) => c.student_id === s.id);

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updateSong, deleteSong } from "@/lib/actions/songs";
+import { closeCards, reopenCards } from "@/lib/actions/cards";
 import { LineupModal, type LineupStudent } from "@/components/LineupModal";
 import { instrumentBadge } from "@/lib/instruments";
 
@@ -16,6 +18,10 @@ export interface SongSummary {
   trackCount: number;
   /** 이 곡의 첫 카드 id — MR 관리를 위한 카드 상세 진입점 */
   firstCardId: string;
+  /** 이 곡의 모든 카드 id (마감/해제 대상) */
+  cardIds: string[];
+  /** 마감된 카드 수 */
+  closedCount: number;
 }
 
 interface Props {
@@ -56,6 +62,43 @@ export function SongManageCard({ song, students, assignedIds }: Props) {
     router.refresh();
   };
 
+  const close = async () => {
+    if (
+      !window.confirm(
+        `「${song.title}」을(를) 마감할까요?\n· 멤버 ${assigned.length}명의 화면에서 사라지고 더 이상 제출할 수 없어요\n· 지난 제출 영상은 드라이브로 자동 백업돼요\n· 기록은 남고, 언제든 마감을 해제할 수 있어요`
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    const result = await closeCards(song.cardIds);
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    window.alert(
+      `🔒 「${song.title}」을(를) 마감했어요.` +
+        (result.data.archiveSkipped
+          ? "\n(드라이브 미연결이라 백업은 건너뛰었어요)"
+          : `\n영상 ${result.data.archived}개를 드라이브에 백업했어요.`)
+    );
+    router.refresh();
+  };
+
+  const reopen = async () => {
+    setError(null);
+    setBusy(true);
+    const result = await reopenCards(song.cardIds);
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    router.refresh();
+  };
+
   const remove = async () => {
     const typed = window.prompt(
       `「${song.title}」을(를) 완전히 삭제해요.\n멤버 ${assigned.length}명의 카드·연습 영상·MR·곡 팀이 전부 사라지고 되돌릴 수 없어요!\n\n정말 삭제하려면 곡 이름을 그대로 입력해 주세요:`
@@ -79,7 +122,10 @@ export function SongManageCard({ song, students, assignedIds }: Props) {
     <section className="rounded-2xl bg-white border border-violet-100 p-4 flex flex-col gap-2.5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="font-extrabold text-violet-900 truncate">🎵 {song.title}</h3>
+          <h3 className="font-extrabold text-violet-900 truncate">
+            {song.closedCount >= song.cardIds.length && song.cardIds.length > 0 ? "🔒 " : "🎵 "}
+            {song.title}
+          </h3>
           <p className="mt-0.5 text-xs text-gray-400">
             🍇 {song.totalGrapes}알
             {song.dueDate && ` · 📅 ~${song.dueDate}`}
@@ -138,12 +184,31 @@ export function SongManageCard({ song, students, assignedIds }: Props) {
         >
           ✏️ 설정
         </button>
-        <a
+        <Link
           href={`/teacher/cards/${song.firstCardId}`}
           className="px-3 py-2 rounded-xl bg-violet-50 text-violet-700 text-sm font-bold active:bg-violet-100"
         >
           🎧 MR
-        </a>
+        </Link>
+        {song.closedCount >= song.cardIds.length && song.cardIds.length > 0 ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={reopen}
+            className="px-3 py-2 rounded-xl bg-white border border-gray-300 text-gray-600 text-sm font-bold disabled:opacity-50"
+          >
+            🔓 마감 해제
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={close}
+            className="px-3 py-2 rounded-xl bg-gray-700 text-white text-sm font-bold disabled:opacity-50 active:bg-gray-800"
+          >
+            🔒 마감
+          </button>
+        )}
         <button
           type="button"
           disabled={busy}

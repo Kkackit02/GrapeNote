@@ -5,8 +5,9 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { deriveGrapes, isCardComplete } from "@/lib/grapes";
 import { sendPushTo, groupMembersExcept } from "@/lib/push";
+import { archiveSubmissionIds } from "@/lib/archive-run";
 import { DATE_RE } from "@/lib/due";
-import type { ActionResult, Submission } from "@/lib/types";
+import type { ActionResult, ProgressCard, Submission } from "@/lib/types";
 
 /** 카드 공통 입력 검증. 통과하면 정규화된 값, 실패하면 에러 메시지. */
 function validateCardInput(input: {
@@ -233,6 +234,219 @@ export async function updateCardSettings(input: {
   revalidatePath("/me");
   revalidatePath(`/me/cards/${input.cardId}`);
   return { ok: true, data: undefined };
+}
+
+/**
+ * 선택한 숙제들의 설정을 한꺼번에 바꾼다 (비운 항목은 그대로 둔다).
+ * 포도알 수는 이미 제출된 인덱스보다 작게 줄일 수 없어 그런 카드는 건너뛴다.
+ */
+export async function bulkUpdateCards(input: {
+  cardIds: string[];
+  /** 비우면 미변경, 빈 문자열이면 미션 삭제 */
+  mission?: string | null;
+  /** 비우면 미변경, "clear"면 기한 삭제 */
+  dueDate?: string | null | "clear";
+  totalGrapes?: number | null;
+}): Promise<ActionResult<{ updated: number; grapesSkipped: number }>> {
+  const cardIds = [...new Set(input.cardIds)].slice(0, 200);
+  if (cardIds.length === 0) return { ok: false, error: "숙제를 선택해 주세요." };
+  if (
+    input.totalGrapes != null &&
+    (!Number.isInteger(input.totalGrapes) || input.totalGrapes < 1 || input.totalGrapes > 60)
+  ) {
+    return { ok: false, error: "포도알 개수는 1~60개 사이여야 합니다." };
+  }
+  if (input.dueDate && input.dueDate !== "clear" && !DATE_RE.test(input.dueDate)) {
+    return { ok: false, error: "기한 날짜 형식이 올바르지 않습니다." };
+  }
+  if (input.mission == null && input.dueDate == null && input.totalGrapes == null) {
+    return { ok: false, error: "바꿀 항목을 하나 이상 입력해 주세요." };
+  }
+
+  const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.app_metadata?.role !== "teacher") {
+    return { ok: false, error: "리더 계정으로 로그인해 주세요." };
+  }
+
+  // RLS로 우리 그룹 카드만 조회된다 → 남의 그룹 id가 섞여도 여기서 걸러진다
+  const { data: cardRows } = await supabase
+    .from("progress_cards")
+    .select("*")
+    .in("id", cardIds);
+  const cards = (cardRows ?? []) as ProgressCard[];
+  if (cards.length === 0) return { ok: false, error: "숙제를 찾을 수 없습니다." };
+
+  const { data: subRows } = await supabase
+    .from("submissions")
+    .select("*")
+    .in("card_id", cards.map((c) => c.id));
+  const subs = (subRows ?? []) as Submission[];
+
+  let updated = 0;
+  let grapesSkipped = 0;
+  for (const card of cards) {
+    const cardSubs = subs.filter((s) => s.card_id === card.id);
+    const patch: Record<string, unknown> = {};
+
+    if (input.mission != null) patch.description = input.mission.trim() || null;
+    if (input.dueDate != null) {
+      patch.due_date = input.dueDate === "clear" ? null : input.dueDate;
+    }
+
+    let nextGrapes = card.total_grapes;
+    if (input.totalGrapes != null) {
+      const maxUsed = Math.max(
+        0,
+        ...cardSubs
+          .filter((s) => s.status === "approved" || s.status === "pending")
+          .map((s) => s.grape_index)
+      );
+      if (input.totalGrapes >= maxUsed) {
+        nextGrapes = input.totalGrapes;
+        patch.total_grapes = nextGrapes;
+      } else {
+        grapesSkipped++;
+      }
+    }
+
+    // 포도알 수가 바뀌면 완성 여부를 다시 계산한다
+    if (patch.total_grapes !== undefined) {
+      const grapes = deriveGrapes(nextGrapes, cardSubs);
+      patch.completed_at = isCardComplete(grapes)
+        ? card.completed_at ?? new Date().toISOString()
+        : null;
+    }
+
+    if (Object.keys(patch).length === 0) continue;
+    const { error } = await supabase.from("progress_cards").update(patch).eq("id", card.id);
+    if (!error) updated++;
+  }
+
+  revalidatePath("/teacher/cards");
+  revalidatePath("/teacher/board");
+  revalidatePath("/teacher/songs");
+  revalidatePath("/me");
+  return { ok: true, data: { updated, grapesSkipped } };
+}
+
+/**
+ * 숙제 마감: 멤버 화면에서 사라지고 더 이상 제출할 수 없다 (DB의 create_submission이 강제).
+ * 마감 전에 지난 제출을 드라이브로 자동 백업한다 (연결돼 있을 때만, 실패해도 마감은 진행).
+ * 기록은 남아 있고 리더는 언제든 마감을 해제할 수 있다.
+ */
+export async function closeCards(
+  cardIds: string[]
+): Promise<ActionResult<{ closed: number; archived: number; archiveSkipped: boolean }>> {
+  const ids = [...new Set(cardIds)].slice(0, 200);
+  if (ids.length === 0) return { ok: false, error: "마감할 숙제를 선택해 주세요." };
+
+  const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.app_metadata?.role !== "teacher") {
+    return { ok: false, error: "리더 계정으로 로그인해 주세요." };
+  }
+  const academyId = user.app_metadata.academy_id;
+
+  // RLS로 우리 그룹 카드만 조회된다
+  const { data: cards } = await supabase
+    .from("progress_cards")
+    .select("id")
+    .in("id", ids)
+    .is("closed_at", null);
+  const targetIds = (cards ?? []).map((c) => c.id);
+  if (targetIds.length === 0) {
+    return { ok: false, error: "마감할 숙제가 없어요 (이미 마감됐을 수 있어요)." };
+  }
+
+  // 지난 제출 드라이브 백업 (판정된 것만 — 검토 대기는 아직 판정 전이라 제외)
+  let archived = 0;
+  let archiveSkipped = false;
+  const { data: subs } = await supabase
+    .from("submissions")
+    .select("id")
+    .in("card_id", targetIds)
+    .neq("status", "pending");
+  const submissionIds = (subs ?? []).map((s) => s.id);
+  if (submissionIds.length > 0) {
+    const result = await archiveSubmissionIds(academyId, submissionIds);
+    archived = result.archived;
+    archiveSkipped = result.notConnected;
+  }
+
+  const { error } = await supabase
+    .from("progress_cards")
+    .update({ closed_at: new Date().toISOString() })
+    .in("id", targetIds);
+  if (error) return { ok: false, error: "마감에 실패했습니다." };
+
+  revalidatePath("/teacher/cards");
+  revalidatePath("/teacher/board");
+  revalidatePath("/teacher/songs");
+  revalidatePath("/me");
+  return { ok: true, data: { closed: targetIds.length, archived, archiveSkipped } };
+}
+
+/** 마감 해제 — 다시 멤버 화면에 보이고 제출할 수 있다 */
+export async function reopenCards(cardIds: string[]): Promise<ActionResult<{ reopened: number }>> {
+  const ids = [...new Set(cardIds)].slice(0, 200);
+  if (ids.length === 0) return { ok: false, error: "숙제를 선택해 주세요." };
+
+  const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.app_metadata?.role !== "teacher") {
+    return { ok: false, error: "리더 계정으로 로그인해 주세요." };
+  }
+
+  const { data: reopened, error } = await supabase
+    .from("progress_cards")
+    .update({ closed_at: null })
+    .in("id", ids)
+    .select("id");
+  if (error) return { ok: false, error: "마감 해제에 실패했습니다." };
+
+  revalidatePath("/teacher/cards");
+  revalidatePath("/teacher/board");
+  revalidatePath("/teacher/songs");
+  revalidatePath("/me");
+  return { ok: true, data: { reopened: (reopened ?? []).length } };
+}
+
+/** 선택한 숙제들을 한꺼번에 삭제한다 (영상 파일까지 정리). 되돌릴 수 없다. */
+export async function bulkDeleteCards(
+  cardIds: string[]
+): Promise<ActionResult<{ deleted: number }>> {
+  const ids = [...new Set(cardIds)].slice(0, 200);
+  if (ids.length === 0) return { ok: false, error: "숙제를 선택해 주세요." };
+
+  const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.app_metadata?.role !== "teacher") {
+    return { ok: false, error: "리더 계정으로 로그인해 주세요." };
+  }
+
+  const { data: cards } = await supabase.from("progress_cards").select("id").in("id", ids);
+  const targetIds = (cards ?? []).map((c) => c.id);
+  if (targetIds.length === 0) return { ok: false, error: "숙제를 찾을 수 없습니다." };
+
+  // 영상 파일 정리 (submissions 행은 카드 삭제 시 cascade)
+  const admin = createSupabaseAdmin();
+  const { data: subs } = await admin
+    .from("submissions")
+    .select("video_path")
+    .in("card_id", targetIds)
+    .is("video_deleted_at", null);
+  const paths = (subs ?? []).map((s) => s.video_path).filter(Boolean);
+  if (paths.length > 0) await admin.storage.from("videos").remove(paths);
+
+  const { error } = await supabase.from("progress_cards").delete().in("id", targetIds);
+  if (error) return { ok: false, error: "숙제 삭제에 실패했습니다." };
+
+  revalidatePath("/teacher/cards");
+  revalidatePath("/teacher/board");
+  revalidatePath("/teacher/songs");
+  revalidatePath("/me");
+  return { ok: true, data: { deleted: targetIds.length } };
 }
 
 /**

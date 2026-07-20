@@ -479,6 +479,36 @@ try {
     const { error: dupErr } = await owner.rpc("share_completion", { p_card_id: doneCard.id });
     ok("중복 자랑 → 거부", !!dupErr);
   }
+
+  console.log("\n[24] 숙제 마감 (0023)");
+  // 마감 카드에는 제출할 수 없어야 한다
+  const { data: openCard } = await admin.from("progress_cards")
+    .insert({
+      academy_id: academy.id, student_id: studentId, title: `마감테스트-${ts}`,
+      total_grapes: 3, created_by: teacherId,
+    }).select("id").single();
+  const closePath = `${academy.id}/${studentId}/${openCard.id}/1-${crypto.randomUUID()}.mp4`;
+  const { error: beforeCloseErr } = await student.rpc("create_submission", {
+    p_card_id: openCard.id, p_grape_index: 1, p_video_path: closePath,
+    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+  });
+  ok("마감 전에는 제출 가능", !beforeCloseErr, beforeCloseErr?.message);
+  await admin.from("submissions").delete().eq("card_id", openCard.id);
+  // 선생님이 마감
+  const { error: closeErr } = await teacher.from("progress_cards")
+    .update({ closed_at: new Date().toISOString() }).eq("id", openCard.id);
+  ok("선생님이 숙제 마감", !closeErr, closeErr?.message);
+  const closedPath = `${academy.id}/${studentId}/${openCard.id}/2-${crypto.randomUUID()}.mp4`;
+  const { error: afterCloseErr } = await student.rpc("create_submission", {
+    p_card_id: openCard.id, p_grape_index: 2, p_video_path: closedPath,
+    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+  });
+  ok("마감된 숙제에 제출 → 거부", !!afterCloseErr);
+  // 학생은 마감을 스스로 풀 수 없다 (컬럼 권한)
+  const { data: selfReopen } = await student.from("progress_cards")
+    .update({ closed_at: null }).eq("id", openCard.id).select("id");
+  ok("학생이 마감 해제 → 0건", (selfReopen ?? []).length === 0);
+  await admin.from("progress_cards").delete().eq("id", openCard.id);
 } catch (e) {
   fail++;
   console.error("💥 예기치 못한 오류:", e);
