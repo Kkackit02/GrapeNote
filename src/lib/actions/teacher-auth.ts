@@ -12,12 +12,17 @@ import type { ActionResult } from "@/lib/types";
 export async function createAcademy(formData: {
   academyName: string;
   displayName: string;
+  /** 그룹 유형 — 화면 용어 프리셋의 기준 (academy/club/other) */
+  groupType?: string;
 }): Promise<ActionResult> {
   const academyName = formData.academyName.trim();
   const displayName = formData.displayName.trim();
   if (!academyName || !displayName) {
-    return { ok: false, error: "학원 이름과 선생님 이름을 입력해 주세요." };
+    return { ok: false, error: "그룹 이름과 내 이름을 입력해 주세요." };
   }
+  const groupType = ["academy", "club", "other"].includes(formData.groupType ?? "")
+    ? formData.groupType
+    : "academy";
 
   const supabase = await createSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
@@ -32,7 +37,10 @@ export async function createAcademy(formData: {
     .insert({ name: academyName, owner_id: user.id, join_code: randomCode("CLASS") })
     .select("id")
     .single();
-  if (academyError) return { ok: false, error: "학원 생성에 실패했습니다." };
+  if (academyError) return { ok: false, error: "그룹 생성에 실패했습니다." };
+
+  // 그룹 유형 저장 — 0017 마이그레이션 전이면 조용히 실패해도 무방 (기본값 academy)
+  await admin.from("academies").update({ group_type: groupType }).eq("id", academy.id);
 
   const { error: profileError } = await admin.from("profiles").insert({
     id: user.id,

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { deriveGrapes } from "@/lib/grapes";
+import { FREE_GROUP_STORAGE_BYTES, formatBytes } from "@/lib/limits";
 import type { ActionResult, Submission } from "@/lib/types";
 
 const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50MB (버킷 설정과 동일)
@@ -67,11 +68,25 @@ export async function requestUpload(input: {
   const grape = deriveGrapes(card.total_grapes, (subs ?? []) as Submission[])[input.grapeIndex - 1];
   if (grape.status === "approved") return { ok: false, error: "이미 합격한 포도알이에요! 🍇" };
   if (grape.status === "pending") {
-    return { ok: false, error: "선생님이 아직 보고 계신 영상이 있어요. 조금만 기다려 주세요." };
+    return { ok: false, error: "아직 검토 중인 영상이 있어요. 조금만 기다려 주세요." };
+  }
+
+  // 그룹 저장 한도 검사 — 판정 후 자동 정리(7일)로 공간이 다시 생긴다
+  const admin = createSupabaseAdmin();
+  const { data: usageRows } = await admin
+    .from("submissions")
+    .select("video_size_bytes")
+    .eq("academy_id", card.academy_id)
+    .is("video_deleted_at", null);
+  const used = (usageRows ?? []).reduce((sum, row) => sum + (row.video_size_bytes ?? 0), 0);
+  if (used + input.fileSize > FREE_GROUP_STORAGE_BYTES) {
+    return {
+      ok: false,
+      error: `그룹 저장 공간(${formatBytes(FREE_GROUP_STORAGE_BYTES)})이 가득 찼어요. 판정된 영상은 7일 후 자동 정리되니 잠시 후 다시 시도해 주세요.`,
+    };
   }
 
   const path = `${card.academy_id}/${user.id}/${card.id}/${input.grapeIndex}-${randomUUID()}.${ext}`;
-  const admin = createSupabaseAdmin();
   const { data: signed, error } = await admin.storage
     .from("videos")
     .createSignedUploadUrl(path);
@@ -132,7 +147,7 @@ export async function confirmUpload(input: {
       return { ok: false, error: "이미 합격한 포도알이에요! 🍇" };
     }
     if (error.message.includes("already pending")) {
-      return { ok: false, error: "선생님이 아직 보고 계신 영상이 있어요. 조금만 기다려 주세요." };
+      return { ok: false, error: "아직 검토 중인 영상이 있어요. 조금만 기다려 주세요." };
     }
     return { ok: false, error: "제출에 실패했어요. 다시 시도해 주세요." };
   }
@@ -158,7 +173,7 @@ export async function deleteSubmission(submissionId: string): Promise<ActionResu
     return { ok: false, error: "영상을 찾을 수 없어요." };
   }
   if (submission.status !== "pending") {
-    return { ok: false, error: "선생님이 이미 확인한 영상은 지울 수 없어요." };
+    return { ok: false, error: "이미 판정된 영상은 지울 수 없어요." };
   }
 
   const { data: deleted, error } = await supabase
@@ -167,7 +182,7 @@ export async function deleteSubmission(submissionId: string): Promise<ActionResu
     .eq("id", submissionId)
     .select("id");
   if (error || !deleted || deleted.length === 0) {
-    return { ok: false, error: "삭제에 실패했어요. 선생님이 방금 확인하셨을 수 있어요." };
+    return { ok: false, error: "삭제에 실패했어요. 방금 판정됐을 수 있어요." };
   }
 
   // 스토리지 정리 (실패해도 치명적이지 않음 — 고아 파일만 남음)

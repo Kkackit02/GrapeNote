@@ -61,7 +61,7 @@ export default function StudentJoinPage() {
           <>
             <div className="mt-4 text-4xl">💌</div>
             <h1 className="mt-2 text-2xl font-extrabold text-violet-900">초대코드 입력</h1>
-            <p className="mt-1 text-sm text-gray-500">선생님께 받은 코드를 입력해 주세요.</p>
+            <p className="mt-1 text-sm text-gray-500">그룹에서 받은 코드를 입력해 주세요.</p>
             <form onSubmit={verifyCode} className="mt-5 flex flex-col gap-3">
               <input
                 required

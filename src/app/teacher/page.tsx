@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { instrumentBadge } from "@/lib/instruments";
+import { getTerms } from "@/lib/terms-server";
+import { FREE_GROUP_STORAGE_BYTES, formatBytes } from "@/lib/limits";
 import { JoinCodeCard } from "@/components/JoinCodeCard";
 import type { Academy, Profile, StudentInvite, Team, TeamMember } from "@/lib/types";
 
 export default async function TeacherDashboard() {
   const supabase = await createSupabaseServer();
+  const terms = await getTerms();
 
-  const [{ data: students }, { count: pendingCount }, { data: invites }, { data: academyRow }, { data: teams }, { data: memberships }] = await Promise.all([
+  const [{ data: students }, { count: pendingCount }, { data: invites }, { data: academyRow }, { data: teams }, { data: memberships }, { data: usageRows }] = await Promise.all([
     supabase
       .from("profiles")
       .select("*")
@@ -26,7 +29,16 @@ export default async function TeacherDashboard() {
     supabase.from("academies").select("*").maybeSingle(),
     supabase.from("teams").select("*"),
     supabase.from("team_members").select("*"),
+    supabase.from("submissions").select("video_size_bytes").is("video_deleted_at", null),
   ]);
+  const storageUsed = (usageRows ?? []).reduce(
+    (sum, row) => sum + (row.video_size_bytes ?? 0),
+    0
+  );
+  const storagePercent = Math.min(
+    100,
+    Math.round((storageUsed / FREE_GROUP_STORAGE_BYTES) * 100)
+  );
 
   const studentList = (students ?? []) as Profile[];
   const inviteList = (invites ?? []) as StudentInvite[];
@@ -54,7 +66,7 @@ export default async function TeacherDashboard() {
         </Link>
       )}
 
-      <JoinCodeCard code={academy?.join_code ?? null} />
+      <JoinCodeCard code={academy?.join_code ?? null} groupLabel={terms.group} />
 
       <div className="grid grid-cols-2 gap-2">
         <Link
@@ -94,9 +106,27 @@ export default async function TeacherDashboard() {
         </Link>
       </div>
 
+      <div className="rounded-2xl bg-white border border-violet-100 p-4">
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-bold text-gray-700">💾 영상 저장 공간</span>
+          <span className={storagePercent >= 90 ? "font-bold text-red-500" : "text-gray-400"}>
+            {formatBytes(storageUsed)} / {formatBytes(FREE_GROUP_STORAGE_BYTES)}
+          </span>
+        </div>
+        <div className="mt-2 h-2 rounded-full bg-violet-100 overflow-hidden">
+          <div
+            className={`h-full rounded-full ${storagePercent >= 90 ? "bg-red-400" : "bg-violet-400"}`}
+            style={{ width: `${storagePercent}%` }}
+          />
+        </div>
+        <p className="mt-1.5 text-xs text-gray-400">
+          판정 7일 뒤 영상 파일은 자동 정리돼요 (판정 기록·코멘트는 남아요).
+        </p>
+      </div>
+
       <section>
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-extrabold text-violet-900">우리 학생들</h2>
+          <h2 className="text-xl font-extrabold text-violet-900">우리 {terms.member}들</h2>
           <div className="flex gap-2">
             {studentList.length > 0 && (
               <>
@@ -118,16 +148,16 @@ export default async function TeacherDashboard() {
               href="/teacher/students/new"
               className="px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold active:bg-violet-800"
             >
-              + 학생 등록
+              + {terms.member} 등록
             </Link>
           </div>
         </div>
 
         {studentList.length === 0 ? (
           <div className="mt-4 rounded-2xl bg-white border border-violet-100 p-8 text-center text-gray-500">
-            아직 학생이 없어요.
+            아직 {terms.member}이 없어요.
             <br />
-            <span className="font-bold text-violet-700">학생 등록</span>으로 첫 초대코드를 만들어 보세요!
+            <span className="font-bold text-violet-700">{terms.member} 등록</span>으로 첫 초대코드를 만들어 보세요!
           </div>
         ) : (
           <ul className="mt-3 grid gap-2">
@@ -138,7 +168,7 @@ export default async function TeacherDashboard() {
                   className="rounded-2xl bg-white border border-violet-100 p-4 flex items-center justify-between active:bg-violet-50"
                 >
                   <span className="font-bold text-gray-800">
-                    {instrumentBadge(student.instrument) || "🎹"} {student.display_name}
+                    {instrumentBadge(student.instrument) || terms.memberEmoji} {student.display_name}
                     {teamsOf(student.id).map((team) => (
                       <span
                         key={team.id}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes } from "@/lib/grapes";
+import { getTerms } from "@/lib/terms-server";
 import { StudentCardView } from "@/components/StudentCardView";
 import type { ProgressCard, SongTrack, Submission } from "@/lib/types";
 
@@ -43,6 +44,7 @@ export default async function MyCardPage({
           grapes={grapes}
           tracks={(trackRows ?? []) as SongTrack[]}
           myId={user!.id}
+          leaderLabel={(await getTerms()).leader}
         />
       </div>
     </div>

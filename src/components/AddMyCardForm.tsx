@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { createMyCard } from "@/lib/actions/cards";
 import { SongTitleField } from "./SongTitleField";
 
-/** 학생이 스스로 연습할 곡(숙제)을 추가하는 폼. 추가만 가능하고 수정/삭제는 선생님만. */
-export function AddMyCardForm() {
+/** 멤버가 스스로 연습할 곡(숙제)을 추가하는 폼. 추가만 가능하고 수정/삭제는 리더만. */
+export function AddMyCardForm({ leaderLabel = "선생님" }: { leaderLabel?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -54,7 +54,7 @@ export function AddMyCardForm() {
     <form onSubmit={submit} className="rounded-2xl bg-white border border-violet-200 p-4 flex flex-col gap-3">
       <h3 className="font-bold text-violet-900">🙋 내가 연습할 곡 추가</h3>
       <p className="text-xs text-gray-500 -mt-1">
-        한번 추가하면 스스로 고칠 수 없어요. 바꾸고 싶으면 선생님께 말씀드리세요!
+        한번 추가하면 스스로 고칠 수 없어요. 바꾸고 싶으면 {leaderLabel}에게 이야기해 주세요!
       </p>
       <SongTitleField value={title} onChange={setTitle} />
       <input

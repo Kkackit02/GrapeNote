@@ -12,6 +12,8 @@ interface Props {
   remaining?: number;
   /** 검토함 경로 (선생님: /teacher/review, 파트장: /me/review) */
   basePath?: string;
+  /** 코멘트 대상 호칭 (학생/멤버/팀원) */
+  memberLabel?: string;
 }
 
 /** 합격/재연습 판정 + 코멘트 */
@@ -20,6 +22,7 @@ export function ReviewPanel({
   nextSubmissionId,
   remaining = 0,
   basePath = "/teacher/review",
+  memberLabel = "학생",
 }: Props) {
   const router = useRouter();
   const [comment, setComment] = useState("");
@@ -45,7 +48,7 @@ export function ReviewPanel({
       <textarea
         value={comment}
         onChange={(e) => setComment(e.target.value)}
-        placeholder="학생에게 남길 코멘트 (재연습 시 필수)"
+        placeholder={`${memberLabel}에게 남길 코멘트 (재연습 시 필수)`}
         rows={3}
         className="w-full rounded-xl border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
       />

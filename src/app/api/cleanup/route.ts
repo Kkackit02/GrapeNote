@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { FREE_RETENTION_DAYS } from "@/lib/limits";
 
-const RETENTION_DAYS = 30;
+const RETENTION_DAYS = FREE_RETENTION_DAYS;
 const BATCH_SIZE = 200;
 
 /**
- * 판정(합격/재연습) 후 30일 지난 영상 파일을 정리한다.
+ * 판정(합격/재연습) 후 보존 기간이 지난 영상 파일을 정리한다.
  * Vercel Cron이 매일 호출 (vercel.json). 기록/코멘트는 보존, 파일만 삭제.
  */
 export async function GET(request: Request) {

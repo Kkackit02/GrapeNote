@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { LogoutButton } from "@/components/LogoutButton";
+import { getTerms } from "@/lib/terms-server";
 
-export default function TeacherLayout({ children }: { children: React.ReactNode }) {
+export default async function TeacherLayout({ children }: { children: React.ReactNode }) {
+  const terms = await getTerms();
   return (
     <>
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-violet-100">
@@ -10,7 +12,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             🍇 GrapeNote
           </Link>
           <nav className="flex items-center gap-4 text-sm font-medium text-gray-600">
-            <Link href="/teacher" className="hover:text-violet-700">학생</Link>
+            <Link href="/teacher" className="hover:text-violet-700">{terms.member}</Link>
             <Link href="/teacher/board" className="hover:text-violet-700">현황판</Link>
             <Link href="/teacher/songs" className="hover:text-violet-700">곡</Link>
             <Link href="/teacher/review" className="hover:text-violet-700">검토함</Link>

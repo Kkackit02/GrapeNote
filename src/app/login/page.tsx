@@ -48,7 +48,7 @@ export default function TeacherLoginPage() {
       <div className="w-full max-w-sm">
         <Link href="/" className="text-sm text-gray-400">← 처음으로</Link>
         <h1 className="mt-4 text-2xl font-extrabold text-violet-900">
-          🧑‍🏫 선생님 {mode === "login" ? "로그인" : "가입"}
+          🧑‍🏫 리더 {mode === "login" ? "로그인" : "가입"}
         </h1>
 
         <div className="mt-4 grid grid-cols-2 rounded-xl bg-violet-100 p-1 text-sm font-bold">

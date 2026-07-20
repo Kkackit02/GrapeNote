@@ -41,7 +41,7 @@ export default function StudentLoginPage() {
       <div className="w-full max-w-sm">
         <Link href="/" className="text-sm text-gray-400">← 처음으로</Link>
         <div className="mt-4 text-4xl">🎹</div>
-        <h1 className="mt-2 text-2xl font-extrabold text-violet-900">학생 로그인</h1>
+        <h1 className="mt-2 text-2xl font-extrabold text-violet-900">멤버 로그인</h1>
 
         <form onSubmit={submit} className="mt-5 flex flex-col gap-3">
           <input

@@ -94,6 +94,7 @@ export default async function LeaderReviewDetailPage({
           nextSubmissionId={nextId}
           remaining={remaining ?? 0}
           basePath="/me/review"
+          memberLabel="팀원"
         />
       ) : (
         <div

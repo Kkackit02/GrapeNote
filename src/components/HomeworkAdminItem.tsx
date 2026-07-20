@@ -133,7 +133,7 @@ export function HomeworkAdminItem({ card, studentName, done, selfAdded }: Props)
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
             {selfAdded && (
               <span className="px-2 py-0.5 rounded-full font-bold bg-sky-100 text-sky-700">
-                🙋 학생이 직접 추가
+                🙋 본인이 직접 추가
               </span>
             )}
             {badge && (

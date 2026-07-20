@@ -4,6 +4,7 @@ import { deriveGrapes, approvedCount } from "@/lib/grapes";
 import { dueBadge, daysLeft } from "@/lib/due";
 import { calcStreak, practicedToday } from "@/lib/streaks";
 import { getGroupFeed, getWeeklyStats } from "@/lib/activity";
+import { getTerms } from "@/lib/terms-server";
 import { AddMyCardForm } from "@/components/AddMyCardForm";
 import { GroupFeed } from "@/components/GroupFeed";
 import type { ProgressCard, Profile, Submission, Team } from "@/lib/types";
@@ -121,13 +122,13 @@ export default async function MyCardsPage() {
             <>
               진행 중인 카드를 전부 끝냈어요! 🎉
               <br />
-              선생님이 곧 새 카드를 만들어 주실 거예요.
+              곧 새 카드가 배정될 거예요.
             </>
           ) : (
             <>
               아직 진도카드가 없어요.
               <br />
-              선생님이 곧 카드를 만들어 주실 거예요! 🎹
+              곧 연습할 곡이 배정될 거예요! 🎵
             </>
           )}
         </div>
@@ -192,7 +193,7 @@ export default async function MyCardsPage() {
 
       <GroupFeed events={feed.slice(0, 10)} champion={champion} myId={user!.id} />
 
-      <AddMyCardForm />
+      <AddMyCardForm leaderLabel={(await getTerms()).leader} />
     </div>
   );
 }

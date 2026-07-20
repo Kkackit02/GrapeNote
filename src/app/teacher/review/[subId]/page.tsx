@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { getTerms } from "@/lib/terms-server";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import type { Submission } from "@/lib/types";
@@ -17,6 +18,7 @@ export default async function ReviewDetailPage({
 }) {
   const { subId } = await params;
   const supabase = await createSupabaseServer();
+  const terms = await getTerms();
 
   const { data } = await supabase
     .from("submissions")
@@ -68,7 +70,7 @@ export default async function ReviewDetailPage({
           )}
           {sub.student_comment && (
             <p className="mt-1 text-sm text-gray-600">
-              💬 학생의 한마디: {sub.student_comment}
+              💬 {terms.member}의 한마디: {sub.student_comment}
             </p>
           )}
         </div>
@@ -77,7 +79,12 @@ export default async function ReviewDetailPage({
       <VideoPlayer submissionId={sub.id} withRate />
 
       {sub.status === "pending" ? (
-        <ReviewPanel submissionId={sub.id} nextSubmissionId={nextId} remaining={remaining ?? 0} />
+        <ReviewPanel
+          submissionId={sub.id}
+          nextSubmissionId={nextId}
+          remaining={remaining ?? 0}
+          memberLabel={terms.member}
+        />
       ) : (
         <div
           className={`rounded-2xl p-4 ${

@@ -6,6 +6,7 @@ import { NewCardForm } from "@/components/NewCardForm";
 import { StudentAdminPanel } from "@/components/StudentAdminPanel";
 import { InstrumentPicker } from "@/components/InstrumentPicker";
 import { instrumentBadge, parseInstruments } from "@/lib/instruments";
+import { getTerms } from "@/lib/terms-server";
 import type { ProgressCard, Profile, Submission } from "@/lib/types";
 
 export default async function StudentDetailPage({
@@ -15,6 +16,7 @@ export default async function StudentDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createSupabaseServer();
+  const terms = await getTerms();
 
   const { data: student } = await supabase
     .from("profiles")
@@ -41,7 +43,7 @@ export default async function StudentDetailPage({
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <Link href="/teacher" className="text-sm text-gray-400">← 학생 목록</Link>
+        <Link href="/teacher" className="text-sm text-gray-400">← {terms.member} 목록</Link>
         <h1 className="mt-2 text-2xl font-extrabold text-violet-900">
           {instrumentBadge(profile.instrument) || "🎹"} {profile.display_name}
           {profile.instrument && (

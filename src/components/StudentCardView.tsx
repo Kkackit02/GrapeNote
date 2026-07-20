@@ -17,10 +17,12 @@ interface Props {
   /** 이 곡의 연습 음원(MR) — 미션 아래에 표시 */
   tracks?: SongTrack[];
   myId?: string;
+  /** 검토자 호칭 (선생님/운영진/리더) */
+  leaderLabel?: string;
 }
 
 /** 학생 핵심 화면: 포도송이 + 포도알 탭 → 상태별 바텀 시트 */
-export function StudentCardView({ card, grapes, tracks, myId }: Props) {
+export function StudentCardView({ card, grapes, tracks, myId, leaderLabel = "선생님" }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<GrapeState | null>(null);
   const [justUploaded, setJustUploaded] = useState(false);
@@ -109,7 +111,7 @@ export function StudentCardView({ card, grapes, tracks, myId }: Props) {
                 <p className="mt-1 text-sm text-gray-500">
                   화면 아래에서 진행 상황을 볼 수 있어요.
                   <br />
-                  다 올라가면 선생님이 확인할 거예요.
+                  다 올라가면 바로 검토가 시작돼요.
                 </p>
                 <button
                   type="button"
@@ -124,7 +126,7 @@ export function StudentCardView({ card, grapes, tracks, myId }: Props) {
             ) : selected.status === "retry" ? (
               <div className="flex flex-col gap-3">
                 <div className="rounded-xl bg-orange-50 border border-orange-200 p-3">
-                  <p className="text-sm font-bold text-orange-700">선생님 말씀 ✍️</p>
+                  <p className="text-sm font-bold text-orange-700">{leaderLabel} 말씀 ✍️</p>
                   <p className="mt-1 text-gray-700">
                     {selected.history[0]?.teacher_comment ?? "한 번 더 연습해 볼까요?"}
                   </p>
@@ -139,7 +141,7 @@ export function StudentCardView({ card, grapes, tracks, myId }: Props) {
               <div className="flex flex-col gap-3">
                 <div className="text-center">
                   <div className="text-4xl">👀</div>
-                  <p className="mt-1 font-bold text-lime-700">선생님이 보고 계세요!</p>
+                  <p className="mt-1 font-bold text-lime-700">지금 검토 받는 중이에요!</p>
                   <p className="mt-0.5 text-sm text-gray-500">
                     확인이 끝나면 포도알이 채워져요.
                   </p>
@@ -160,7 +162,7 @@ export function StudentCardView({ card, grapes, tracks, myId }: Props) {
                 <p className="text-center font-bold text-violet-700">🍇 합격한 포도알이에요!</p>
                 {selected.history.find((s) => s.status === "approved")?.teacher_comment && (
                   <div className="rounded-xl bg-violet-50 border border-violet-200 p-3">
-                    <p className="text-sm font-bold text-violet-700">선생님 말씀 ✍️</p>
+                    <p className="text-sm font-bold text-violet-700">{leaderLabel} 말씀 ✍️</p>
                     <p className="mt-1 text-gray-700">
                       {selected.history.find((s) => s.status === "approved")?.teacher_comment}
                     </p>

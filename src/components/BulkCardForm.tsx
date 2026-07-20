@@ -177,7 +177,7 @@ export function BulkCardForm({ students, teams = [], initialTeamId = null }: Pro
         {submitting
           ? "배정 중..."
           : selected.size === 0
-            ? "학생을 선택해 주세요"
+            ? "배정할 사람을 선택해 주세요"
             : `${selected.size}명에게 배정하기 🍇`}
       </button>
     </form>
