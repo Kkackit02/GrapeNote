@@ -50,7 +50,7 @@ export default async function ReviewDetailPage({
       <div>
         <Link href="/teacher/review" className="text-sm text-gray-400">← 검토함</Link>
         <h1 className="mt-2 text-xl font-extrabold text-violet-900">
-          🎹 {sub.profiles?.display_name} — {sub.progress_cards?.title}
+          🎵 {sub.profiles?.display_name} — {sub.progress_cards?.title}
         </h1>
         <p className="text-sm text-gray-500 mt-0.5">
           포도알 #{sub.grape_index} ·{" "}

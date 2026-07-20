@@ -45,7 +45,7 @@ export default async function StudentDetailPage({
       <div>
         <Link href="/teacher" className="text-sm text-gray-400">← {terms.member} 목록</Link>
         <h1 className="mt-2 text-2xl font-extrabold text-violet-900">
-          {instrumentBadge(profile.instrument) || "🎹"} {profile.display_name}
+          {instrumentBadge(profile.instrument) || terms.memberEmoji} {profile.display_name}
           {profile.instrument && (
             <span className="ml-2 text-sm font-bold text-violet-500">
               {parseInstruments(profile.instrument).join(" · ")}

@@ -268,7 +268,7 @@ function ReviewTile({ item, rate, basePath, memberLabel, soundOn, onToggleSound,
       <div className="px-3 pt-2.5 pb-1.5 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="font-bold text-gray-800 text-sm truncate">
-            🎹 {item.studentName} — {item.songTitle}
+            🎵 {item.studentName} — {item.songTitle}
           </p>
           <p className="text-xs text-gray-400" suppressHydrationWarning>
             포도알 #{item.grapeIndex} · {formatSubmittedAt(item.createdAt)}

@@ -227,7 +227,7 @@ function UploadStatusBar() {
               </span>
             </div>
           ) : task.status === "done" ? (
-            <span>🍇 포도알 #{task.grapeIndex} 제출 완료! 선생님이 확인할 거예요</span>
+            <span>🍇 포도알 #{task.grapeIndex} 제출 완료! 곧 검토받을 거예요</span>
           ) : (
             <div>
               <div className="flex items-center justify-between">

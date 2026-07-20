@@ -54,7 +54,7 @@ export async function requestUpload(input: {
       .eq("video_hash", input.fileHash)
       .limit(1);
     if (dup && dup.length > 0) {
-      return { ok: false, error: "이미 올렸던 영상이에요! 새로 연습한 영상을 올려 주세요. 🎹" };
+      return { ok: false, error: "이미 올렸던 영상이에요! 새로 연습한 영상을 올려 주세요. 🎵" };
     }
   }
 
@@ -151,7 +151,7 @@ export async function confirmUpload(input: {
   });
   if (error) {
     if (error.message.includes("submissions_unique_video_per_student")) {
-      return { ok: false, error: "이미 올렸던 영상이에요! 새로 연습한 영상을 올려 주세요. 🎹" };
+      return { ok: false, error: "이미 올렸던 영상이에요! 새로 연습한 영상을 올려 주세요. 🎵" };
     }
     if (error.message.includes("already approved")) {
       return { ok: false, error: "이미 합격한 포도알이에요! 🍇" };
