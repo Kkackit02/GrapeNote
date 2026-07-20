@@ -24,21 +24,6 @@ export default async function MyCardPage({
     .maybeSingle();
   if (!cardRow) notFound();
   const card = cardRow as ProgressCard;
-  // 마감된 숙제는 목록에서 사라지지만, 링크로 들어오면 안내를 보여준다 (제출은 DB가 막는다)
-  if (card.closed_at) {
-    return (
-      <div>
-        <Link href="/me" className="text-sm text-gray-400">← 내 카드 목록</Link>
-        <div className="mt-6 rounded-2xl bg-white border border-violet-100 p-10 text-center">
-          <div className="text-5xl">🔒</div>
-          <p className="mt-3 font-extrabold text-gray-700">「{card.title}」는 마감됐어요</p>
-          <p className="mt-1 text-sm text-gray-500">
-            더 이상 영상을 올릴 수 없어요. 그동안 정말 수고했어요! 🎉
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   const [{ data: subs }, { data: trackRows }, { data: academyRow }] = await Promise.all([
     supabase.from("submissions").select("*").eq("card_id", cardId),
@@ -62,6 +47,8 @@ export default async function MyCardPage({
           myId={user!.id}
           leaderLabel={(await getTerms()).leader}
           premium={!!academyRow?.is_premium}
+          // 마감된 숙제는 지난 기록만 볼 수 있다 (제출은 DB가 막는다)
+          readOnly={!!card.closed_at}
         />
       </div>
     </div>

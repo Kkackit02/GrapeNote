@@ -23,6 +23,8 @@ interface Props {
   leaderLabel?: string;
   /** 그룹 프리미엄 — 업로드 상한 확대 + 720p 녹화 */
   premium?: boolean;
+  /** 마감된 숙제 — 지난 기록은 볼 수 있고 새 제출/삭제만 막는다 */
+  readOnly?: boolean;
 }
 
 /** 학생 핵심 화면: 포도송이 + 포도알 탭 → 상태별 바텀 시트 */
@@ -33,6 +35,7 @@ export function StudentCardView({
   myId,
   leaderLabel = "선생님",
   premium = false,
+  readOnly = false,
 }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<GrapeState | null>(null);
@@ -85,6 +88,15 @@ export function StudentCardView({
           <p className="mt-1 font-bold text-amber-600">포도송이 완성! 정말 대단해요! 🎉</p>
         )}
       </div>
+
+      {readOnly && (
+        <div className="rounded-2xl bg-gray-100 border border-gray-200 p-3 text-center">
+          <p className="font-bold text-gray-700">🔒 마감된 숙제예요</p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            새 영상은 올릴 수 없지만 지난 기록은 언제든 볼 수 있어요.
+          </p>
+        </div>
+      )}
 
       {completed && <ShareCompletionButton cardId={card.id} shared={!!card.shared_at} />}
 
@@ -144,6 +156,19 @@ export function StudentCardView({
                 >
                   확인
                 </button>
+              </div>
+            ) : readOnly ? (
+              <div className="flex flex-col gap-3">
+                <p className="text-center text-sm font-bold text-gray-600">
+                  🔒 마감된 숙제라 새 영상은 올릴 수 없어요
+                </p>
+                {selected.history.length > 0 && (
+                  <GrapeVideoSection
+                    history={selected.history}
+                    grapeIndex={selected.index}
+                    retentionDays={groupLimits(premium).retentionDays}
+                  />
+                )}
               </div>
             ) : selected.status === "empty" ? (
               <VideoUploader
