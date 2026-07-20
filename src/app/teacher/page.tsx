@@ -1,21 +1,40 @@
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { instrumentBadge } from "@/lib/instruments";
 import { isDriveConfigured } from "@/lib/google-drive";
 import { getTerms } from "@/lib/terms-server";
+import { getWeeklyStats } from "@/lib/activity";
 import { groupLimits, formatBytes } from "@/lib/limits";
+import { MembersTable, type MemberRow } from "@/components/MembersTable";
 import { JoinCodeCard } from "@/components/JoinCodeCard";
 import { BoardShareToggle } from "@/components/BoardShareToggle";
 import { DriveArchiveCard } from "@/components/DriveArchiveCard";
 import { PushToggle } from "@/components/PushToggle";
-import type { Academy, Profile, StudentInvite, Team, TeamMember } from "@/lib/types";
+import type {
+  Academy,
+  Profile,
+  ProgressCard,
+  StudentInvite,
+  Submission,
+  Team,
+  TeamMember,
+} from "@/lib/types";
 
 export default async function TeacherDashboard() {
   const supabase = await createSupabaseServer();
   const terms = await getTerms();
 
-  const [{ data: students }, { count: pendingCount }, { data: invites }, { data: academyRow }, { data: teams }, { data: memberships }, { data: usageRows }] = await Promise.all([
+  const [
+    { data: students },
+    { count: pendingCount },
+    { data: invites },
+    { data: academyRow },
+    { data: teams },
+    { data: memberships },
+    { data: subRows },
+    { data: cardRows },
+    weeklyStats,
+  ] = await Promise.all([
     supabase
       .from("profiles")
       .select("*")
@@ -34,12 +53,14 @@ export default async function TeacherDashboard() {
     supabase.from("academies").select("*").maybeSingle(),
     supabase.from("teams").select("*"),
     supabase.from("team_members").select("*"),
-    supabase.from("submissions").select("video_size_bytes").is("video_deleted_at", null),
+    supabase.from("submissions").select("student_id, status, video_size_bytes, video_deleted_at"),
+    supabase.from("progress_cards").select("student_id, completed_at"),
+    getWeeklyStats(),
   ]);
-  const storageUsed = (usageRows ?? []).reduce(
-    (sum, row) => sum + (row.video_size_bytes ?? 0),
-    0
-  );
+  const subList = (subRows ?? []) as Submission[];
+  const storageUsed = subList
+    .filter((sub) => !sub.video_deleted_at)
+    .reduce((sum, sub) => sum + (sub.video_size_bytes ?? 0), 0);
 
   const studentList = (students ?? []) as Profile[];
   const inviteList = (invites ?? []) as StudentInvite[];
@@ -68,6 +89,29 @@ export default async function TeacherDashboard() {
       .filter((m) => m.profile_id === studentId)
       .map((m) => teamById.get(m.team_id))
       .filter((t): t is Team => !!t);
+
+  const cardList = (cardRows ?? []) as ProgressCard[];
+  const weeklyById = new Map(weeklyStats.map((stat) => [stat.student_id, stat]));
+  const memberRows: MemberRow[] = studentList.map((student) => {
+    const myCards = cardList.filter((card) => card.student_id === student.id);
+    const weekly = weeklyById.get(student.id);
+    return {
+      id: student.id,
+      name: student.display_name,
+      username: student.username,
+      instrument: student.instrument,
+      teams: teamsOf(student.id).map(
+        (team) => `${team.leader_id === student.id ? "⭐" : ""}${team.name}`
+      ),
+      ongoing: myCards.filter((card) => !card.completed_at).length,
+      completed: myCards.filter((card) => card.completed_at).length,
+      weekSubmitted: weekly?.submitted_week ?? 0,
+      pending: subList.filter(
+        (sub) => sub.student_id === student.id && sub.status === "pending"
+      ).length,
+      lastSubmittedAt: weekly?.last_submitted_at ?? null,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -197,32 +241,12 @@ export default async function TeacherDashboard() {
             <span className="font-bold text-violet-700">{terms.member} 등록</span>으로 첫 초대코드를 만들어 보세요!
           </div>
         ) : (
-          <ul className="mt-3 grid gap-2">
-            {studentList.map((student) => (
-              <li key={student.id}>
-                <Link
-                  href={`/teacher/students/${student.id}`}
-                  className="rounded-2xl bg-white border border-violet-100 p-4 flex items-center justify-between active:bg-violet-50"
-                >
-                  <span className="font-bold text-gray-800">
-                    {instrumentBadge(student.instrument) || terms.memberEmoji} {student.display_name}
-                    {teamsOf(student.id).map((team) => (
-                      <span
-                        key={team.id}
-                        className="ml-2 text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full"
-                      >
-                        {team.leader_id === student.id && "⭐ "}
-                        {team.name}
-                      </span>
-                    ))}
-                  </span>
-                  <span className="text-sm text-gray-400">
-                    {student.username && `@${student.username}`} →
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <div className="mt-3">
+            <MembersTable rows={memberRows} memberLabel={terms.member} />
+            <p className="mt-1.5 text-xs text-gray-400">
+              이름을 누르면 상세로 가요 · 👀 검토 대기 · 💤 7일 넘게 조용한 {terms.member}
+            </p>
+          </div>
         )}
       </section>
 
