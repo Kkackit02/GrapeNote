@@ -206,7 +206,12 @@ export default async function TeacherDashboard() {
           <div className="mt-4 rounded-2xl bg-white border border-violet-100 p-8 text-center text-gray-500">
             아직 {terms.member}이 없어요.
             <br />
-            <span className="font-bold text-violet-700">{terms.member} 등록</span>으로 첫 초대코드를 만들어 보세요!
+            위의 <span className="font-bold text-violet-700">공용 초대코드</span>를 단톡방에 공유하거나{" "}
+            <span className="font-bold text-violet-700">{terms.member} 등록</span>으로 개인 코드를 만들어 보세요!
+            <br />
+            <Link href="/teacher/help" className="mt-3 inline-block font-bold text-violet-600 underline underline-offset-4">
+              ❓ 처음이라면 도움말부터 보기
+            </Link>
           </div>
         ) : (
           <div className="mt-3">
