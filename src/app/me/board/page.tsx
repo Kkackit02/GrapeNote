@@ -15,13 +15,26 @@ interface BoardRow {
 /** 멤버용 읽기 전용 현황판 — 리더가 공개(show_board)했을 때만 RPC가 데이터를 준다 */
 export default async function MemberBoardPage() {
   const supabase = await createSupabaseServer();
-  const { data } = await supabase.rpc("get_group_board");
+  const [{ data }, { data: { user } }] = await Promise.all([
+    supabase.rpc("get_group_board"),
+    supabase.auth.getUser(),
+  ]);
   const rows = (data ?? []) as BoardRow[];
+  const myId = user?.id ?? "";
 
-  const titles = [...new Set(rows.map((r) => r.song_title))].sort((a, b) =>
-    a.localeCompare(b, "ko")
-  );
-  const students = [...new Map(rows.map((r) => [r.student_id, r.student_name])).entries()];
+  // 내가 참여하는 곡을 먼저, 그다음 나머지
+  const myTitles = new Set(rows.filter((r) => r.student_id === myId).map((r) => r.song_title));
+  const titles = [...new Set(rows.map((r) => r.song_title))].sort((a, b) => {
+    const mine = Number(myTitles.has(b)) - Number(myTitles.has(a));
+    return mine || a.localeCompare(b, "ko");
+  });
+
+  // 내 열을 맨 앞에 고정 (스크롤 없이 내 진행이 바로 보이게)
+  const all = [...new Map(rows.map((r) => [r.student_id, r.student_name])).entries()];
+  const students = [
+    ...all.filter(([id]) => id === myId).map(([id]) => [id, "나"] as [string, string]),
+    ...all.filter(([id]) => id !== myId),
+  ];
   const cellOf = (title: string, studentId: string) =>
     rows.find((r) => r.song_title === title && r.student_id === studentId);
 
@@ -32,6 +45,9 @@ export default async function MemberBoardPage() {
         <h1 className="mt-2 text-2xl font-extrabold text-violet-900">📊 우리 그룹 현황판</h1>
         <p className="mt-1 text-xs text-gray-400">
           🍇 완료 · 👀 검토 대기 · ↺ 재연습 중 · — 미배정
+        </p>
+        <p className="mt-0.5 text-xs font-bold text-violet-500">
+          보라색 &apos;나&apos; 열이 내 진행이에요. 옆으로 밀면 다른 멤버도 볼 수 있어요.
         </p>
       </div>
 
@@ -52,7 +68,11 @@ export default async function MemberBoardPage() {
                   {students.map(([id, name]) => (
                     <th
                       key={id}
-                      className="px-2 py-2.5 font-bold text-gray-700 border-b border-violet-100 whitespace-nowrap min-w-14"
+                      className={`sticky top-0 z-10 px-2 py-2.5 font-bold border-b border-violet-100 whitespace-nowrap min-w-14 ${
+                        id === myId
+                          ? "bg-violet-200 text-violet-900"
+                          : "bg-violet-50 text-gray-700"
+                      }`}
                     >
                       {name}
                     </th>
@@ -69,7 +89,12 @@ export default async function MemberBoardPage() {
                       const cell = cellOf(title, id);
                       if (!cell) {
                         return (
-                          <td key={id} className="text-center text-gray-300 border-b border-gray-100">
+                          <td
+                            key={id}
+                            className={`text-center text-gray-300 border-b border-gray-100 ${
+                              id === myId ? "ring-1 ring-inset ring-violet-300" : ""
+                            }`}
+                          >
                             —
                           </td>
                         );
@@ -93,7 +118,9 @@ export default async function MemberBoardPage() {
                       return (
                         <td
                           key={id}
-                          className={`text-center border-b border-gray-100 whitespace-nowrap px-2 py-2 ${className}`}
+                          className={`text-center border-b border-gray-100 whitespace-nowrap px-2 py-2 ${className} ${
+                            id === myId ? "ring-1 ring-inset ring-violet-300 font-bold" : ""
+                          }`}
                         >
                           {label}
                         </td>
