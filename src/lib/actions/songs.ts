@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createCard } from "@/lib/actions/cards";
-import { instrumentEmoji } from "@/lib/instruments";
+import { instrumentEmoji, parseInstruments } from "@/lib/instruments";
 import type { ActionResult, Profile, ProgressCard, Team } from "@/lib/types";
 
 /** 선생님 권한 확인. 정상이면 { ok, academyId }, 아니면 에러 메시지. */
@@ -214,7 +214,9 @@ export async function createInstrumentTeams(): Promise<
     supabase.from("teams").select("*"),
     supabase.from("team_members").select("team_id, profile_id"),
   ]);
-  const withInstrument = ((studentRows ?? []) as Profile[]).filter((s) => s.instrument);
+  const withInstrument = ((studentRows ?? []) as Profile[]).filter(
+    (s) => parseInstruments(s.instrument).length > 0
+  );
   if (withInstrument.length === 0) {
     return { ok: false, error: "악기가 지정된 멤버가 없어요. 학생 상세에서 악기부터 지정해 주세요." };
   }
@@ -223,7 +225,8 @@ export async function createInstrumentTeams(): Promise<
 
   let createdTeams = 0;
   let addedMembers = 0;
-  for (const instrument of [...new Set(withInstrument.map((s) => s.instrument as string))]) {
+  // 겸업 멤버는 맡은 악기 파트마다 들어간다
+  for (const instrument of [...new Set(withInstrument.flatMap((s) => parseInstruments(s.instrument)))]) {
     const name = `${instrumentEmoji(instrument)} ${instrument} 파트`;
     let team = teams.find((t) => t.name === name);
     if (!team) {
@@ -240,7 +243,7 @@ export async function createInstrumentTeams(): Promise<
       memberships.filter((m) => m.team_id === team.id).map((m) => m.profile_id)
     );
     const toAdd = withInstrument.filter(
-      (s) => s.instrument === instrument && !existingIds.has(s.id)
+      (s) => parseInstruments(s.instrument).includes(instrument) && !existingIds.has(s.id)
     );
     if (toAdd.length > 0) {
       const { error } = await supabase.from("team_members").insert(

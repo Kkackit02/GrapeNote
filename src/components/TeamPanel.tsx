@@ -12,7 +12,7 @@ import {
   setTeamLeader,
 } from "@/lib/actions/teams";
 import { createInstrumentTeams } from "@/lib/actions/songs";
-import { instrumentEmoji } from "@/lib/instruments";
+import { instrumentBadge } from "@/lib/instruments";
 import type { ActionResult, Profile, Team, TeamMember } from "@/lib/types";
 
 interface Props {
@@ -168,7 +168,7 @@ export function TeamPanel({ teams, students, memberships }: Props) {
                     >
                       {team.leader_id === m.id ? "⭐" : "☆"}
                     </button>
-                    {m.instrument && `${instrumentEmoji(m.instrument)} `}
+                    {m.instrument && `${instrumentBadge(m.instrument)} `}
                     {m.display_name}
                     {teamIdsOf(m.id).length > 1 && (
                       <span className="text-[10px] font-bold text-violet-400">

@@ -5,7 +5,7 @@ import { deriveGrapes, approvedCount } from "@/lib/grapes";
 import { NewCardForm } from "@/components/NewCardForm";
 import { StudentAdminPanel } from "@/components/StudentAdminPanel";
 import { InstrumentPicker } from "@/components/InstrumentPicker";
-import { instrumentEmoji } from "@/lib/instruments";
+import { instrumentBadge, parseInstruments } from "@/lib/instruments";
 import type { ProgressCard, Profile, Submission } from "@/lib/types";
 
 export default async function StudentDetailPage({
@@ -43,9 +43,11 @@ export default async function StudentDetailPage({
       <div>
         <Link href="/teacher" className="text-sm text-gray-400">← 학생 목록</Link>
         <h1 className="mt-2 text-2xl font-extrabold text-violet-900">
-          {instrumentEmoji(profile.instrument)} {profile.display_name}
+          {instrumentBadge(profile.instrument) || "🎹"} {profile.display_name}
           {profile.instrument && (
-            <span className="ml-2 text-sm font-bold text-violet-500">{profile.instrument}</span>
+            <span className="ml-2 text-sm font-bold text-violet-500">
+              {parseInstruments(profile.instrument).join(" · ")}
+            </span>
           )}
           {profile.username && (
             <span className="ml-2 text-sm font-medium text-gray-400">@{profile.username}</span>

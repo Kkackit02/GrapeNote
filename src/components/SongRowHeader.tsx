@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateSongLineup } from "@/lib/actions/songs";
-import { instrumentEmoji } from "@/lib/instruments";
+import { instrumentBadge, parseInstruments } from "@/lib/instruments";
 
 export interface LineupStudent {
   id: string;
@@ -100,9 +100,11 @@ export function SongRowHeader({ title, teamLabel, students, assignedIds }: Props
                         className="w-5 h-5 accent-violet-600"
                       />
                       <span className="flex-1 text-sm font-bold text-gray-800">
-                        {instrumentEmoji(s.instrument)} {s.name}
+                        {instrumentBadge(s.instrument) || "🎵"} {s.name}
                         {s.instrument && (
-                          <span className="ml-1 text-xs font-medium text-gray-400">{s.instrument}</span>
+                          <span className="ml-1 text-xs font-medium text-gray-400">
+                            {parseInstruments(s.instrument).join("·")}
+                          </span>
                         )}
                       </span>
                       {willRemove && s.hasRecords && (

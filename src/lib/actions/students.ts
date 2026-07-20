@@ -63,14 +63,14 @@ export async function renameStudent(
   return { ok: true, data: undefined };
 }
 
-/** 학생 악기(세션) 지정 — 곡 편성 그룹핑과 악기 파트 팀의 기준 */
+/** 학생 악기(세션) 지정 — 쉼표 구분 다중 지정("기타, 드럼"), 첫 번째가 주 세션 */
 export async function setStudentInstrument(
   studentId: string,
   instrument: string | null
 ): Promise<ActionResult> {
   const trimmed = instrument?.trim() || null;
-  if (trimmed && trimmed.length > 20) {
-    return { ok: false, error: "악기 이름은 20자 이내로 해주세요." };
+  if (trimmed && trimmed.length > 80) {
+    return { ok: false, error: "악기 목록이 너무 길어요." };
   }
 
   const verifyError = await verifyStudent(studentId);

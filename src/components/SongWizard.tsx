@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSong } from "@/lib/actions/songs";
-import { instrumentEmoji } from "@/lib/instruments";
+import { instrumentEmoji, parseInstruments } from "@/lib/instruments";
 import type { Profile } from "@/lib/types";
 
 interface Props {
@@ -21,11 +21,13 @@ export function SongWizard({ students }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 악기별 그룹 (미지정은 맨 뒤)
+  // 악기별 그룹 (겸업 멤버는 여러 그룹에 등장, 미지정은 맨 뒤)
   const groups = new Map<string, Profile[]>();
   for (const s of students) {
-    const key = s.instrument ?? "";
-    groups.set(key, [...(groups.get(key) ?? []), s]);
+    const list = parseInstruments(s.instrument);
+    for (const key of list.length > 0 ? list : [""]) {
+      groups.set(key, [...(groups.get(key) ?? []), s]);
+    }
   }
   const groupKeys = [...groups.keys()].sort((a, b) => {
     if (!a) return 1;

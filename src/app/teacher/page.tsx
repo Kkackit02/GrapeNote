@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { instrumentBadge } from "@/lib/instruments";
 import { JoinCodeCard } from "@/components/JoinCodeCard";
 import type { Academy, Profile, StudentInvite, Team, TeamMember } from "@/lib/types";
 
@@ -130,7 +131,7 @@ export default async function TeacherDashboard() {
                   className="rounded-2xl bg-white border border-violet-100 p-4 flex items-center justify-between active:bg-violet-50"
                 >
                   <span className="font-bold text-gray-800">
-                    🎹 {student.display_name}
+                    {instrumentBadge(student.instrument) || "🎹"} {student.display_name}
                     {teamsOf(student.id).map((team) => (
                       <span
                         key={team.id}
