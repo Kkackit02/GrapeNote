@@ -8,8 +8,11 @@ import { archiveFileName } from "@/lib/archive";
 export const maxDuration = 60;
 
 const BATCH_SIZE = 200;
-/** 이 시간이 지나면 백업을 멈추고 나머지는 다음 실행으로 미룬다 (백업 안 된 파일은 삭제하지 않음) */
-const TIME_BUDGET_MS = 45_000;
+/**
+ * 이 시간이 지나면 백업을 멈추고 나머지는 다음 실행으로 미룬다 (백업 안 된 파일은 삭제하지 않음).
+ * Vercel 함수 상한(60초)보다 낮춰 중간에 잘리지 않게 한다 — 잘리면 삭제 마킹이 유실될 수 있다.
+ */
+const TIME_BUDGET_MS = 40_000;
 
 const cutoffOf = (days: number) =>
   new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();

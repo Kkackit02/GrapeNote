@@ -133,19 +133,33 @@ export function VideosTable({ rows, driveConnected, memberLabel = "멤버" }: Pr
       return;
     }
     setError(null);
-    setNotice(null);
     setBusy("backup");
-    const result = await archiveSubmissions(targets.map((row) => row.id));
-    setBusy(null);
-    if (!result.ok) {
-      setError(result.error);
-      return;
+
+    // 서버 함수는 30초 예산으로 끊기므로, 남은 게 있으면 이어서 반복 호출한다.
+    // 진전이 없으면(전부 실패) 무한 루프를 피하려고 멈춘다.
+    let remaining = targets.map((row) => row.id);
+    let archived = 0;
+    let failed = 0;
+    while (remaining.length > 0) {
+      setNotice(
+        `🗂 백업 중... ${archived}/${targets.length}개 완료 (남은 ${remaining.length}개)`
+      );
+      const result = await archiveSubmissions(remaining);
+      if (!result.ok) {
+        setBusy(null);
+        setError(result.error);
+        return;
+      }
+      archived += result.data.archived;
+      failed += result.data.failed;
+      if (result.data.archived === 0) break; // 더 진행되지 않음
+      // 이번 회차에 처리된 만큼만 남긴다 (실패한 건 다시 시도하지 않음)
+      remaining = remaining.slice(result.data.archived + result.data.failed);
     }
-    const { archived, failed, deferred } = result.data;
+
+    setBusy(null);
     setNotice(
-      `🗂 ${archived}개를 드라이브로 백업했어요.` +
-        (failed ? ` 실패 ${failed}개.` : "") +
-        (deferred ? ` 시간이 부족해 ${deferred}개는 남았어요 — 한 번 더 눌러 주세요.` : "")
+      `🗂 ${archived}개를 드라이브로 백업했어요.` + (failed ? ` (실패 ${failed}개)` : "")
     );
     router.refresh();
   };

@@ -7,8 +7,11 @@ import { archiveSubmissionIds } from "@/lib/archive-run";
 import type { ActionResult } from "@/lib/types";
 
 const MAX_BATCH = 50;
-/** 서버 액션 시간 예산 — 넘으면 나머지는 건너뛰고 개수로 알려준다 */
-const TIME_BUDGET_MS = 40_000;
+/**
+ * 서버 액션 시간 예산. Vercel 함수 상한(60초)보다 넉넉히 낮춰 중간에 잘리지 않게 한다.
+ * 남은 건 deferred로 알려주고, 클라이언트가 이어서 다시 호출한다.
+ */
+const TIME_BUDGET_MS = 30_000;
 
 async function verifyTeacher(): Promise<
   { ok: true; academyId: string } | { ok: false; error: string }

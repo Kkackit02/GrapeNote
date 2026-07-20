@@ -18,7 +18,7 @@ export interface ArchiveResult {
 export async function archiveSubmissionIds(
   academyId: string,
   submissionIds: string[],
-  timeBudgetMs = 40_000
+  timeBudgetMs = 30_000
 ): Promise<ArchiveResult> {
   const empty: ArchiveResult = { archived: 0, failed: 0, deferred: 0, notConnected: false };
   if (submissionIds.length === 0) return empty;

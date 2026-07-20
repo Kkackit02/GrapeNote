@@ -369,7 +369,9 @@ export async function closeCards(
     .neq("status", "pending");
   const submissionIds = (subs ?? []).map((s) => s.id);
   if (submissionIds.length > 0) {
-    const result = await archiveSubmissionIds(academyId, submissionIds);
+    // 마감은 빨라야 하므로 백업에 오래 매달리지 않는다.
+    // 여기서 못 한 영상은 매일 밤 정리 크론이 삭제 직전에 백업한다.
+    const result = await archiveSubmissionIds(academyId, submissionIds, 20_000);
     archived = result.archived;
     archiveSkipped = result.notConnected;
   }
