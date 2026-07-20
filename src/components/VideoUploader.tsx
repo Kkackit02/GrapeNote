@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { VideoRecorder } from "./VideoRecorder";
+import { VideoRecorder, type RecorderTrack } from "./VideoRecorder";
 import { useUploadManager } from "./UploadManager";
 
 import { groupLimits, formatBytes } from "@/lib/limits";
@@ -14,6 +14,8 @@ interface Props {
   premium?: boolean;
   /** 검토자 호칭 (선생님/운영진/리더) */
   leaderLabel?: string;
+  /** 이 곡의 MR — 녹화 중 반주로 틀 수 있다 */
+  tracks?: RecorderTrack[];
 }
 
 /**
@@ -27,6 +29,7 @@ export function VideoUploader({
   onDone,
   premium = false,
   leaderLabel = "선생님",
+  tracks = [],
 }: Props) {
   const limits = groupLimits(premium);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -64,6 +67,7 @@ export function VideoUploader({
       {showRecorder && (
         <VideoRecorder
           hd={limits.hd}
+          tracks={tracks}
           onRecorded={(file) => {
             setShowRecorder(false);
             handleFile(file);
@@ -108,6 +112,14 @@ export function VideoUploader({
       </button>
       <p className="text-center text-sm text-gray-500">
         최대 5분까지 찍을 수 있어요
+        {tracks.length > 0 && (
+          <>
+            <br />
+            <span className="text-xs font-bold text-violet-600">
+              🎧 이 곡의 반주(MR)를 틀면서 녹음할 수 있어요
+            </span>
+          </>
+        )}
         <br />
         <span className="text-xs text-gray-400">
           저장 공간을 위해 앨범 업로드 대신 바로 촬영만 지원해요

@@ -40,6 +40,12 @@ export function StudentCardView({
 
   const done = approvedCount(grapes);
   const completed = !!card.completed_at;
+  // 녹화기에서 반주로 틀 수 있는 이 곡의 MR 목록
+  const recorderTracks = (tracks ?? []).map((track) => ({
+    id: track.id,
+    label: track.label,
+    uploaderName: track.uploader_name,
+  }));
 
   const closeSheet = () => {
     setSelected(null);
@@ -146,7 +152,14 @@ export function StudentCardView({
                 <p className="text-center text-sm font-bold text-gray-600">
                   다시 도전해 봐요! 할 수 있어요 💪
                 </p>
-                <VideoUploader cardId={card.id} grapeIndex={selected.index} onDone={onUploadDone} premium={premium} leaderLabel={leaderLabel} />
+                <VideoUploader
+                  cardId={card.id}
+                  grapeIndex={selected.index}
+                  onDone={onUploadDone}
+                  premium={premium}
+                  leaderLabel={leaderLabel}
+                  tracks={recorderTracks}
+                />
                 <GrapeVideoSection history={selected.history} grapeIndex={selected.index} />
               </div>
             ) : selected.status === "pending" ? (

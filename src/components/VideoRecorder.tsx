@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getTrackUrl } from "@/lib/actions/tracks";
 
 const MAX_SECONDS = 300; // 최대 5분
 const AUDIO_BPS = 128_000;
@@ -28,6 +29,12 @@ function formatTime(sec: number): string {
 
 type Phase = "initializing" | "ready" | "recording" | "preview" | "error";
 
+export interface RecorderTrack {
+  id: string;
+  label: string | null;
+  uploaderName: string;
+}
+
 interface Props {
   /** 녹화 확정 — 부모가 업로드를 이어받는다 */
   onRecorded: (file: File) => void;
@@ -36,14 +43,23 @@ interface Props {
   onFallback: () => void;
   /** 720p 녹화 (프리미엄 그룹) */
   hd?: boolean;
+  /** 이 곡의 MR — 고르면 반주를 틀면서 녹음한다 (합주 연습용) */
+  tracks?: RecorderTrack[];
 }
 
 /**
  * 인앱 녹화기 (전체화면 오버레이). 기본 480p, 프리미엄은 720p.
  * 촬영 단계에서 해상도/비트레이트를 제한해 압축 없이 작은 파일을 만든다.
  * 피아노 음질을 위해 노이즈 억제/자동 음량을 끈다.
+ * MR을 고르면 Web Audio로 마이크+반주를 믹싱해 한 영상에 담는다.
  */
-export function VideoRecorder({ onRecorded, onClose, onFallback, hd = false }: Props) {
+export function VideoRecorder({
+  onRecorded,
+  onClose,
+  onFallback,
+  hd = false,
+  tracks = [],
+}: Props) {
   const quality = hd ? QUALITY.hd : QUALITY.sd;
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -52,11 +68,20 @@ export function VideoRecorder({ onRecorded, onClose, onFallback, hd = false }: P
   const bytesRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // MR 믹싱용 (MediaElementSource는 엘리먼트당 한 번만 만들 수 있어 ref로 보관)
+  const mrElRef = useRef<HTMLAudioElement>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const mrSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+
   const [phase, setPhase] = useState<Phase>("initializing");
   const [facing, setFacing] = useState<"environment" | "user">("environment");
   const [elapsed, setElapsed] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
+  const [mrTrackId, setMrTrackId] = useState("");
+  const [mrUrl, setMrUrl] = useState<string | null>(null);
+  const [mrVolume, setMrVolume] = useState(0.7);
+  const [mrError, setMrError] = useState<string | null>(null);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -103,6 +128,7 @@ export function VideoRecorder({ onRecorded, onClose, onFallback, hd = false }: P
       if (timerRef.current) clearInterval(timerRef.current);
       recorderRef.current?.stop();
       stopStream();
+      void audioCtxRef.current?.close();
     };
     // facing 변경은 flipCamera에서 직접 처리
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -114,17 +140,65 @@ export function VideoRecorder({ onRecorded, onClose, onFallback, hd = false }: P
     };
   }, [previewUrl]);
 
+  useEffect(() => {
+    if (mrElRef.current) mrElRef.current.volume = mrVolume;
+  }, [mrVolume, mrUrl]);
+
+  const pickTrack = async (trackId: string) => {
+    setMrError(null);
+    setMrTrackId(trackId);
+    if (!trackId) {
+      setMrUrl(null);
+      return;
+    }
+    const result = await getTrackUrl(trackId);
+    if (!result.ok) {
+      setMrError(result.error);
+      setMrTrackId("");
+      return;
+    }
+    setMrUrl(result.data.url);
+  };
+
   const flipCamera = async () => {
     const next = facing === "environment" ? "user" : "environment";
     setFacing(next);
     await startStream(next);
   };
 
-  const startRecording = () => {
+  /** 마이크 + MR을 믹싱한 스트림 (MR 미선택이면 원본 그대로) */
+  const buildRecordStream = async (stream: MediaStream): Promise<MediaStream> => {
+    const el = mrElRef.current;
+    if (!mrUrl || !el) return stream;
+    try {
+      const ctx = audioCtxRef.current ?? new AudioContext();
+      audioCtxRef.current = ctx;
+      await ctx.resume();
+
+      const dest = ctx.createMediaStreamDestination();
+      const micSource = ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks()));
+      micSource.connect(dest);
+
+      if (!mrSourceRef.current) {
+        mrSourceRef.current = ctx.createMediaElementSource(el);
+      }
+      mrSourceRef.current.disconnect();
+      mrSourceRef.current.connect(dest); // 녹음에 반주 포함
+      mrSourceRef.current.connect(ctx.destination); // 내 귀에도 들리게
+
+      return new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+    } catch {
+      setMrError("반주 믹싱에 실패했어요. 반주 없이 녹음해요.");
+      return stream;
+    }
+  };
+
+  const startRecording = async () => {
     const stream = streamRef.current;
     if (!stream) return;
+    const recordStream = await buildRecordStream(stream);
     const mimeType = pickMimeType();
-    const recorder = new MediaRecorder(stream, {
+    const recorder = new MediaRecorder(recordStream, {
       ...(mimeType ? { mimeType } : {}),
       videoBitsPerSecond: quality.videoBps,
       audioBitsPerSecond: AUDIO_BPS,
@@ -144,6 +218,7 @@ export function VideoRecorder({ onRecorded, onClose, onFallback, hd = false }: P
     };
     recorder.onstop = () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (mrElRef.current) mrElRef.current.pause();
       const type = recorder.mimeType || mimeType || "video/webm";
       const ext = type.includes("mp4") ? "mp4" : "webm";
       const blob = new Blob(chunksRef.current, { type });
@@ -156,6 +231,13 @@ export function VideoRecorder({ onRecorded, onClose, onFallback, hd = false }: P
 
     recorderRef.current = recorder;
     recorder.start(1000); // 1초 단위 청크 → 용량 감시
+
+    // 반주는 녹화 시작과 동시에 처음부터
+    if (mrElRef.current && mrUrl) {
+      mrElRef.current.currentTime = 0;
+      void mrElRef.current.play().catch(() => setMrError("반주를 재생하지 못했어요."));
+    }
+
     setElapsed(0);
     setPhase("recording");
     timerRef.current = setInterval(() => {
@@ -184,8 +266,16 @@ export function VideoRecorder({ onRecorded, onClose, onFallback, hd = false }: P
     if (recordedFile) onRecorded(recordedFile);
   };
 
+  const trackLabel = (track: RecorderTrack) =>
+    `${track.label ?? "MR"} (${track.uploaderName})`;
+
   return (
     <div className="fixed inset-0 z-[70] bg-black flex flex-col">
+      {/* MR 재생용 (화면에는 보이지 않음) */}
+      {mrUrl && (
+        <audio ref={mrElRef} src={mrUrl} crossOrigin="anonymous" preload="auto" className="hidden" />
+      )}
+
       {/* 상단 바 */}
       <div className="flex items-center justify-between p-4 text-white">
         <button type="button" onClick={onClose} className="text-2xl w-10 h-10" aria-label="닫기">
@@ -195,6 +285,7 @@ export function VideoRecorder({ onRecorded, onClose, onFallback, hd = false }: P
           <span className="font-bold tabular-nums">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse mr-2" />
             {formatTime(elapsed)} / {formatTime(MAX_SECONDS)}
+            {mrUrl && <span className="ml-2 text-xs text-violet-300">🎧 반주</span>}
           </span>
         ) : (
           <span className="text-sm text-white/70">
@@ -246,6 +337,50 @@ export function VideoRecorder({ onRecorded, onClose, onFallback, hd = false }: P
           </div>
         )}
       </div>
+
+      {/* MR 선택 (촬영 전에만) */}
+      {phase === "ready" && tracks.length > 0 && (
+        <div className="px-5 pb-1 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-white/80 shrink-0">🎧 반주</span>
+            <select
+              value={mrTrackId}
+              onChange={(e) => pickTrack(e.target.value)}
+              className="flex-1 min-w-0 h-10 px-3 rounded-xl bg-white/10 text-white text-sm font-bold border border-white/20"
+            >
+              <option value="" className="text-gray-900">없이 녹음</option>
+              {tracks.map((track) => (
+                <option key={track.id} value={track.id} className="text-gray-900">
+                  {trackLabel(track)}
+                </option>
+              ))}
+            </select>
+          </div>
+          {mrUrl && (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-white/60 shrink-0">반주 크기</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={mrVolume}
+                  onChange={(e) => setMrVolume(Number(e.target.value))}
+                  className="flex-1 accent-violet-500"
+                />
+                <span className="text-xs text-white/60 w-8 text-right">
+                  {Math.round(mrVolume * 100)}
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-300">
+                🎧 이어폰을 끼면 반주와 내 연주가 깔끔하게 섞여요.
+              </p>
+            </>
+          )}
+          {mrError && <p className="text-[11px] text-red-400">{mrError}</p>}
+        </div>
+      )}
 
       {/* 하단 컨트롤 */}
       <div className="p-6 pb-10 flex items-center justify-center gap-4">
