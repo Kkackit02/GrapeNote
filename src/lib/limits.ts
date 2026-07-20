@@ -12,10 +12,11 @@ export interface GroupLimits {
 }
 
 export const FREE_LIMITS: GroupLimits = {
-  // TODO: 너드더락 기존 사용량(~2.7GB)이 정리/프리미엄 전환으로 해소되면 500MB로 되돌릴 것.
-  // 한도 도입 시점에 이미 초과 상태라 업로드가 전면 차단되는 사고를 막기 위한 임시 상향.
+  // TODO: 기존 사용량(~2.7GB)이 1일 보존 정리로 해소되면 500MB로 되돌릴 것.
   storageBytes: 3 * 1024 * 1024 * 1024, // 임시 3GB (원래 500MB)
-  retentionDays: 7,
+  // Supabase 무료 티어(1GB)를 지키기 위한 결정(2026-07-20): 판정 후 1일만 파일 보존.
+  // 판정 기록·코멘트는 영구 보존. 인앱 촬영만 허용해 파일 크기도 억제한다.
+  retentionDays: 1,
   maxUploadBytes: 50 * 1024 * 1024,
   hd: false,
 };

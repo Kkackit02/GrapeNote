@@ -12,13 +12,24 @@ interface Props {
   onDone: () => void;
   /** 그룹 프리미엄 — 업로드 상한 확대 + 720p 녹화 */
   premium?: boolean;
+  /** 검토자 호칭 (선생님/운영진/리더) */
+  leaderLabel?: string;
 }
 
-/** 촬영/파일 선택 → 백그라운드 업로드 시작 (진행률은 하단 칩에서 표시) */
-export function VideoUploader({ cardId, grapeIndex, onDone, premium = false }: Props) {
+/**
+ * 인앱 촬영 → 백그라운드 업로드 시작 (진행률은 하단 칩에서 표시).
+ * 저장 공간 관리를 위해 앨범(갤러리) 업로드는 막고 촬영만 허용한다 —
+ * 촬영 단계에서 해상도/비트레이트가 제한되어 파일이 작게 만들어진다.
+ */
+export function VideoUploader({
+  cardId,
+  grapeIndex,
+  onDone,
+  premium = false,
+  leaderLabel = "선생님",
+}: Props) {
   const limits = groupLimits(premium);
   const cameraRef = useRef<HTMLInputElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
   const { startUpload } = useUploadManager();
   const [showRecorder, setShowRecorder] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,13 +85,6 @@ export function VideoUploader({ cardId, grapeIndex, onDone, premium = false }: P
         onChange={(e) => handleFile(e.target.files?.[0])}
       />
       <input
-        ref={fileRef}
-        type="file"
-        accept="video/*"
-        className="hidden"
-        onChange={(e) => handleFile(e.target.files?.[0])}
-      />
-      <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         maxLength={100}
@@ -92,7 +96,7 @@ export function VideoUploader({ cardId, grapeIndex, onDone, premium = false }: P
         onChange={(e) => setComment(e.target.value)}
         maxLength={500}
         rows={2}
-        placeholder="선생님께 한마디 (선택) — 예: 셋째 마디가 어려워요 🥲"
+        placeholder={`${leaderLabel}에게 한마디 (선택) — 예: 셋째 마디가 어려워요 🥲`}
         className="px-4 py-3 rounded-xl border border-gray-300 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-400"
       />
       <button
@@ -102,14 +106,13 @@ export function VideoUploader({ cardId, grapeIndex, onDone, premium = false }: P
       >
         📹 지금 촬영하기
       </button>
-      <button
-        type="button"
-        onClick={() => fileRef.current?.click()}
-        className="h-14 rounded-2xl bg-violet-100 text-violet-800 text-lg font-bold active:bg-violet-300"
-      >
-        🎞️ 앨범에서 고르기
-      </button>
-      <p className="text-center text-sm text-gray-500">최대 5분까지 찍을 수 있어요 (50MB)</p>
+      <p className="text-center text-sm text-gray-500">
+        최대 5분까지 찍을 수 있어요
+        <br />
+        <span className="text-xs text-gray-400">
+          저장 공간을 위해 앨범 업로드 대신 바로 촬영만 지원해요
+        </span>
+      </p>
       {error && <p className="text-center text-sm text-red-500 font-medium">{error}</p>}
     </div>
   );

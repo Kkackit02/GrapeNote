@@ -143,7 +143,7 @@ export function StudentCardView({
                 <p className="text-center text-sm font-bold text-gray-600">
                   다시 도전해 봐요! 할 수 있어요 💪
                 </p>
-                <VideoUploader cardId={card.id} grapeIndex={selected.index} onDone={onUploadDone} premium={premium} />
+                <VideoUploader cardId={card.id} grapeIndex={selected.index} onDone={onUploadDone} premium={premium} leaderLabel={leaderLabel} />
                 <GrapeVideoSection history={selected.history} grapeIndex={selected.index} />
               </div>
             ) : selected.status === "pending" ? (
