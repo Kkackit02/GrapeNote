@@ -4,8 +4,14 @@ import { SongManageCard, type SongSummary } from "@/components/SongManageCard";
 import type { LineupStudent } from "@/components/LineupModal";
 import type { Profile, ProgressCard, SongTrack, Submission } from "@/lib/types";
 
-/** 곡 관리: 곡별 편성·미션·기한·진행·MR을 한 화면에서 */
-export default async function SongsPage() {
+/** 곡 관리: 곡별 편성·미션·기한·진행·MR을 한 화면에서. 마감한 곡은 따로 본다. */
+export default async function SongsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ show?: string }>;
+}) {
+  const { show } = await searchParams;
+  const showClosed = show === "closed";
   const supabase = await createSupabaseServer();
   const [{ data: students }, { data: cards }, { data: subs }, { data: tracks }, { data: { user } }] =
     await Promise.all([
@@ -57,33 +63,72 @@ export default async function SongsPage() {
       lineupStudents,
       assignedIds,
       tracks: trackList.filter((t) => t.song_title === title),
+      // 편성 전원이 마감된 곡 = 끝난 곡
+      isClosed: song.cardIds.length > 0 && song.closedCount >= song.cardIds.length,
     };
   });
+
+  const closedCount = songs.filter((s) => s.isClosed).length;
+  const visible = songs.filter((s) => (showClosed ? s.isClosed : !s.isClosed));
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-extrabold text-violet-900">🎵 곡 관리</h1>
+          <h1 className="text-2xl font-extrabold text-violet-900">
+            {showClosed ? "🔒 마감한 곡" : "🎵 곡 관리"}
+          </h1>
           <p className="mt-1 text-sm text-gray-500">
-            곡별 편성·미션·기한을 여기서 한 번에 관리해요.
+            {showClosed
+              ? "끝난 곡이에요. 기록은 그대로 남아 있고, 필요하면 마감을 풀 수 있어요."
+              : "진행 중인 곡의 편성·미션·기한을 관리해요."}
           </p>
         </div>
-        <Link
-          href="/teacher/songs/new"
-          className="shrink-0 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold active:bg-violet-800"
-        >
-          🎵 새 곡
-        </Link>
+        {!showClosed && (
+          <Link
+            href="/teacher/songs/new"
+            className="shrink-0 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold active:bg-violet-800"
+          >
+            🎵 새 곡
+          </Link>
+        )}
       </div>
 
-      {songs.length === 0 ? (
+      {/* 마감한 곡은 기본 화면에서 빠지고 여기로만 들어온다 */}
+      {showClosed ? (
+        <Link
+          href="/teacher/songs"
+          className="self-start px-4 py-2 rounded-xl bg-white border border-violet-200 text-violet-700 text-sm font-bold active:bg-violet-50"
+        >
+          ← 진행 중인 곡 보기
+        </Link>
+      ) : (
+        closedCount > 0 && (
+          <Link
+            href="/teacher/songs?show=closed"
+            className="self-start px-4 py-2 rounded-xl bg-white border border-gray-300 text-gray-600 text-sm font-bold active:bg-gray-100"
+          >
+            🔒 마감한 곡 {closedCount}개 보기
+          </Link>
+        )
+      )}
+
+      {visible.length === 0 ? (
         <div className="rounded-2xl bg-white border border-violet-100 p-10 text-center text-gray-500">
-          아직 곡이 없어요. <b>새 곡</b>으로 첫 곡을 만들어 보세요!
+          {showClosed ? (
+            "마감한 곡이 없어요."
+          ) : (
+            <>
+              진행 중인 곡이 없어요.
+              <br />
+              <b>🎵 새 곡</b>으로 시작하거나, {closedCount > 0 && "마감한 곡을 다시 열거나, "}
+              멤버 상세에서 개별로 배정할 수 있어요.
+            </>
+          )}
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {songs.map(({ song, lineupStudents, assignedIds, tracks: songTracks }) => (
+          {visible.map(({ song, lineupStudents, assignedIds, tracks: songTracks }) => (
             <SongManageCard
               key={song.title}
               song={song}
