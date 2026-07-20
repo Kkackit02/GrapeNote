@@ -68,10 +68,12 @@ export function VideoRecorder({
   const bytesRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // MR 믹싱용 (MediaElementSource는 엘리먼트당 한 번만 만들 수 있어 ref로 보관)
-  const mrElRef = useRef<HTMLAudioElement>(null);
+  // MR 믹싱: <audio> 엘리먼트 대신 디코딩한 버퍼를 쓴다.
+  // (엘리먼트는 자동재생 정책·라우팅 문제로 소리가 안 나는 기기가 있다)
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const mrSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const mrBufferRef = useRef<AudioBuffer | null>(null);
+  const mrNodeRef = useRef<AudioBufferSourceNode | null>(null);
+  const mrGainRef = useRef<GainNode | null>(null);
 
   const [phase, setPhase] = useState<Phase>("initializing");
   const [facing, setFacing] = useState<"environment" | "user">("environment");
@@ -79,7 +81,9 @@ export function VideoRecorder({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
   const [mrTrackId, setMrTrackId] = useState("");
-  const [mrUrl, setMrUrl] = useState<string | null>(null);
+  const [mrReady, setMrReady] = useState(false);
+  const [mrLoading, setMrLoading] = useState(false);
+  const [mrPreviewing, setMrPreviewing] = useState(false);
   const [mrVolume, setMrVolume] = useState(0.7);
   const [mrError, setMrError] = useState<string | null>(null);
 
@@ -128,6 +132,11 @@ export function VideoRecorder({
       if (timerRef.current) clearInterval(timerRef.current);
       recorderRef.current?.stop();
       stopStream();
+      try {
+        mrNodeRef.current?.stop();
+      } catch {
+        // 이미 멈춤
+      }
       void audioCtxRef.current?.close();
     };
     // facing 변경은 flipCamera에서 직접 처리
@@ -140,24 +149,88 @@ export function VideoRecorder({
     };
   }, [previewUrl]);
 
+  // 볼륨은 게인 노드로 (재생 중에도 즉시 반영)
   useEffect(() => {
-    if (mrElRef.current) mrElRef.current.volume = mrVolume;
-  }, [mrVolume, mrUrl]);
+    if (mrGainRef.current) mrGainRef.current.gain.value = mrVolume;
+  }, [mrVolume]);
+
+  /** 사용자 제스처 안에서 AudioContext를 만들어 둔다 (모바일 자동재생 정책) */
+  const ensureCtx = (): AudioContext => {
+    const ctx =
+      audioCtxRef.current ??
+      new (window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    audioCtxRef.current = ctx;
+    void ctx.resume();
+    if (!mrGainRef.current) {
+      mrGainRef.current = ctx.createGain();
+      mrGainRef.current.gain.value = mrVolume;
+    }
+    return ctx;
+  };
+
+  const stopMr = () => {
+    try {
+      mrNodeRef.current?.stop();
+    } catch {
+      // 이미 멈춘 경우
+    }
+    mrNodeRef.current = null;
+    setMrPreviewing(false);
+  };
+
+  /** 반주 재생 시작 — connectTo가 있으면 녹음 스트림에도 함께 보낸다 */
+  const playMr = (connectTo?: AudioNode) => {
+    const ctx = audioCtxRef.current;
+    const buffer = mrBufferRef.current;
+    const gain = mrGainRef.current;
+    if (!ctx || !buffer || !gain) return;
+    stopMr();
+    const node = ctx.createBufferSource();
+    node.buffer = buffer;
+    node.connect(gain);
+    gain.disconnect();
+    gain.connect(ctx.destination); // 내 귀로
+    if (connectTo) gain.connect(connectTo); // 녹음에도
+    node.onended = () => setMrPreviewing(false);
+    node.start();
+    mrNodeRef.current = node;
+  };
 
   const pickTrack = async (trackId: string) => {
     setMrError(null);
     setMrTrackId(trackId);
-    if (!trackId) {
-      setMrUrl(null);
-      return;
-    }
-    const result = await getTrackUrl(trackId);
-    if (!result.ok) {
-      setMrError(result.error);
+    stopMr();
+    mrBufferRef.current = null;
+    setMrReady(false);
+    if (!trackId) return;
+
+    // 선택은 사용자 제스처 — 여기서 오디오 컨텍스트를 깨워 둔다
+    const ctx = ensureCtx();
+    setMrLoading(true);
+    try {
+      const result = await getTrackUrl(trackId);
+      if (!result.ok) throw new Error(result.error);
+      const res = await fetch(result.data.url);
+      if (!res.ok) throw new Error("반주를 내려받지 못했어요.");
+      mrBufferRef.current = await ctx.decodeAudioData(await res.arrayBuffer());
+      setMrReady(true);
+    } catch (e) {
+      setMrError(e instanceof Error ? e.message : "반주를 불러오지 못했어요.");
       setMrTrackId("");
+    } finally {
+      setMrLoading(false);
+    }
+  };
+
+  const togglePreview = () => {
+    if (mrPreviewing) {
+      stopMr();
       return;
     }
-    setMrUrl(result.data.url);
+    ensureCtx();
+    playMr();
+    setMrPreviewing(true);
   };
 
   const flipCamera = async () => {
@@ -166,26 +239,15 @@ export function VideoRecorder({
     await startStream(next);
   };
 
-  /** 마이크 + MR을 믹싱한 스트림 (MR 미선택이면 원본 그대로) */
-  const buildRecordStream = async (stream: MediaStream): Promise<MediaStream> => {
-    const el = mrElRef.current;
-    if (!mrUrl || !el) return stream;
+  /** 마이크 + MR을 믹싱한 스트림 (MR 미선택이면 원본 그대로). 반주 재생도 여기서 시작한다. */
+  const buildRecordStream = (stream: MediaStream): MediaStream => {
+    if (!mrReady || !mrBufferRef.current) return stream;
     try {
-      const ctx = audioCtxRef.current ?? new AudioContext();
-      audioCtxRef.current = ctx;
-      await ctx.resume();
-
+      const ctx = ensureCtx();
       const dest = ctx.createMediaStreamDestination();
       const micSource = ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks()));
       micSource.connect(dest);
-
-      if (!mrSourceRef.current) {
-        mrSourceRef.current = ctx.createMediaElementSource(el);
-      }
-      mrSourceRef.current.disconnect();
-      mrSourceRef.current.connect(dest); // 녹음에 반주 포함
-      mrSourceRef.current.connect(ctx.destination); // 내 귀에도 들리게
-
+      playMr(dest); // 반주를 스피커 + 녹음 스트림 양쪽으로
       return new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
     } catch {
       setMrError("반주 믹싱에 실패했어요. 반주 없이 녹음해요.");
@@ -193,10 +255,12 @@ export function VideoRecorder({
     }
   };
 
-  const startRecording = async () => {
+  const startRecording = () => {
     const stream = streamRef.current;
     if (!stream) return;
-    const recordStream = await buildRecordStream(stream);
+    stopMr(); // 미리듣기 중이었다면 정리
+    // 사용자 제스처를 잃지 않도록 await 없이 동기적으로 처리한다
+    const recordStream = buildRecordStream(stream);
     const mimeType = pickMimeType();
     const recorder = new MediaRecorder(recordStream, {
       ...(mimeType ? { mimeType } : {}),
@@ -218,7 +282,7 @@ export function VideoRecorder({
     };
     recorder.onstop = () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (mrElRef.current) mrElRef.current.pause();
+      stopMr();
       const type = recorder.mimeType || mimeType || "video/webm";
       const ext = type.includes("mp4") ? "mp4" : "webm";
       const blob = new Blob(chunksRef.current, { type });
@@ -231,12 +295,6 @@ export function VideoRecorder({
 
     recorderRef.current = recorder;
     recorder.start(1000); // 1초 단위 청크 → 용량 감시
-
-    // 반주는 녹화 시작과 동시에 처음부터
-    if (mrElRef.current && mrUrl) {
-      mrElRef.current.currentTime = 0;
-      void mrElRef.current.play().catch(() => setMrError("반주를 재생하지 못했어요."));
-    }
 
     setElapsed(0);
     setPhase("recording");
@@ -271,11 +329,6 @@ export function VideoRecorder({
 
   return (
     <div className="fixed inset-0 z-[70] bg-black flex flex-col">
-      {/* MR 재생용 (화면에는 보이지 않음) */}
-      {mrUrl && (
-        <audio ref={mrElRef} src={mrUrl} crossOrigin="anonymous" preload="auto" className="hidden" />
-      )}
-
       {/* 상단 바 */}
       <div className="flex items-center justify-between p-4 text-white">
         <button type="button" onClick={onClose} className="text-2xl w-10 h-10" aria-label="닫기">
@@ -285,7 +338,7 @@ export function VideoRecorder({
           <span className="font-bold tabular-nums">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse mr-2" />
             {formatTime(elapsed)} / {formatTime(MAX_SECONDS)}
-            {mrUrl && <span className="ml-2 text-xs text-violet-300">🎧 반주</span>}
+            {mrReady && <span className="ml-2 text-xs text-violet-300">🎧 반주</span>}
           </span>
         ) : (
           <span className="text-sm text-white/70">
@@ -356,10 +409,20 @@ export function VideoRecorder({
               ))}
             </select>
           </div>
-          {mrUrl && (
+          {mrLoading && <p className="text-[11px] text-white/60">반주를 불러오는 중...</p>}
+          {mrReady && (
             <>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-white/60 shrink-0">반주 크기</span>
+                <button
+                  type="button"
+                  onClick={togglePreview}
+                  className={`shrink-0 px-3 h-9 rounded-xl text-xs font-bold ${
+                    mrPreviewing ? "bg-violet-500 text-white" : "bg-white/15 text-white"
+                  }`}
+                >
+                  {mrPreviewing ? "■ 정지" : "▶ 미리듣기"}
+                </button>
+                <span className="text-xs text-white/60 shrink-0">크기</span>
                 <input
                   type="range"
                   min={0}
@@ -374,7 +437,7 @@ export function VideoRecorder({
                 </span>
               </div>
               <p className="text-[11px] text-amber-300">
-                🎧 이어폰을 끼면 반주와 내 연주가 깔끔하게 섞여요.
+                🎧 이어폰을 끼면 반주와 내 연주가 깔끔하게 섞여요. 미리듣기로 소리를 먼저 확인해 보세요.
               </p>
             </>
           )}

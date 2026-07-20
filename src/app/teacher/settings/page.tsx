@@ -7,6 +7,7 @@ import { groupLimits, formatBytes, isPremiumActive } from "@/lib/limits";
 import { BoardShareToggle } from "@/components/BoardShareToggle";
 import { DriveArchiveCard } from "@/components/DriveArchiveCard";
 import { PushToggle } from "@/components/PushToggle";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import type { Academy, Submission } from "@/lib/types";
 
 /** 그룹 설정: 저장 공간·알림·현황 공개·드라이브 백업 (한 번 정하고 잘 안 바꾸는 것들) */
@@ -81,6 +82,7 @@ export default async function SettingsPage() {
         </Link>
       </div>
 
+      <InstallPrompt />
       <PushToggle vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />
       <BoardShareToggle enabled={!!academy?.show_board} />
       <DriveArchiveCard connected={driveConnected} configured={isDriveConfigured()} />

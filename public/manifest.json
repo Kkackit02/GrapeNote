@@ -1,0 +1,17 @@
+{
+  "name": "GrapeNote — 연습 진도 카드",
+  "short_name": "GrapeNote",
+  "description": "연습 영상을 올리고 포도알을 채우는 온라인 악기 연습 진도 카드",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf5ff",
+  "theme_color": "#7c3aed",
+  "lang": "ko",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
