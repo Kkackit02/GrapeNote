@@ -53,34 +53,35 @@ export function TitlePicker({ currentTitleId, stats }: Props) {
         눌러서(PC는 마우스만 올려도) 미리 보고, 마음에 들면 적용하세요.
       </p>
 
-      {/* 미리보기 + 적용 */}
-      <div className="mt-2 rounded-2xl bg-white border-2 border-violet-100 p-4 text-center">
-        {previewTitle ? (
-          <span className="inline-flex items-center gap-1 text-sm font-bold text-violet-700 bg-violet-100 px-3 py-1.5 rounded-full">
-            {previewTitle.emoji} {previewTitle.name}
-          </span>
-        ) : (
-          <span className="text-sm font-bold text-gray-400">칭호 없이 이름만</span>
-        )}
-        <p className="mt-1.5 text-xs text-gray-400">
-          {previewTitle ? previewTitle.desc : "이름 옆에 아무것도 붙지 않아요"}
-          {applied && <span className="ml-1 font-bold text-violet-600">· 달고 있어요</span>}
-        </p>
-        {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-        <button
-          type="button"
-          onClick={apply}
-          disabled={saving || applied || !previewUnlocked}
-          className="mt-3 w-full h-12 rounded-xl bg-violet-600 text-white font-bold disabled:bg-gray-200 disabled:text-gray-400 active:bg-violet-800"
-        >
-          {saving
-            ? "다는 중..."
-            : applied
-              ? "지금 달고 있어요"
-              : !previewUnlocked
-                ? "아직 잠겨 있어요"
-                : "이 칭호 달기"}
-        </button>
+      {/* 미리보기 + 적용 — 목록을 내려도 위에 붙어 있게 sticky */}
+      <div className="sticky top-14 z-30 pt-2 pb-2 bg-violet-50/95 backdrop-blur">
+        <div className="rounded-2xl bg-white border-2 border-violet-200 shadow-sm p-3 flex items-center gap-3">
+          <span className="text-3xl shrink-0">{previewTitle ? previewTitle.emoji : "🙂"}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-extrabold text-gray-800 truncate">
+              {previewTitle ? previewTitle.name : "칭호 없이 이름만"}
+              {applied && <span className="ml-1 text-violet-600">· 달고 있어요</span>}
+            </p>
+            <p className="text-xs text-gray-400 truncate">
+              {previewTitle ? previewTitle.desc : "이름 옆에 아무것도 붙지 않아요"}
+            </p>
+            {error && <p className="text-xs text-red-500">{error}</p>}
+            <button
+              type="button"
+              onClick={apply}
+              disabled={saving || applied || !previewUnlocked}
+              className="mt-1.5 w-full h-10 rounded-xl bg-violet-600 text-white text-sm font-bold disabled:bg-gray-200 disabled:text-gray-400 active:bg-violet-800"
+            >
+              {saving
+                ? "다는 중..."
+                : applied
+                  ? "지금 달고 있어요"
+                  : !previewUnlocked
+                    ? "아직 잠겨 있어요"
+                    : "이 칭호 달기"}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* 칭호 없이 */}

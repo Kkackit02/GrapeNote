@@ -106,39 +106,42 @@ export function SkinPicker({ currentSkinId, stats }: Props) {
         눌러서(PC는 마우스만 올려도) 미리 보고, 마음에 들면 적용하세요.
       </p>
 
-      {/* 미리보기 + 적용 */}
-      <div className="mt-2 rounded-2xl bg-white border-2 border-violet-100 p-4">
-        <GrapeBunch
-          grapes={PREVIEW_GRAPES}
-          skinId={previewId}
-          randomPool={owned}
-          className="max-h-32 mx-auto"
-        />
-        <p className="mt-2 text-center text-sm font-extrabold text-gray-800">
-          {previewIsRandom ? `🎲 랜덤 포도` : `${previewSkin.emoji} ${previewSkin.name}`}
-          {applied && <span className="ml-1 text-violet-600">· 사용 중</span>}
-        </p>
-        {!previewUnlocked && (
-          <p className="mt-0.5 text-center text-xs text-gray-400">
-            🔒{" "}
-            {previewIsRandom ? "스킨 2개 이상 모으기" : unlockLabel(previewSkin.unlock)}
-          </p>
-        )}
-        {error && <p className="mt-1 text-center text-sm text-red-500">{error}</p>}
-        <button
-          type="button"
-          onClick={apply}
-          disabled={saving || applied || !previewUnlocked}
-          className="mt-3 w-full h-12 rounded-xl bg-violet-600 text-white font-bold disabled:bg-gray-200 disabled:text-gray-400 active:bg-violet-800"
-        >
-          {saving
-            ? "입히는 중..."
-            : applied
-              ? "지금 쓰고 있어요"
-              : !previewUnlocked
-                ? "아직 잠겨 있어요"
-                : "이 스킨 적용하기"}
-        </button>
+      {/* 미리보기 + 적용 — 목록을 내려도 위에 붙어 있게 sticky */}
+      <div className="sticky top-14 z-30 pt-2 pb-2 bg-violet-50/95 backdrop-blur">
+        <div className="rounded-2xl bg-white border-2 border-violet-200 shadow-sm p-3 flex items-center gap-3">
+          <GrapeBunch
+            grapes={PREVIEW_GRAPES}
+            skinId={previewId}
+            randomPool={owned}
+            className="h-20 w-auto shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-extrabold text-gray-800 truncate">
+              {previewIsRandom ? "🎲 랜덤 포도" : `${previewSkin.emoji} ${previewSkin.name}`}
+              {applied && <span className="ml-1 text-violet-600">· 사용 중</span>}
+            </p>
+            {!previewUnlocked && (
+              <p className="text-xs text-gray-400 truncate">
+                🔒 {previewIsRandom ? "스킨 2개 이상 모으기" : unlockLabel(previewSkin.unlock)}
+              </p>
+            )}
+            {error && <p className="text-xs text-red-500">{error}</p>}
+            <button
+              type="button"
+              onClick={apply}
+              disabled={saving || applied || !previewUnlocked}
+              className="mt-1.5 w-full h-10 rounded-xl bg-violet-600 text-white text-sm font-bold disabled:bg-gray-200 disabled:text-gray-400 active:bg-violet-800"
+            >
+              {saving
+                ? "입히는 중..."
+                : applied
+                  ? "지금 쓰고 있어요"
+                  : !previewUnlocked
+                    ? "아직 잠겨 있어요"
+                    : "이 스킨 적용하기"}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* 랜덤 포도 */}
