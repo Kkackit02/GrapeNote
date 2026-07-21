@@ -92,7 +92,7 @@ try {
   ok("signed URL로 업로드 성공", !upErr, upErr?.message);
   const { data: subId, error: subErr } = await student.rpc("create_submission", {
     p_card_id: card.id, p_grape_index: 1, p_video_path: path1,
-    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "", p_instrument: "기타",
   });
   ok("submission(pending) 생성 (RPC)", !subErr && !!subId, subErr?.message);
 
@@ -105,17 +105,17 @@ try {
   ok("학생이 status update → 0건", (hacked ?? []).length === 0);
   const { error: badPath } = await student.rpc("create_submission", {
     p_card_id: card.id, p_grape_index: 4, p_video_path: "evil/path.mp4",
-    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "", p_instrument: "기타",
   });
   ok("RPC 경로 접두사 위조 → 거부", !!badPath);
   const { error: badIndex } = await student.rpc("create_submission", {
     p_card_id: card.id, p_grape_index: 999, p_video_path: `${academy.id}/${studentId}/${card.id}/999-x.mp4`,
-    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "", p_instrument: "기타",
   });
   ok("RPC 포도알 인덱스 상한 초과 → 거부", !!badIndex);
   const { error: dupPending } = await student.rpc("create_submission", {
     p_card_id: card.id, p_grape_index: 1, p_video_path: path1,
-    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "", p_instrument: "기타",
   });
   ok("같은 포도알 pending 중복 → 거부", !!dupPending);
 
@@ -142,7 +142,7 @@ try {
     await student.storage.from("videos").uploadToSignedUrl(s.path, s.token, fakeVideo);
     const { data: insId } = await student.rpc("create_submission", {
       p_card_id: card.id, p_grape_index: idx, p_video_path: p,
-      p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+      p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "", p_instrument: "기타",
     });
     await teacher.from("submissions")
       .update({ status: "approved", reviewed_by: teacherId, reviewed_at: new Date().toISOString() })
@@ -208,6 +208,7 @@ try {
   const { data: notedId, error: noteErr } = await student.rpc("create_submission", {
     p_card_id: bulkCards[0].id, p_grape_index: 3, p_video_path: notePath,
     p_video_size: 1024, p_video_hash: "", p_title: "오른손만 연습!", p_comment: "셋째 마디가 어려워요",
+    p_instrument: "기타",
   });
   ok("제목/코멘트와 함께 제출 (RPC)", !noteErr && !!notedId, noteErr?.message);
   const { data: teacherView } = await teacher.from("submissions")
@@ -237,7 +238,7 @@ try {
   const { error: injectErr } = await student.rpc("create_submission", {
     p_card_id: victimCard.id, p_grape_index: 1,
     p_video_path: `${academy.id}/${studentId}/${victimCard.id}/1-x.mp4`,
-    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "", p_instrument: "기타",
   });
   ok("학생이 남의 카드에 RPC 제출 → 거부", !!injectErr, injectErr?.message);
   // 직접 insert로도 (정책 제거되어) 막힌다
@@ -490,7 +491,7 @@ try {
   const closePath = `${academy.id}/${studentId}/${openCard.id}/1-${crypto.randomUUID()}.mp4`;
   const { error: beforeCloseErr } = await student.rpc("create_submission", {
     p_card_id: openCard.id, p_grape_index: 1, p_video_path: closePath,
-    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "", p_instrument: "기타",
   });
   ok("마감 전에는 제출 가능", !beforeCloseErr, beforeCloseErr?.message);
   await admin.from("submissions").delete().eq("card_id", openCard.id);
@@ -501,7 +502,7 @@ try {
   const closedPath = `${academy.id}/${studentId}/${openCard.id}/2-${crypto.randomUUID()}.mp4`;
   const { error: afterCloseErr } = await student.rpc("create_submission", {
     p_card_id: openCard.id, p_grape_index: 2, p_video_path: closedPath,
-    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "",
+    p_video_size: 1024, p_video_hash: "", p_title: "", p_comment: "", p_instrument: "기타",
   });
   ok("마감된 숙제에 제출 → 거부", !!afterCloseErr);
   // 학생은 마감을 스스로 풀 수 없다 (컬럼 권한)
