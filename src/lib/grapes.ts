@@ -51,18 +51,28 @@ export function isCardComplete(grapes: GrapeState[]): boolean {
 }
 
 /**
- * 포도송이 배치: 위가 넓고 아래로 좁아지는 역삼각형 클러스터.
- * 각 행의 알 개수를 반환한다. 예: 10알 → [4, 3, 2, 1]
+ * 포도송이 배치: 위가 넓고 아래로 좁아지는 클러스터. 각 행의 알 개수를 반환한다.
+ *
+ * 예전에는 완전한 삼각형에서 남는 알을 그냥 잘라 붙여 [4,3,1]·[5,4,2]처럼
+ * 줄이 갑자기 확 좁아지는 어색한 모양이 나왔다. 지금은 삼각형에서 시작해
+ * "아래 줄보다 좁아지지 않게" 위쪽부터 한 알씩 덜어내, 어느 개수든 단이
+ * 1씩만 줄어드는 자연스러운 송이가 된다. (예: 8알 → [3,2,2,1])
  */
 export function bunchRows(totalGrapes: number): number[] {
-  // k(k+1)/2 >= N 을 만족하는 최소 k에서 시작해 1까지 감소
-  const k = Math.ceil((Math.sqrt(8 * totalGrapes + 1) - 1) / 2);
-  const rows: number[] = [];
-  let remaining = totalGrapes;
-  for (let w = k; w >= 1 && remaining > 0; w--) {
-    const take = Math.min(w, remaining);
-    rows.push(take);
-    remaining -= take;
-  }
-  return rows;
+  const n = Math.max(0, Math.floor(totalGrapes));
+  if (n === 0) return [];
+
+  // 단이 1씩 줄어드는 삼각형을 담을 수 있는 '최대' 줄 수를 고른다.
+  // (최소 줄 수로 잡으면 남는 알을 덜어내느라 2알 폭의 탑처럼 길쭉해진다)
+  const m = Math.max(1, Math.floor((Math.sqrt(8 * n + 1) - 1) / 2));
+
+  // 맨 아랫줄 알 수 — 위로 갈수록 1씩 넓어진다
+  const bottom = Math.floor((n - (m * (m - 1)) / 2) / m);
+  const rows = Array.from({ length: m }, (_, i) => bottom + (m - 1 - i));
+
+  // 남는 알은 아래쪽 줄부터 하나씩 얹는다 (단 차이가 최대 1이라 매끄럽다)
+  let rem = n - rows.reduce((sum, count) => sum + count, 0);
+  for (let i = m - 1; i >= 0 && rem > 0; i--, rem--) rows[i] += 1;
+
+  return rows.filter((count) => count > 0);
 }
