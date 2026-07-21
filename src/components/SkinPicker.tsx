@@ -113,7 +113,7 @@ export function SkinPicker({ currentSkinId, stats }: Props) {
             grapes={PREVIEW_GRAPES}
             skinId={previewId}
             randomPool={owned}
-            className="h-20 w-auto shrink-0"
+            className="h-32 w-auto shrink-0"
           />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-extrabold text-gray-800 truncate">

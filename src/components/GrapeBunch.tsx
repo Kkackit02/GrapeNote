@@ -4,11 +4,18 @@ import { bunchRows, type GrapeState } from "@/lib/grapes";
 import { getSkin, skinForIndex, RANDOM_SKIN_ID, type GrapeSkin } from "@/lib/skins";
 import { GrapeBerry } from "./GrapeBerry";
 
-const R = 18; // 포도알 반지름
-const DX = R * 2 + 6; // 가로 간격
-const DY = R * 2 - 4; // 세로 간격 (살짝 겹쳐 송이 느낌)
-const PAD = 8;
-const STEM_H = 34;
+const R = 18; // 포도알 기준 반지름
+const DX = R * 2 - 5; // 가로 간격 — 살짝 겹쳐야 '송이'로 보인다 (떨어뜨리면 동그라미 나열)
+const DY = R * 1.58; // 세로 간격 — 위아래도 겹쳐 촘촘하게
+const PAD = 10;
+const STEM_H = 30;
+/** 줄기·잎이 들어갈 최소 폭 (알이 적어도 잎이 잘리지 않게) */
+const MIN_CONTENT_W = 112;
+
+/** 알마다 크기를 아주 살짝 다르게 — 실제 포도처럼 자연스럽게 (인덱스로 고정) */
+function berryRadius(index: number): number {
+  return R * (0.95 + ((index * 37) % 11) / 100);
+}
 
 interface Props {
   grapes: GrapeState[];
@@ -50,16 +57,16 @@ export function GrapeBunch({
   const slotCount = grapes.length + (onAddGrape ? 1 : 0);
   const rows = bunchRows(slotCount);
   const maxRow = Math.max(...rows, 1);
-  const width = maxRow * DX + PAD * 2;
-  const height = rows.length * DY + R + STEM_H + PAD * 2;
+  const bunchWidth = (maxRow - 1) * DX + R * 2;
+  const width = Math.max(bunchWidth, MIN_CONTENT_W) + PAD * 2;
+  const height = PAD * 2 + STEM_H + R * 2 + (rows.length - 1) * DY;
   const cxCenter = width / 2;
 
   // 각 슬롯의 (cx, cy) 계산 (실제 알 + "+" 알)
   const positions: { cx: number; cy: number }[] = [];
   let grapeIdx = 0;
   rows.forEach((count, rowIdx) => {
-    const rowWidth = count * DX;
-    const startX = cxCenter - rowWidth / 2 + DX / 2;
+    const startX = cxCenter - ((count - 1) * DX) / 2;
     for (let i = 0; i < count && grapeIdx < slotCount; i++, grapeIdx++) {
       positions.push({
         cx: startX + i * DX,
@@ -86,20 +93,48 @@ export function GrapeBunch({
         ))}
       </defs>
 
-      {/* 줄기 */}
+      {/* 줄기 — 살짝 S자로 휘어 자연스럽게 */}
       <path
-        d={`M ${cxCenter} ${PAD} q 4 ${STEM_H / 2} 0 ${STEM_H}`}
-        stroke="#854d0e"
-        strokeWidth={5}
+        d={`M ${cxCenter} ${PAD}
+            C ${cxCenter + 6} ${PAD + STEM_H * 0.35},
+              ${cxCenter - 4} ${PAD + STEM_H * 0.7},
+              ${cxCenter} ${PAD + STEM_H + 2}`}
+        stroke="#7c4a1e"
+        strokeWidth={6}
         strokeLinecap="round"
         fill="none"
       />
-      {/* 잎 */}
+      {/* 덩굴손 — 왼쪽으로 살짝 말린 곡선 */}
       <path
-        d={`M ${cxCenter} ${PAD + 10} q 26 -16 40 2 q -20 16 -40 -2 z`}
+        d={`M ${cxCenter - 1} ${PAD + 9}
+            C ${cxCenter - 16} ${PAD + 4},
+              ${cxCenter - 24} ${PAD + 16},
+              ${cxCenter - 14} ${PAD + 19}`}
+        stroke="#8a5a2b"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        fill="none"
+      />
+      {/* 잎 — 끝이 뾰족한 잎사귀 + 잎맥 */}
+      <path
+        d={`M ${cxCenter + 2} ${PAD + 10}
+            C ${cxCenter + 16} ${PAD - 8},
+              ${cxCenter + 42} ${PAD - 6},
+              ${cxCenter + 50} ${PAD + 8}
+            C ${cxCenter + 36} ${PAD + 22},
+              ${cxCenter + 14} ${PAD + 22},
+              ${cxCenter + 2} ${PAD + 10} Z`}
         fill="#4ade80"
-        stroke="#16a34a"
+        stroke="#15803d"
         strokeWidth={1.5}
+        strokeLinejoin="round"
+      />
+      <path
+        d={`M ${cxCenter + 5} ${PAD + 10} Q ${cxCenter + 28} ${PAD + 4} ${cxCenter + 47} ${PAD + 8}`}
+        stroke="#15803d"
+        strokeWidth={1.2}
+        fill="none"
+        opacity={0.65}
       />
 
       {grapes.map((grape, i) => (
@@ -108,7 +143,7 @@ export function GrapeBunch({
           grape={grape}
           cx={positions[i].cx}
           cy={positions[i].cy}
-          r={R}
+          r={berryRadius(grape.index)}
           selected={selectedIndex === grape.index}
           onClick={onGrapeClick ? () => onGrapeClick(grape) : undefined}
           skin={skinOf(grape.index)}
