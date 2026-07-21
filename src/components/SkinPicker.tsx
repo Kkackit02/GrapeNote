@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { setGrapeSkin } from "@/lib/actions/skins";
+import { GrapeBunch } from "./GrapeBunch";
 import {
   SKINS,
   isSkinUnlocked,
@@ -14,11 +15,19 @@ import {
   type GrapeSkin,
   type SkinStats,
 } from "@/lib/skins";
+import type { GrapeState } from "@/lib/grapes";
 
 interface Props {
   currentSkinId: string;
   stats: SkinStats;
 }
+
+/** 미리보기용 포도송이 (전부 합격 상태라 스킨이 그대로 보인다) */
+const PREVIEW_GRAPES: GrapeState[] = Array.from({ length: 10 }, (_, i) => ({
+  index: i + 1,
+  status: "approved" as const,
+  history: [],
+}));
 
 /** 포도알 한 알 미리보기 (스킨 색) */
 function Swatch({ skin, dim, mini }: { skin: GrapeSkin; dim?: boolean; mini?: boolean }) {
@@ -59,19 +68,30 @@ function Swatch({ skin, dim, mini }: { skin: GrapeSkin; dim?: boolean; mini?: bo
   );
 }
 
-/** 내 포도밭의 포도알 스킨 고르기 — 잠금 해제한 것만 선택 가능 */
+/**
+ * 포도알 스킨 고르기 — 눌러(또는 마우스를 올려) 미리 보고, 적용 버튼으로 확정한다.
+ * 잠긴 스킨도 미리보기는 되므로 "뭘 향해 달리는지" 보인다.
+ */
 export function SkinPicker({ currentSkinId, stats }: Props) {
   const router = useRouter();
-  const [saving, setSaving] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState(currentSkinId);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /** 스킨 id(또는 "random")를 적용한다. 잠금 검증은 버튼 disabled + 서버가 함께 막는다. */
-  const pick = async (id: string) => {
-    if (saving || id === currentSkinId) return;
+  const owned = unlockedSkinIds(stats);
+  const canRandom = owned.length >= 2;
+
+  const previewIsRandom = previewId === RANDOM_SKIN_ID;
+  const previewSkin = getSkin(previewId);
+  const previewUnlocked = previewIsRandom ? canRandom : isSkinUnlocked(previewSkin, stats);
+  const applied = previewId === currentSkinId;
+
+  const apply = async () => {
+    if (saving || applied || !previewUnlocked) return;
     setError(null);
-    setSaving(id);
-    const result = await setGrapeSkin(id);
-    setSaving(null);
+    setSaving(true);
+    const result = await setGrapeSkin(previewId);
+    setSaving(false);
     if (!result.ok) {
       setError(result.error);
       return;
@@ -83,56 +103,80 @@ export function SkinPicker({ currentSkinId, stats }: Props) {
     <section>
       <h2 className="text-lg font-extrabold text-violet-900">🎨 포도알 스킨</h2>
       <p className="mt-0.5 text-xs text-gray-400">
-        열심히 연습하면 새 색이 열려요. 마음에 드는 걸 골라 포도알에 입혀 보세요!
+        눌러서(PC는 마우스만 올려도) 미리 보고, 마음에 들면 적용하세요.
       </p>
-      {error && <p className="mt-1.5 text-sm text-red-500">{error}</p>}
 
-      {/* 랜덤 포도 — 가진 스킨들이 포도알마다 섞여 박힌다 */}
-      {(() => {
-        const owned = unlockedSkinIds(stats);
-        const canRandom = owned.length >= 2;
-        const selected = currentSkinId === RANDOM_SKIN_ID;
-        return (
-          <button
-            type="button"
-            onClick={() => canRandom && pick(RANDOM_SKIN_ID)}
-            disabled={!canRandom || selected || saving !== null}
-            className={`mt-2 w-full text-left rounded-2xl border-2 p-3 flex items-center gap-3 ${
-              selected
-                ? "bg-violet-50 border-violet-400"
-                : canRandom
-                  ? "bg-white border-violet-100 active:bg-violet-50"
-                  : "bg-gray-50 border-gray-100"
-            }`}
-          >
-            <span className="flex -space-x-2 shrink-0">
-              {(canRandom ? owned : ["violet", "green", "gold"]).slice(0, 3).map((id, i) => (
-                <Swatch key={i} skin={getSkin(id)} dim={!canRandom} mini />
-              ))}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-extrabold text-gray-800 flex items-center gap-1">
-                🎲 랜덤 포도
-                {selected && <span className="text-violet-600">✓</span>}
-              </p>
-              {selected ? (
-                <p className="text-xs font-bold text-violet-600">사용 중 · 가진 스킨 {owned.length}개가 섞여요</p>
-              ) : canRandom ? (
-                <p className="text-xs text-gray-400">
-                  {saving === RANDOM_SKIN_ID ? "입히는 중..." : `가진 스킨 ${owned.length}개가 알마다 랜덤으로!`}
-                </p>
-              ) : (
-                <p className="text-xs text-gray-400">🔒 스킨 2개 이상 모으기</p>
-              )}
-            </div>
-          </button>
-        );
-      })()}
+      {/* 미리보기 + 적용 */}
+      <div className="mt-2 rounded-2xl bg-white border-2 border-violet-100 p-4">
+        <GrapeBunch
+          grapes={PREVIEW_GRAPES}
+          skinId={previewId}
+          randomPool={owned}
+          className="max-h-32 mx-auto"
+        />
+        <p className="mt-2 text-center text-sm font-extrabold text-gray-800">
+          {previewIsRandom ? `🎲 랜덤 포도` : `${previewSkin.emoji} ${previewSkin.name}`}
+          {applied && <span className="ml-1 text-violet-600">· 사용 중</span>}
+        </p>
+        {!previewUnlocked && (
+          <p className="mt-0.5 text-center text-xs text-gray-400">
+            🔒{" "}
+            {previewIsRandom ? "스킨 2개 이상 모으기" : unlockLabel(previewSkin.unlock)}
+          </p>
+        )}
+        {error && <p className="mt-1 text-center text-sm text-red-500">{error}</p>}
+        <button
+          type="button"
+          onClick={apply}
+          disabled={saving || applied || !previewUnlocked}
+          className="mt-3 w-full h-12 rounded-xl bg-violet-600 text-white font-bold disabled:bg-gray-200 disabled:text-gray-400 active:bg-violet-800"
+        >
+          {saving
+            ? "입히는 중..."
+            : applied
+              ? "지금 쓰고 있어요"
+              : !previewUnlocked
+                ? "아직 잠겨 있어요"
+                : "이 스킨 적용하기"}
+        </button>
+      </div>
 
+      {/* 랜덤 포도 */}
+      <button
+        type="button"
+        onMouseEnter={() => setPreviewId(RANDOM_SKIN_ID)}
+        onFocus={() => setPreviewId(RANDOM_SKIN_ID)}
+        onClick={() => setPreviewId(RANDOM_SKIN_ID)}
+        className={`mt-2 w-full text-left rounded-2xl border-2 p-3 flex items-center gap-3 transition-colors ${
+          previewId === RANDOM_SKIN_ID
+            ? "bg-violet-50 border-violet-400"
+            : "bg-white border-violet-100 hover:border-violet-300"
+        }`}
+      >
+        <span className="flex -space-x-2 shrink-0">
+          {(canRandom ? owned : ["violet", "green", "gold"]).slice(0, 3).map((id, i) => (
+            <Swatch key={i} skin={getSkin(id)} dim={!canRandom} mini />
+          ))}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-extrabold text-gray-800 flex items-center gap-1">
+            🎲 랜덤 포도
+            {currentSkinId === RANDOM_SKIN_ID && <span className="text-violet-600">✓</span>}
+          </p>
+          <p className="text-xs text-gray-400">
+            {canRandom
+              ? `가진 스킨 ${owned.length}개가 알마다 랜덤으로!`
+              : "🔒 스킨 2개 이상 모으기"}
+          </p>
+        </div>
+      </button>
+
+      {/* 스킨 목록 */}
       <ul className="mt-2 grid grid-cols-2 gap-2">
         {SKINS.map((skin) => {
           const unlocked = isSkinUnlocked(skin, stats);
-          const selected = skin.id === currentSkinId;
+          const isPreview = skin.id === previewId;
+          const inUse = skin.id === currentSkinId;
           const have = unlockCurrent(skin.unlock, stats);
           const need = skin.unlock.kind === "free" ? 0 : skin.unlock.n;
 
@@ -140,14 +184,15 @@ export function SkinPicker({ currentSkinId, stats }: Props) {
             <li key={skin.id}>
               <button
                 type="button"
-                onClick={() => pick(skin.id)}
-                disabled={!unlocked || selected || saving !== null}
+                onMouseEnter={() => setPreviewId(skin.id)}
+                onFocus={() => setPreviewId(skin.id)}
+                onClick={() => setPreviewId(skin.id)}
                 className={`w-full text-left rounded-2xl border-2 p-3 flex items-center gap-3 transition-colors ${
-                  selected
+                  isPreview
                     ? "bg-violet-50 border-violet-400"
                     : unlocked
-                      ? "bg-white border-violet-100 active:bg-violet-50"
-                      : "bg-gray-50 border-gray-100"
+                      ? "bg-white border-violet-100 hover:border-violet-300"
+                      : "bg-gray-50 border-gray-100 hover:border-gray-300"
                 }`}
               >
                 <Swatch skin={skin} dim={!unlocked} />
@@ -159,14 +204,12 @@ export function SkinPicker({ currentSkinId, stats }: Props) {
                         ✨이펙트
                       </span>
                     )}
-                    {selected && <span className="text-violet-600">✓</span>}
+                    {inUse && <span className="text-violet-600">✓</span>}
                   </p>
-                  {selected ? (
+                  {inUse ? (
                     <p className="text-xs font-bold text-violet-600">사용 중</p>
                   ) : unlocked ? (
-                    <p className="text-xs text-gray-400">
-                      {saving === skin.id ? "입히는 중..." : "누르면 적용"}
-                    </p>
+                    <p className="text-xs text-gray-400">눌러서 미리보기</p>
                   ) : (
                     <p className="text-xs text-gray-400 truncate">
                       🔒 {unlockLabel(skin.unlock)}
