@@ -34,16 +34,14 @@ export default async function MyCardsPage() {
     getWeeklyStats(),
   ]);
 
-  // 피드 리액션 + 현황판 공개 여부 (0018 이전엔 조용히 빈 값)
+  // 피드 리액션 (0018 이전엔 조용히 빈 값).
+  // 현황판 공개 여부는 하단 탭바(레이아웃)가 판단하므로 여기선 조회하지 않는다.
   const targetIds = feed.map((e) => e.target_id).filter(Boolean) as string[];
-  const [{ data: reactionRows }, { data: academyRow }] = await Promise.all([
+  const { data: reactionRows } =
     targetIds.length > 0
-      ? supabase.from("feed_reactions").select("*").in("target_id", targetIds)
-      : Promise.resolve({ data: [] }),
-    supabase.from("academies").select("show_board").maybeSingle(),
-  ]);
+      ? await supabase.from("feed_reactions").select("*").in("target_id", targetIds)
+      : { data: [] };
   const reactions = (reactionRows ?? []) as FeedReaction[];
-  const boardShared = !!academyRow?.show_board;
 
   // 프로필이 없는 계정(가입 중 실패 등)은 무한 리다이렉트 대신 로그인으로 돌려보낸다
   if (!profileRow) redirect("/student/login");
@@ -129,68 +127,6 @@ export default async function MyCardsPage() {
         )}
       </div>
 
-      {isLeader && (
-        <Link
-          href="/me/review"
-          className="rounded-2xl bg-amber-50 border border-amber-300 p-4 flex items-center justify-between active:bg-amber-100"
-        >
-          <span className="font-bold text-amber-900">
-            ⭐ 파트장이에요!{" "}
-            {teamPending > 0
-              ? `팀원 영상 ${teamPending}개가 검토를 기다려요`
-              : "검토할 팀원 영상이 없어요"}
-          </span>
-          <span className="text-amber-700 font-bold text-sm shrink-0">검토함 →</span>
-        </Link>
-      )}
-
-      {isLeader && leaderCanAssign && (
-        <Link
-          href="/me/assign"
-          className="rounded-2xl bg-violet-50 border border-violet-200 p-4 flex items-center justify-between active:bg-violet-100"
-        >
-          <span className="font-bold text-violet-900">
-            🎯 팀원에게 숙제 내기
-            <span className="ml-1.5 text-[11px] font-bold text-violet-500">권한 있음 ✓</span>
-          </span>
-          <span className="text-violet-600 font-bold text-sm shrink-0">숙제 내기 →</span>
-        </Link>
-      )}
-
-      {isLeader && !leaderCanAssign && (
-        <div className="rounded-2xl bg-gray-50 border border-gray-200 p-3 text-xs text-gray-500">
-          🎯 아직 <b>숙제 배정 권한</b>이 없어요. 리더가 권한을 주면 여기서 팀원에게 숙제를 낼 수 있어요.
-        </div>
-      )}
-
-      <Link
-        href="/me/vineyard"
-        className="rounded-2xl bg-gradient-to-r from-violet-500 to-purple-600 text-white p-4 active:opacity-90"
-      >
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex gap-5">
-            <span>
-              <span className="block text-lg font-extrabold leading-tight">🍇 {totalApproved}</span>
-              <span className="text-[11px] text-violet-200 font-medium">포도알</span>
-            </span>
-            <span>
-              <span className="block text-lg font-extrabold leading-tight">🏆 {completedCount}</span>
-              <span className="text-[11px] text-violet-200 font-medium">포도송이</span>
-            </span>
-            <span>
-              <span className="block text-lg font-extrabold leading-tight">🔥 {streak}</span>
-              <span className="text-[11px] text-violet-200 font-medium">연속일</span>
-            </span>
-          </div>
-          <span className="shrink-0 font-bold text-sm">내 포도밭 →</span>
-        </div>
-        {streak > 0 && !doneToday && (
-          <p className="mt-2 text-xs font-bold text-amber-200">
-            오늘 올리면 🔥 {streak + 1}일 연속이 돼요!
-          </p>
-        )}
-      </Link>
-
       {cardList.length === 0 ? (
         <div className="rounded-2xl bg-white border border-violet-100 p-10 text-center text-gray-500">
           {completedCount > 0 ? (
@@ -266,15 +202,66 @@ export default async function MyCardsPage() {
         </ul>
       )}
 
-      {boardShared && (
-        <Link
-          href="/me/board"
-          className="rounded-2xl bg-white border border-violet-100 p-4 flex items-center justify-between active:bg-violet-50"
-        >
-          <span className="font-bold text-violet-800">📊 우리 그룹 현황판</span>
-          <span className="text-sm text-gray-400">누가 어디까지 했나 →</span>
-        </Link>
+      {isLeader && (
+        <section className="rounded-2xl bg-amber-50 border border-amber-300 p-3 flex flex-col gap-2">
+          <p className="text-sm font-extrabold text-amber-900">⭐ 파트장 도구</p>
+          <Link
+            href="/me/review"
+            className="rounded-xl bg-white/70 px-3 py-2.5 flex items-center justify-between active:bg-white"
+          >
+            <span className="font-bold text-amber-900 text-sm">
+              👀 팀원 영상 검토{" "}
+              {teamPending > 0 ? (
+                <span className="text-amber-700">{teamPending}개 대기</span>
+              ) : (
+                <span className="font-medium text-amber-700/70">대기 없음</span>
+              )}
+            </span>
+            <span className="text-amber-700 font-bold text-xs shrink-0">검토함 →</span>
+          </Link>
+          {leaderCanAssign ? (
+            <Link
+              href="/me/assign"
+              className="rounded-xl bg-white/70 px-3 py-2.5 flex items-center justify-between active:bg-white"
+            >
+              <span className="font-bold text-amber-900 text-sm">🎯 팀원에게 숙제 내기</span>
+              <span className="text-amber-700 font-bold text-xs shrink-0">숙제 내기 →</span>
+            </Link>
+          ) : (
+            <p className="px-3 py-2 text-xs text-amber-800/80">
+              🎯 아직 <b>숙제 배정 권한</b>이 없어요. 리더가 권한을 주면 여기서 낼 수 있어요.
+            </p>
+          )}
+        </section>
       )}
+
+      <Link
+        href="/me/vineyard"
+        className="rounded-2xl bg-gradient-to-r from-violet-500 to-purple-600 text-white p-4 active:opacity-90"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-5">
+            <span>
+              <span className="block text-lg font-extrabold leading-tight">🍇 {totalApproved}</span>
+              <span className="text-[11px] text-violet-200 font-medium">포도알</span>
+            </span>
+            <span>
+              <span className="block text-lg font-extrabold leading-tight">🏆 {completedCount}</span>
+              <span className="text-[11px] text-violet-200 font-medium">포도송이</span>
+            </span>
+            <span>
+              <span className="block text-lg font-extrabold leading-tight">🔥 {streak}</span>
+              <span className="text-[11px] text-violet-200 font-medium">연속일</span>
+            </span>
+          </div>
+          <span className="shrink-0 font-bold text-sm">내 포도밭 →</span>
+        </div>
+        {streak > 0 && !doneToday && (
+          <p className="mt-2 text-xs font-bold text-amber-200">
+            오늘 올리면 🔥 {streak + 1}일 연속이 돼요!
+          </p>
+        )}
+      </Link>
 
       {instrumentRanks.length > 0 && (
         <section>
@@ -324,11 +311,11 @@ export default async function MyCardsPage() {
         myId={user!.id}
       />
 
+      <AddMyCardForm leaderLabel={(await getTerms()).leader} />
+
       <InstallPrompt />
 
       <PushToggle vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />
-
-      <AddMyCardForm leaderLabel={(await getTerms()).leader} />
     </div>
   );
 }

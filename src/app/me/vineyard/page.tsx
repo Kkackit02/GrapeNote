@@ -2,10 +2,8 @@ import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes } from "@/lib/grapes";
 import { calcStreak } from "@/lib/streaks";
-import { calcTitleStats, getTitle } from "@/lib/titles";
+import { getTitle } from "@/lib/titles";
 import { GrapeBunch } from "@/components/GrapeBunch";
-import { SkinPicker } from "@/components/SkinPicker";
-import { TitlePicker } from "@/components/TitlePicker";
 import { getSkin, unlockedSkinIds, tallyGrapesByInstrument, type SkinStats } from "@/lib/skins";
 import type { ProgressCard, Profile, Submission } from "@/lib/types";
 
@@ -36,7 +34,6 @@ export default async function VineyardPage() {
   const totalApproved = subList.filter((s) => s.status === "approved").length;
   const totalVideos = subList.length;
   const streak = calcStreak(subList.map((s) => s.created_at));
-  const titleStats = calcTitleStats(cardList, subList, streak);
   const skinStats: SkinStats = {
     grapes: totalApproved,
     bunches: completed.length,
@@ -76,10 +73,6 @@ export default async function VineyardPage() {
           <p className="text-xs font-bold text-gray-500 mt-1">연속 연습일</p>
         </div>
       </div>
-
-      <SkinPicker currentSkinId={skinId} stats={skinStats} />
-
-      <TitlePicker currentTitleId={profile?.title ?? null} stats={titleStats} />
 
       {completed.length === 0 ? (
         <div className="rounded-2xl bg-white border border-violet-100 p-10 text-center text-gray-500">
@@ -127,6 +120,20 @@ export default async function VineyardPage() {
           })}
         </ul>
       )}
+
+      <Link
+        href="/me/style"
+        className="rounded-2xl bg-white border-2 border-violet-100 p-4 flex items-center justify-between active:bg-violet-50"
+      >
+        <span className="min-w-0">
+          <span className="block font-bold text-violet-800">🎨 꾸미기</span>
+          <span className="block mt-0.5 text-xs text-gray-400">
+            포도알 스킨 · 칭호 고르기
+          </span>
+        </span>
+        <span className="shrink-0 text-sm font-bold text-violet-600">고르러 가기 →</span>
+      </Link>
+
     </div>
   );
 }
