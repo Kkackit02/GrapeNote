@@ -20,11 +20,13 @@ export default async function TeacherLayout({ children }: { children: React.Reac
             🍇 GrapeNote
           </Link>
           <nav className="flex items-center gap-3 sm:gap-4 text-sm font-medium text-gray-600">
-            <Link href="/teacher" className="hover:text-violet-700">{terms.member}</Link>
-            <Link href="/teacher/board" className="hover:text-violet-700">현황판</Link>
-            <Link href="/teacher/songs" className="hover:text-violet-700">곡</Link>
+            {/* 좁은 화면에선 헤더가 넘치므로 숨긴다 — 이동은 대시보드 타일로 (더보기 제거) */}
+            <span className="hidden sm:flex items-center gap-3 sm:gap-4">
+              <Link href="/teacher" className="hover:text-violet-700">{terms.member}</Link>
+              <Link href="/teacher/board" className="hover:text-violet-700">현황판</Link>
+              <Link href="/teacher/songs" className="hover:text-violet-700">곡</Link>
+            </span>
             <Link href="/teacher/review" className="hover:text-violet-700">검토함</Link>
-            {/* 나머지 관리 화면들은 대시보드 타일로 옮겼다 (더보기 제거) */}
             {hasLinked && <AccountSwitchButton label="🔄 멤버로" />}
             <LogoutButton />
           </nav>

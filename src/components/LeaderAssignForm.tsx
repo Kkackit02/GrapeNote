@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { assignHomeworkAsLeader } from "@/lib/actions/cards";
 import { instrumentEmoji, parseInstruments } from "@/lib/instruments";
@@ -25,6 +26,7 @@ export function LeaderAssignForm({ members }: Props) {
   const [dueDate, setDueDate] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -50,7 +52,13 @@ export function LeaderAssignForm({ members }: Props) {
       setError(result.error);
       return;
     }
-    router.push("/me/review");
+    // 검토함으로 보내면 아직 제출이 없어 '빈 화면'이라 실패처럼 보인다.
+    // 이 자리에서 결과를 알리고 폼을 비워 이어서 내기 쉽게 한다.
+    setDone(`「${title}」 숙제를 ${result.data.count}명에게 냈어요!`);
+    setSelected(new Set());
+    setTitle("");
+    setMission("");
+    setDueDate("");
     router.refresh();
   };
 
@@ -64,6 +72,14 @@ export function LeaderAssignForm({ members }: Props) {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-5">
+      {done && (
+        <div className="rounded-2xl bg-lime-50 border border-lime-300 p-3 text-sm">
+          <p className="font-bold text-lime-900">✅ {done}</p>
+          <Link href="/me/review" className="mt-1 inline-block font-bold text-lime-700 underline underline-offset-2">
+            검토함에서 확인하기 →
+          </Link>
+        </div>
+      )}
       <div className="flex flex-col gap-2">
         <span className="font-bold text-gray-700">
           👥 누구에게 낼까요? <span className="text-violet-600">{selected.size}명</span>

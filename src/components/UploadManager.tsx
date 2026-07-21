@@ -204,7 +204,7 @@ function UploadStatusBar() {
   if (uploads.length === 0) return null;
 
   return (
-    <div className="fixed bottom-16 inset-x-3 z-[60] max-w-lg mx-auto flex flex-col gap-2 pointer-events-none">
+    <div className="fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] inset-x-3 z-[45] max-w-lg mx-auto flex flex-col gap-2 pointer-events-none">
       {uploads.map((task) => (
         <div
           key={task.id}
@@ -231,7 +231,9 @@ function UploadStatusBar() {
               </span>
             </div>
           ) : task.status === "done" ? (
-            <span>🍇 포도알 #{task.grapeIndex} 제출 완료! 곧 검토받을 거예요</span>
+            <span>
+              🍇 포도알 #{task.grapeIndex} 제출 완료!{task.instrument ? ` (${task.instrument})` : ""} 곧 검토받을 거예요
+            </span>
           ) : (
             <div>
               <div className="flex items-center justify-between">

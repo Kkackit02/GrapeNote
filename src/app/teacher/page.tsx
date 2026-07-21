@@ -117,6 +117,7 @@ export default async function TeacherDashboard() {
       {/* 관리 화면 바로가기 — 대시보드를 허브로 (헤더 더보기는 없앴다) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {[
+          { href: "/teacher/review", emoji: "👀", label: "검토함", desc: "올라온 영상 판정" },
           { href: "/teacher/board", emoji: "📊", label: "현황판", desc: "곡×멤버 진행 한눈에" },
           { href: "/teacher/songs", emoji: "🎵", label: "곡 관리", desc: "편성·미션·기한" },
           { href: "/teacher/cards", emoji: "📋", label: "숙제 관리", desc: "배정한 숙제 수정" },

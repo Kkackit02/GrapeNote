@@ -190,12 +190,12 @@ export function StudentCardView({
       {/* 바텀 시트 */}
       {selected && (
         <>
-          <div className="fixed inset-0 bg-black/30 z-40" onClick={closeSheet} />
+          <div className="fixed inset-0 bg-black/30 z-50" onClick={closeSheet} />
           <div
             role="dialog"
             aria-modal="true"
             aria-label={`포도알 ${selected.index}`}
-            className="fixed bottom-0 inset-x-0 z-50 bg-white rounded-t-3xl p-5 pb-8 max-w-lg mx-auto shadow-2xl max-h-[85vh] overflow-y-auto"
+            className="fixed bottom-0 inset-x-0 z-[60] bg-white rounded-t-3xl p-5 pb-8 max-w-lg mx-auto shadow-2xl max-h-[85vh] overflow-y-auto"
           >
             <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto mb-4" />
             <h2 className="text-lg font-extrabold text-violet-900 text-center mb-3">
