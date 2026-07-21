@@ -27,6 +27,8 @@ export interface Profile {
   instrument: string | null;
   /** 고른 포도알 스킨 id (lib/skins.ts). 기본 'violet' */
   grape_skin: string;
+  /** 그룹에 걸어 둔 자랑 영상(제출) id — 멤버당 1개, 없으면 null */
+  showcase_submission_id: string | null;
   created_at: string;
 }
 

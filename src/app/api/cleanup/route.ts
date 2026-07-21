@@ -55,6 +55,17 @@ export async function GET(request: Request) {
     .filter((row) => isPremiumActive(row))
     .map((row) => row.id);
 
+  // 자랑 중인 영상은 삭제 대상에서 제외한다 (그룹이 계속 볼 수 있어야 한다).
+  // SQL 레벨에서 빼지 않으면 매 실행마다 이 행들이 배치를 채워 다른 정리를 막는다.
+  const { data: showcaseRows } = await admin
+    .from("profiles")
+    .select("showcase_submission_id")
+    .not("showcase_submission_id", "is", null);
+  const protectedIds = (showcaseRows ?? [])
+    .map((r) => r.showcase_submission_id as string)
+    .filter(Boolean);
+  const protectedFilter = protectedIds.length > 0 ? `(${protectedIds.join(",")})` : null;
+
   const SELECT =
     "id, video_path, academy_id, card_id, student_id, grape_index, status, created_at, reviewed_at";
   const freeQuery = admin
@@ -64,14 +75,14 @@ export async function GET(request: Request) {
     .lt("reviewed_at", cutoffOf(FREE_LIMITS.retentionDays))
     .is("video_deleted_at", null)
     .limit(BATCH_SIZE);
-  const { data: freeStale, error } = await (premiumIds.length > 0
-    ? freeQuery.not("academy_id", "in", `(${premiumIds.join(",")})`)
-    : freeQuery);
+  if (protectedFilter) freeQuery.not("id", "in", protectedFilter);
+  if (premiumIds.length > 0) freeQuery.not("academy_id", "in", `(${premiumIds.join(",")})`);
+  const { data: freeStale, error } = await freeQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   let premiumStale: StaleRow[] = [];
   if (premiumIds.length > 0) {
-    const { data } = await admin
+    const premiumQuery = admin
       .from("submissions")
       .select(SELECT)
       .in("status", ["approved", "needs_retry"])
@@ -79,6 +90,8 @@ export async function GET(request: Request) {
       .lt("reviewed_at", cutoffOf(PREMIUM_LIMITS.retentionDays))
       .is("video_deleted_at", null)
       .limit(BATCH_SIZE);
+    if (protectedFilter) premiumQuery.not("id", "in", protectedFilter);
+    const { data } = await premiumQuery;
     premiumStale = (data ?? []) as StaleRow[];
   }
 

@@ -16,12 +16,18 @@ export function BottomNav({ boardShared }: Props) {
   const pathname = usePathname();
 
   const tabs = [
-    { href: "/me", label: "홈", emoji: "🍇", match: (p: string) => p === "/me" },
+    { href: "/me", label: "홈", emoji: "🏠", match: (p: string) => p === "/me" },
     {
       href: "/me/vineyard",
       label: "포도밭",
-      emoji: "🏆",
+      emoji: "🍇",
       match: (p: string) => p.startsWith("/me/vineyard"),
+    },
+    {
+      href: "/me/wall",
+      label: "자랑벽",
+      emoji: "🏆",
+      match: (p: string) => p.startsWith("/me/wall"),
     },
     ...(boardShared
       ? [

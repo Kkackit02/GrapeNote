@@ -9,6 +9,7 @@ import { Celebration } from "./Celebration";
 import { SongTracks } from "./SongTracks";
 import { ShareCompletionButton } from "./ShareCompletionButton";
 import { ShareCardButton } from "./ShareCardButton";
+import { ShowcaseButton } from "./ShowcaseButton";
 import { deleteSubmission } from "@/lib/actions/uploads";
 import { approvedCount, type GrapeState } from "@/lib/grapes";
 import { groupLimits } from "@/lib/limits";
@@ -32,6 +33,8 @@ interface Props {
   memberName?: string;
   /** 자랑 카드용 — 그룹 이름 */
   groupName?: string;
+  /** 지금 자랑 벽에 걸어 둔 내 영상(제출) id */
+  showcaseSubmissionId?: string | null;
 }
 
 /** 학생 핵심 화면: 포도송이 + 포도알 탭 → 상태별 바텀 시트 */
@@ -46,6 +49,7 @@ export function StudentCardView({
   skinId,
   memberName = "멤버",
   groupName = "우리 그룹",
+  showcaseSubmissionId = null,
 }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<GrapeState | null>(null);
@@ -252,22 +256,32 @@ export function StudentCardView({
               </div>
             ) : (
               // approved
-              <div className="flex flex-col gap-3">
-                <p className="text-center font-bold text-violet-700">🍇 합격한 포도알이에요!</p>
-                {selected.history.find((s) => s.status === "approved")?.teacher_comment && (
-                  <div className="rounded-xl bg-violet-50 border border-violet-200 p-3">
-                    <p className="text-sm font-bold text-violet-700">{leaderLabel} 말씀 ✍️</p>
-                    <p className="mt-1 text-gray-700">
-                      {selected.history.find((s) => s.status === "approved")?.teacher_comment}
-                    </p>
+              (() => {
+                const approvedSub = selected.history.find((s) => s.status === "approved");
+                const canShowcase = approvedSub && !approvedSub.video_deleted_at;
+                return (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-center font-bold text-violet-700">🍇 합격한 포도알이에요!</p>
+                    {approvedSub?.teacher_comment && (
+                      <div className="rounded-xl bg-violet-50 border border-violet-200 p-3">
+                        <p className="text-sm font-bold text-violet-700">{leaderLabel} 말씀 ✍️</p>
+                        <p className="mt-1 text-gray-700">{approvedSub.teacher_comment}</p>
+                      </div>
+                    )}
+                    <GrapeVideoSection
+                      history={selected.history}
+                      grapeIndex={selected.index}
+                      retentionDays={groupLimits(premium).retentionDays}
+                    />
+                    {canShowcase && (
+                      <ShowcaseButton
+                        submissionId={approvedSub.id}
+                        isCurrent={showcaseSubmissionId === approvedSub.id}
+                      />
+                    )}
                   </div>
-                )}
-                <GrapeVideoSection
-                  history={selected.history}
-                  grapeIndex={selected.index}
-                  retentionDays={groupLimits(premium).retentionDays}
-                />
-              </div>
+                );
+              })()
             )}
           </div>
         </>

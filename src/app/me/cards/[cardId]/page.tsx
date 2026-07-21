@@ -36,10 +36,17 @@ export default async function MyCardPage({
         .eq("song_title", card.title)
         .order("created_at", { ascending: true }),
       supabase.from("academies").select("is_premium, premium_until, name").maybeSingle(),
-      supabase.from("profiles").select("grape_skin, display_name").eq("id", user!.id).maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("grape_skin, display_name, showcase_submission_id")
+        .eq("id", user!.id)
+        .maybeSingle(),
     ]);
   const grapes = deriveGrapes(card.total_grapes, (subs ?? []) as Submission[]);
-  const profile = profileRow as Pick<Profile, "grape_skin" | "display_name"> | null;
+  const profile = profileRow as Pick<
+    Profile,
+    "grape_skin" | "display_name" | "showcase_submission_id"
+  > | null;
   const skinId = getSkin(profile?.grape_skin).id;
 
   return (
@@ -58,6 +65,7 @@ export default async function MyCardPage({
           skinId={skinId}
           memberName={profile?.display_name ?? "멤버"}
           groupName={(academyRow as { name?: string } | null)?.name ?? "우리 그룹"}
+          showcaseSubmissionId={profile?.showcase_submission_id ?? null}
         />
       </div>
     </div>
