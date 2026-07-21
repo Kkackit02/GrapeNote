@@ -98,7 +98,7 @@ export default async function TeacherCardPage({
                         {label.text}
                       </span>
                       <span className="text-gray-400">
-                        {new Date(sub.created_at).toLocaleDateString("ko-KR")}
+                        {new Date(sub.created_at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
                       </span>
                     </span>
                   </Link>

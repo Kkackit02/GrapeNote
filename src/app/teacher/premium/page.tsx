@@ -64,7 +64,7 @@ export default async function PremiumPage() {
           <p className="font-extrabold text-amber-900">✨ 프리미엄 이용 중이에요!</p>
           <p className="mt-1 text-sm text-amber-800">
             {academy?.premium_until
-              ? `${new Date(academy.premium_until).toLocaleDateString("ko-KR")}까지 이용할 수 있어요.`
+              ? `${new Date(academy.premium_until).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}까지 이용할 수 있어요.`
               : "기간 제한 없이 이용 중이에요."}
           </p>
         </div>

@@ -65,6 +65,7 @@ export default async function LeaderReviewDetailPage({
         <p className="text-sm text-gray-500 mt-0.5">
           포도알 #{sub.grape_index} ·{" "}
           {new Date(sub.created_at).toLocaleString("ko-KR", {
+            timeZone: "Asia/Seoul",
             month: "short",
             day: "numeric",
             hour: "2-digit",

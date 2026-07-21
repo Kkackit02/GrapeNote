@@ -123,6 +123,7 @@ export default async function VineyardPage() {
                   <p className="text-xs text-gray-400 mt-0.5">
                     {card.completed_at &&
                       new Date(card.completed_at).toLocaleDateString("ko-KR", {
+                        timeZone: "Asia/Seoul",
                         year: "numeric",
                         month: "long",
                         day: "numeric",

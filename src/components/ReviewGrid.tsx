@@ -257,6 +257,7 @@ export function ReviewGrid({ items, basePath, memberLabel = "학생" }: Props) {
 
 function formatSubmittedAt(iso: string) {
   return new Date(iso).toLocaleString("ko-KR", {
+    timeZone: "Asia/Seoul",
     month: "short",
     day: "numeric",
     hour: "2-digit",

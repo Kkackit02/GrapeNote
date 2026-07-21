@@ -148,7 +148,7 @@ export function HomeworkAdminItem({ card, studentName, done, selfAdded }: Props)
           <p className="mt-1 text-sm text-gray-400">
             🍇 {done} / {card.total_grapes}알
             {card.due_date && ` · ${formatDue(card.due_date)}까지`}
-            {` · ${new Date(card.created_at).toLocaleDateString("ko-KR")} 배정`}
+            {` · ${new Date(card.created_at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })} 배정`}
           </p>
         </div>
         <div className="flex flex-col gap-1.5 shrink-0">

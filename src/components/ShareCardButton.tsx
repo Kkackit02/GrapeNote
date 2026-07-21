@@ -25,6 +25,7 @@ export function ShareCardButton({ totalGrapes, skinId, title, memberName, groupN
 
   const dateText = completedAt
     ? `${new Date(completedAt).toLocaleDateString("ko-KR", {
+        timeZone: "Asia/Seoul",
         year: "numeric",
         month: "long",
         day: "numeric",
