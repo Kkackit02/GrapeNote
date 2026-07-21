@@ -31,6 +31,8 @@ export interface Profile {
   grape_skin: string;
   /** 그룹에 걸어 둔 자랑 영상(제출) id — 멤버당 1개, 없으면 null */
   showcase_submission_id: string | null;
+  /** 같은 사람의 다른 역할 계정(리더↔멤버) — 원탭 전환용, 없으면 null */
+  linked_account_id: string | null;
   created_at: string;
 }
 

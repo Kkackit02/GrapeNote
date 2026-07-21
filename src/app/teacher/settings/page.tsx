@@ -9,6 +9,7 @@ import { DriveArchiveCard } from "@/components/DriveArchiveCard";
 import { PushToggle } from "@/components/PushToggle";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { ReminderSettings } from "@/components/ReminderSettings";
+import { LinkAccountCard } from "@/components/LinkAccountCard";
 import type { Academy, Submission } from "@/lib/types";
 
 /** 그룹 설정: 저장 공간·알림·현황 공개·드라이브 백업 (한 번 정하고 잘 안 바꾸는 것들) */
@@ -31,6 +32,25 @@ export default async function SettingsPage() {
     100,
     Math.round((storageUsed / limits.storageBytes) * 100)
   );
+
+  // 연결된 멤버 계정 이름 (원탭 전환용)
+  const { data: { user } } = await supabase.auth.getUser();
+  let linkedName: string | null = null;
+  if (user) {
+    const { data: me } = await supabase
+      .from("profiles")
+      .select("linked_account_id")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (me?.linked_account_id) {
+      const { data: linked } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", me.linked_account_id)
+        .maybeSingle();
+      linkedName = linked?.display_name ?? null;
+    }
+  }
 
   let driveConnected = false;
   if (academy) {
@@ -93,6 +113,7 @@ export default async function SettingsPage() {
             .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6)
         }
       />
+      <LinkAccountCard linkedName={linkedName} />
       <BoardShareToggle enabled={!!academy?.show_board} />
       <DriveArchiveCard connected={driveConnected} configured={isDriveConfigured()} />
     </div>

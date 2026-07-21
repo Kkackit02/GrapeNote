@@ -1,9 +1,17 @@
 import Link from "next/link";
 import { LogoutButton } from "@/components/LogoutButton";
+import { AccountSwitchButton } from "@/components/AccountSwitchButton";
 import { getTerms } from "@/lib/terms-server";
+import { createSupabaseServer } from "@/lib/supabase/server";
 
 export default async function TeacherLayout({ children }: { children: React.ReactNode }) {
   const terms = await getTerms();
+  const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: me } = user
+    ? await supabase.from("profiles").select("linked_account_id").eq("id", user.id).maybeSingle()
+    : { data: null };
+  const hasLinked = !!me?.linked_account_id;
   return (
     <>
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-violet-100">
@@ -40,6 +48,7 @@ export default async function TeacherLayout({ children }: { children: React.Reac
                 </Link>
               </div>
             </details>
+            {hasLinked && <AccountSwitchButton label="🔄 멤버로" />}
             <LogoutButton />
           </nav>
         </div>
