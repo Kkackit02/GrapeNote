@@ -86,6 +86,7 @@ export function VideoRecorder({
   const recordDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
 
   const [phase, setPhase] = useState<Phase>("initializing");
+  const [micReady, setMicReady] = useState<boolean | null>(null); // 마이크 트랙 감지 여부
   const [facing, setFacing] = useState<"environment" | "user">("environment");
   const [elapsed, setElapsed] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -127,6 +128,11 @@ export function VideoRecorder({
         },
       });
       streamRef.current = stream;
+      // 마이크 트랙이 실제로 잡혔는지 확인 — 없으면 소리 없이 녹화된다
+      const audioTracks = stream.getAudioTracks();
+      setMicReady(
+        audioTracks.length > 0 && audioTracks[0].enabled && audioTracks[0].readyState === "live"
+      );
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play().catch(() => {});
@@ -428,9 +434,11 @@ export function VideoRecorder({
         {phase === "error" ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center text-white">
             <div className="text-5xl">😢</div>
-            <p className="font-bold">카메라를 켤 수 없어요</p>
+            <p className="font-bold">카메라·마이크를 켤 수 없어요</p>
             <p className="text-sm text-white/70">
-              카메라 사용을 허용했는지 확인해 주세요.
+              카메라와 마이크 사용을 <b>둘 다</b> 허용했는지 확인해 주세요.
+              <br />
+              (소리 녹음에는 마이크 권한이 꼭 필요해요)
               <br />
               아니면 폰의 기본 카메라로 찍어서 올릴 수도 있어요.
             </p>
@@ -459,6 +467,26 @@ export function VideoRecorder({
           </div>
         )}
       </div>
+
+      {/* 촬영 전 카메라·마이크 권한 확인 */}
+      {phase === "ready" && (
+        <div className="px-5 pt-1">
+          {micReady === false ? (
+            <div className="rounded-xl bg-amber-500/20 border border-amber-400 p-2.5 text-amber-100 text-xs">
+              🎤 마이크가 감지되지 않아 <b>소리 없이 녹화</b>돼요. 브라우저에서 마이크를 허용한 뒤
+              <button
+                type="button"
+                onClick={() => startStream(facing)}
+                className="underline font-bold ml-1"
+              >
+                권한 다시 확인
+              </button>
+            </div>
+          ) : micReady === true ? (
+            <p className="text-center text-[11px] text-lime-300">📷 카메라 · 🎤 마이크 준비 완료</p>
+          ) : null}
+        </div>
+      )}
 
       {/* MR 선택 (촬영 전에만) */}
       {phase === "ready" && tracks.length > 0 && (

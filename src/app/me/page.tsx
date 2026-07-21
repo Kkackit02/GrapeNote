@@ -149,9 +149,18 @@ export default async function MyCardsPage() {
           href="/me/assign"
           className="rounded-2xl bg-violet-50 border border-violet-200 p-4 flex items-center justify-between active:bg-violet-100"
         >
-          <span className="font-bold text-violet-900">🎯 팀원에게 숙제 내기</span>
+          <span className="font-bold text-violet-900">
+            🎯 팀원에게 숙제 내기
+            <span className="ml-1.5 text-[11px] font-bold text-violet-500">권한 있음 ✓</span>
+          </span>
           <span className="text-violet-600 font-bold text-sm shrink-0">숙제 내기 →</span>
         </Link>
+      )}
+
+      {isLeader && !leaderCanAssign && (
+        <div className="rounded-2xl bg-gray-50 border border-gray-200 p-3 text-xs text-gray-500">
+          🎯 아직 <b>숙제 배정 권한</b>이 없어요. 리더가 권한을 주면 여기서 팀원에게 숙제를 낼 수 있어요.
+        </div>
       )}
 
       <Link

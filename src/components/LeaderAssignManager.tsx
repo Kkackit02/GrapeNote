@@ -20,12 +20,26 @@ interface Props {
 export function LeaderAssignManager({ leaders }: Props) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const toggle = async (leader: AssignLeader) => {
+    setError(null);
+    setNotice(null);
     setBusyId(leader.id);
-    const result = await setLeaderAssignPermission(leader.id, !leader.canAssign);
+    const granting = !leader.canAssign;
+    const result = await setLeaderAssignPermission(leader.id, granting);
     setBusyId(null);
-    if (result.ok) router.refresh();
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setNotice(
+      granting
+        ? `✅ ${leader.name} 님에게 숙제 배정 권한을 줬어요.`
+        : `${leader.name} 님의 숙제 배정 권한을 회수했어요.`
+    );
+    router.refresh();
   };
 
   return (
@@ -34,6 +48,8 @@ export function LeaderAssignManager({ leaders }: Props) {
       <p className="mt-0.5 text-xs text-gray-400">
         권한을 준 파트장만 자기 팀원에게 숙제를 낼 수 있어요.
       </p>
+      {notice && <p className="mt-2 text-xs font-bold text-violet-700">{notice}</p>}
+      {error && <p className="mt-2 text-xs font-bold text-red-500">{error}</p>}
 
       {leaders.length === 0 ? (
         <p className="mt-3 text-sm text-gray-400">
@@ -49,21 +65,30 @@ export function LeaderAssignManager({ leaders }: Props) {
                   {inst ? `${instrumentEmoji(inst)} ` : "⭐ "}
                   {leader.name}
                 </span>
-                <button
-                  type="button"
-                  disabled={busyId === leader.id}
-                  onClick={() => toggle(leader)}
-                  aria-label={leader.canAssign ? "권한 회수" : "권한 부여"}
-                  className={`shrink-0 w-13 h-7 rounded-full p-0.5 transition-colors disabled:opacity-50 ${
-                    leader.canAssign ? "bg-violet-600" : "bg-gray-300"
-                  }`}
-                >
+                <div className="shrink-0 flex items-center gap-2">
                   <span
-                    className={`block w-6 h-6 rounded-full bg-white shadow transition-transform ${
-                      leader.canAssign ? "translate-x-6" : ""
+                    className={`text-xs font-bold ${
+                      leader.canAssign ? "text-violet-600" : "text-gray-400"
                     }`}
-                  />
-                </button>
+                  >
+                    {leader.canAssign ? "권한 있음" : "권한 없음"}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={busyId === leader.id}
+                    onClick={() => toggle(leader)}
+                    aria-label={leader.canAssign ? "권한 회수" : "권한 부여"}
+                    className={`w-13 h-7 rounded-full p-0.5 transition-colors disabled:opacity-50 ${
+                      leader.canAssign ? "bg-violet-600" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`block w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                        leader.canAssign ? "translate-x-6" : ""
+                      }`}
+                    />
+                  </button>
+                </div>
               </li>
             );
           })}
