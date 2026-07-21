@@ -35,11 +35,12 @@ export default async function MyCardPage({
         .select("*")
         .eq("song_title", card.title)
         .order("created_at", { ascending: true }),
-      supabase.from("academies").select("is_premium, premium_until").maybeSingle(),
-      supabase.from("profiles").select("grape_skin").eq("id", user!.id).maybeSingle(),
+      supabase.from("academies").select("is_premium, premium_until, name").maybeSingle(),
+      supabase.from("profiles").select("grape_skin, display_name").eq("id", user!.id).maybeSingle(),
     ]);
   const grapes = deriveGrapes(card.total_grapes, (subs ?? []) as Submission[]);
-  const skinId = getSkin((profileRow as Pick<Profile, "grape_skin"> | null)?.grape_skin).id;
+  const profile = profileRow as Pick<Profile, "grape_skin" | "display_name"> | null;
+  const skinId = getSkin(profile?.grape_skin).id;
 
   return (
     <div>
@@ -55,6 +56,8 @@ export default async function MyCardPage({
           // 마감된 숙제는 지난 기록만 볼 수 있다 (제출은 DB가 막는다)
           readOnly={!!card.closed_at}
           skinId={skinId}
+          memberName={profile?.display_name ?? "멤버"}
+          groupName={(academyRow as { name?: string } | null)?.name ?? "우리 그룹"}
         />
       </div>
     </div>

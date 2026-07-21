@@ -8,6 +8,7 @@ import { GrapeVideoSection } from "./GrapeVideoSection";
 import { Celebration } from "./Celebration";
 import { SongTracks } from "./SongTracks";
 import { ShareCompletionButton } from "./ShareCompletionButton";
+import { ShareCardButton } from "./ShareCardButton";
 import { deleteSubmission } from "@/lib/actions/uploads";
 import { approvedCount, type GrapeState } from "@/lib/grapes";
 import { groupLimits } from "@/lib/limits";
@@ -27,6 +28,10 @@ interface Props {
   readOnly?: boolean;
   /** 이 멤버가 고른 포도알 스킨 id */
   skinId?: string;
+  /** 자랑 카드용 — 멤버 이름 */
+  memberName?: string;
+  /** 자랑 카드용 — 그룹 이름 */
+  groupName?: string;
 }
 
 /** 학생 핵심 화면: 포도송이 + 포도알 탭 → 상태별 바텀 시트 */
@@ -39,6 +44,8 @@ export function StudentCardView({
   premium = false,
   readOnly = false,
   skinId,
+  memberName = "멤버",
+  groupName = "우리 그룹",
 }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<GrapeState | null>(null);
@@ -101,7 +108,19 @@ export function StudentCardView({
         </div>
       )}
 
-      {completed && <ShareCompletionButton cardId={card.id} shared={!!card.shared_at} />}
+      {completed && (
+        <div className="flex flex-col gap-2">
+          <ShareCompletionButton cardId={card.id} shared={!!card.shared_at} />
+          <ShareCardButton
+            totalGrapes={card.total_grapes}
+            skinId={skinId}
+            title={card.title}
+            memberName={memberName}
+            groupName={groupName}
+            completedAt={card.completed_at}
+          />
+        </div>
+      )}
 
       {card.description && (
         <div className="rounded-2xl bg-sky-50 border-2 border-sky-200 p-4 text-left">
