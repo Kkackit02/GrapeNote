@@ -11,6 +11,9 @@ export type SkinUnlock =
   | { kind: "videos"; n: number } // 올린 연습 영상 수
   | { kind: "streak"; n: number }; // 연속 연습일 🔥
 
+/** 움직이는 이펙트 — 합격 포도알에 덧입힌다 */
+export type SkinEffect = "flame" | "glow" | "sparkle";
+
 export interface GrapeSkin {
   id: string;
   name: string;
@@ -21,6 +24,8 @@ export interface GrapeSkin {
   stroke: string;
   /** 광택(하이라이트) 색 */
   gloss: string;
+  /** 특수 이펙트 (있으면 애니메이션) */
+  effect?: SkinEffect;
   unlock: SkinUnlock;
 }
 
@@ -64,6 +69,7 @@ export const SKINS: GrapeSkin[] = [
     colors: ["#fb923c", "#dc2626"],
     stroke: "#7f1d1d",
     gloss: "#fed7aa",
+    effect: "flame",
     unlock: { kind: "streak", n: 7 },
   },
   {
@@ -82,6 +88,7 @@ export const SKINS: GrapeSkin[] = [
     colors: ["#fcd34d", "#d97706"],
     stroke: "#92400e",
     gloss: "#fef9c3",
+    effect: "glow",
     unlock: { kind: "bunches", n: 3 },
   },
   {
@@ -94,13 +101,54 @@ export const SKINS: GrapeSkin[] = [
     unlock: { kind: "grapes", n: 40 },
   },
   {
+    id: "neon",
+    name: "네온",
+    emoji: "💚",
+    colors: ["#4ade80", "#06b6d4"],
+    stroke: "#0e7490",
+    gloss: "#ccfbf1",
+    effect: "glow",
+    unlock: { kind: "videos", n: 50 },
+  },
+  {
+    id: "galaxy",
+    name: "은하",
+    emoji: "🌌",
+    colors: ["#f472b6", "#8b5cf6", "#3b82f6"],
+    stroke: "#4c1d95",
+    gloss: "#ede9fe",
+    effect: "sparkle",
+    unlock: { kind: "bunches", n: 5 },
+  },
+  {
+    id: "magma",
+    name: "용암",
+    emoji: "🌋",
+    colors: ["#fde047", "#ea580c", "#7f1d1d"],
+    stroke: "#450a0a",
+    gloss: "#fef08a",
+    effect: "flame",
+    unlock: { kind: "grapes", n: 100 },
+  },
+  {
+    id: "diamond",
+    name: "다이아",
+    emoji: "💎",
+    colors: ["#e0f2fe", "#38bdf8", "#0284c7"],
+    stroke: "#0369a1",
+    gloss: "#ffffff",
+    effect: "sparkle",
+    unlock: { kind: "bunches", n: 10 },
+  },
+  {
     id: "rainbow",
     name: "무지개",
     emoji: "🌈",
     colors: ["#f472b6", "#a855f7", "#38bdf8", "#4ade80", "#facc15"],
     stroke: "#7c3aed",
     gloss: "#ffffff",
-    unlock: { kind: "bunches", n: 10 },
+    effect: "sparkle",
+    unlock: { kind: "bunches", n: 15 },
   },
 ];
 

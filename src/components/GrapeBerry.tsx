@@ -39,10 +39,46 @@ export function GrapeBerry({ grape, cx, cy, r, selected, onClick, skin: skinProp
       {selected && (
         <circle cx={cx} cy={cy} r={r + 4} fill="none" stroke="#a855f7" strokeWidth={3} />
       )}
+      {/* 이펙트: 불꽃/글로우 후광 (알 뒤에서 번져 나온다) */}
+      {status === "approved" && (skin.effect === "flame" || skin.effect === "glow") && (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r}
+          fill={skin.colors[0]}
+          className={skin.effect === "flame" ? "gn-fx-flame" : "gn-fx-glow"}
+          style={{
+            transformBox: "fill-box",
+            transformOrigin: "center",
+            animationDelay: `${(grape.index % 5) * 0.13}s`,
+          }}
+        />
+      )}
       {circle}
       {status === "approved" && (
         // 광택
         <ellipse cx={cx - r * 0.35} cy={cy - r * 0.4} rx={r * 0.28} ry={r * 0.18} fill={skin.gloss} opacity={0.8} />
+      )}
+      {/* 이펙트: 반짝임 (별빛 점들) */}
+      {status === "approved" && skin.effect === "sparkle" && (
+        <>
+          <circle
+            cx={cx + r * 0.42}
+            cy={cy - r * 0.45}
+            r={r * 0.14}
+            fill="#ffffff"
+            className="gn-fx-sparkle"
+            style={{ animationDelay: `${(grape.index % 3) * 0.4}s` }}
+          />
+          <circle
+            cx={cx - r * 0.45}
+            cy={cy + r * 0.38}
+            r={r * 0.1}
+            fill="#ffffff"
+            className="gn-fx-sparkle"
+            style={{ animationDelay: `${(grape.index % 3) * 0.4 + 0.7}s` }}
+          />
+        </>
       )}
       {status === "pending" && (
         <text x={cx} y={cy + 5} textAnchor="middle" fontSize={r * 0.8}>

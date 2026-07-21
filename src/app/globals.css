@@ -27,3 +27,33 @@ body {
   pointer-events: none;
   z-index: 60;
 }
+
+/* 포도알 스킨 이펙트 (합격 포도알 뒤/위에 덧입힘) */
+@keyframes gn-flame {
+  0%, 100% { opacity: 0.18; transform: scale(1); }
+  25% { opacity: 0.55; transform: scale(1.28); }
+  50% { opacity: 0.3; transform: scale(1.12); }
+  75% { opacity: 0.5; transform: scale(1.3); }
+}
+.gn-fx-flame { animation: gn-flame 0.7s ease-in-out infinite; }
+
+@keyframes gn-glow {
+  0%, 100% { opacity: 0.25; transform: scale(1.05); }
+  50% { opacity: 0.5; transform: scale(1.28); }
+}
+.gn-fx-glow { animation: gn-glow 1.8s ease-in-out infinite; }
+
+@keyframes gn-sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.6); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+.gn-fx-sparkle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: gn-sparkle 1.5s ease-in-out infinite;
+}
+
+/* 움직임 최소화 설정을 존중 */
+@media (prefers-reduced-motion: reduce) {
+  .gn-fx-flame, .gn-fx-glow, .gn-fx-sparkle { animation: none; }
+}

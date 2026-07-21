@@ -278,8 +278,10 @@ export default async function MyCardsPage() {
 
       {instrumentRanks.length > 0 && (
         <section>
-          <h2 className="text-lg font-extrabold text-violet-900">🏅 악기별 포도송이 순위</h2>
-          <p className="mt-0.5 text-xs text-gray-400">악기별로 포도송이가 많은 순 · 상위 3명에게 칭호가 붙어요</p>
+          <h2 className="text-lg font-extrabold text-violet-900">🏅 악기별 순위</h2>
+          <p className="mt-0.5 text-xs text-gray-400">
+            포도알(합격) 많은 순 · 동점이면 포도송이 · 상위 3명에게 칭호가 붙어요
+          </p>
           <div className="mt-2 grid gap-2">
             {instrumentRanks.map((ir) => (
               <div key={ir.instrument} className="rounded-2xl bg-white border border-violet-100 p-3">
@@ -301,7 +303,10 @@ export default async function MyCardsPage() {
                           {t?.emoji} {m.name}
                           {isMe && " (나)"}
                         </span>
-                        <span className="text-xs text-gray-400">🏆 {m.bunches}</span>
+                        <span className="text-xs text-gray-400">
+                          🍇 {m.grapes}
+                          {m.bunches > 0 && <span className="text-gray-300"> · 🏆 {m.bunches}</span>}
+                        </span>
                       </li>
                     );
                   })}

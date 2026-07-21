@@ -29,8 +29,24 @@ function Swatch({ skin, dim }: { skin: GrapeSkin; dim?: boolean }) {
           ))}
         </radialGradient>
       </defs>
+      {!dim && (skin.effect === "flame" || skin.effect === "glow") && (
+        <circle
+          cx={20}
+          cy={21}
+          r={16}
+          fill={skin.colors[0]}
+          className={skin.effect === "flame" ? "gn-fx-flame" : "gn-fx-glow"}
+          style={{ transformBox: "fill-box", transformOrigin: "center" }}
+        />
+      )}
       <circle cx={20} cy={21} r={16} fill={`url(#${gid})`} stroke={skin.stroke} strokeWidth={1.5} />
       <ellipse cx={13} cy={14} rx={5} ry={3.2} fill={skin.gloss} opacity={0.8} />
+      {!dim && skin.effect === "sparkle" && (
+        <>
+          <circle cx={28} cy={13} r={2.6} fill="#ffffff" className="gn-fx-sparkle" />
+          <circle cx={12} cy={29} r={1.8} fill="#ffffff" className="gn-fx-sparkle" style={{ animationDelay: "0.7s" }} />
+        </>
+      )}
     </svg>
   );
 }
@@ -87,6 +103,11 @@ export function SkinPicker({ currentSkinId, stats }: Props) {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-extrabold text-gray-800 flex items-center gap-1">
                     {skin.emoji} {skin.name}
+                    {skin.effect && (
+                      <span className="text-[9px] font-bold text-amber-600 bg-amber-100 px-1 py-0.5 rounded-full">
+                        ✨이펙트
+                      </span>
+                    )}
                     {selected && <span className="text-violet-600">✓</span>}
                   </p>
                   {selected ? (
