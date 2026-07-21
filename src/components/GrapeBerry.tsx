@@ -1,6 +1,7 @@
 "use client";
 
 import type { GrapeState } from "@/lib/grapes";
+import { getSkin, type GrapeSkin } from "@/lib/skins";
 
 interface Props {
   grape: GrapeState;
@@ -9,15 +10,18 @@ interface Props {
   r: number;
   selected?: boolean;
   onClick?: () => void;
+  /** 합격 포도알에 입힐 스킨 (기본 머루) */
+  skin?: GrapeSkin;
 }
 
-/** 포도알 1개. 상태: 빈 알(점선) / 검토 대기(연두) / 합격(보라) / 재연습(주황 점선 + ↺) */
-export function GrapeBerry({ grape, cx, cy, r, selected, onClick }: Props) {
+/** 포도알 1개. 상태: 빈 알(점선) / 검토 대기(연두) / 합격(스킨색) / 재연습(주황 점선 + ↺) */
+export function GrapeBerry({ grape, cx, cy, r, selected, onClick, skin: skinProp }: Props) {
   const { status } = grape;
+  const skin = skinProp ?? getSkin(undefined);
 
   const circle =
     status === "approved" ? (
-      <circle cx={cx} cy={cy} r={r} fill="url(#grape-fill)" stroke="#581c87" strokeWidth={1.5} />
+      <circle cx={cx} cy={cy} r={r} fill={`url(#skin-${skin.id})`} stroke={skin.stroke} strokeWidth={1.5} />
     ) : status === "pending" ? (
       <circle cx={cx} cy={cy} r={r} fill="#bef264" fillOpacity={0.75} stroke="#65a30d" strokeWidth={2} />
     ) : status === "retry" ? (
@@ -38,7 +42,7 @@ export function GrapeBerry({ grape, cx, cy, r, selected, onClick }: Props) {
       {circle}
       {status === "approved" && (
         // 광택
-        <ellipse cx={cx - r * 0.35} cy={cy - r * 0.4} rx={r * 0.28} ry={r * 0.18} fill="#e9d5ff" opacity={0.8} />
+        <ellipse cx={cx - r * 0.35} cy={cy - r * 0.4} rx={r * 0.28} ry={r * 0.18} fill={skin.gloss} opacity={0.8} />
       )}
       {status === "pending" && (
         <text x={cx} y={cy + 5} textAnchor="middle" fontSize={r * 0.8}>

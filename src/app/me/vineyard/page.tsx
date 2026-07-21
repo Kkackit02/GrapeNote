@@ -4,7 +4,9 @@ import { deriveGrapes } from "@/lib/grapes";
 import { calcStreak } from "@/lib/streaks";
 import { calcBadges } from "@/lib/badges";
 import { GrapeBunch } from "@/components/GrapeBunch";
-import type { ProgressCard, Submission } from "@/lib/types";
+import { SkinPicker } from "@/components/SkinPicker";
+import { getSkin } from "@/lib/skins";
+import type { ProgressCard, Profile, Submission } from "@/lib/types";
 
 /** 내 포도밭: 완성한 포도송이 갤러리 + 누적 통계 */
 export default async function VineyardPage() {
@@ -12,16 +14,18 @@ export default async function VineyardPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   // 파트장은 팀원 것도 조회되므로 내 것만 명시적으로 필터
-  const [{ data: cards }, { data: subs }] = await Promise.all([
+  const [{ data: cards }, { data: subs }, { data: profileRow }] = await Promise.all([
     supabase
       .from("progress_cards")
       .select("*")
       .eq("student_id", user!.id)
       .order("completed_at", { ascending: false }),
     supabase.from("submissions").select("*").eq("student_id", user!.id),
+    supabase.from("profiles").select("grape_skin").eq("id", user!.id).maybeSingle(),
   ]);
   const cardList = (cards ?? []) as ProgressCard[];
   const subList = (subs ?? []) as Submission[];
+  const skinId = getSkin((profileRow as Pick<Profile, "grape_skin"> | null)?.grape_skin).id;
 
   // 마감된 숙제도 완성작이면 트로피는 남긴다 (기록은 사라지지 않음)
   const completed = cardList.filter((c) => c.completed_at);
@@ -56,6 +60,16 @@ export default async function VineyardPage() {
           <p className="text-xs font-bold text-gray-500 mt-1">연속 연습일</p>
         </div>
       </div>
+
+      <SkinPicker
+        currentSkinId={skinId}
+        stats={{
+          grapes: totalApproved,
+          bunches: completed.length,
+          videos: totalVideos,
+          streak,
+        }}
+      />
 
       <section>
         <h2 className="text-lg font-extrabold text-violet-900">
@@ -99,7 +113,7 @@ export default async function VineyardPage() {
                   href={`/me/cards/${card.id}`}
                   className="block rounded-2xl bg-white border-2 border-violet-100 p-3 text-center active:bg-violet-50"
                 >
-                  <GrapeBunch grapes={grapes} className="max-h-32 mx-auto" />
+                  <GrapeBunch grapes={grapes} skinId={skinId} className="max-h-32 mx-auto" />
                   <p className="mt-2 text-sm font-extrabold text-gray-800 truncate">
                     🏆 {card.title}
                   </p>

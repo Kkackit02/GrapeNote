@@ -5,7 +5,8 @@ import { deriveGrapes } from "@/lib/grapes";
 import { getTerms } from "@/lib/terms-server";
 import { isPremiumActive } from "@/lib/limits";
 import { StudentCardView } from "@/components/StudentCardView";
-import type { ProgressCard, SongTrack, Submission } from "@/lib/types";
+import { getSkin } from "@/lib/skins";
+import type { ProgressCard, Profile, SongTrack, Submission } from "@/lib/types";
 
 export default async function MyCardPage({
   params,
@@ -26,16 +27,19 @@ export default async function MyCardPage({
   if (!cardRow) notFound();
   const card = cardRow as ProgressCard;
 
-  const [{ data: subs }, { data: trackRows }, { data: academyRow }] = await Promise.all([
-    supabase.from("submissions").select("*").eq("card_id", cardId),
-    supabase
-      .from("song_tracks")
-      .select("*")
-      .eq("song_title", card.title)
-      .order("created_at", { ascending: true }),
-    supabase.from("academies").select("is_premium, premium_until").maybeSingle(),
-  ]);
+  const [{ data: subs }, { data: trackRows }, { data: academyRow }, { data: profileRow }] =
+    await Promise.all([
+      supabase.from("submissions").select("*").eq("card_id", cardId),
+      supabase
+        .from("song_tracks")
+        .select("*")
+        .eq("song_title", card.title)
+        .order("created_at", { ascending: true }),
+      supabase.from("academies").select("is_premium, premium_until").maybeSingle(),
+      supabase.from("profiles").select("grape_skin").eq("id", user!.id).maybeSingle(),
+    ]);
   const grapes = deriveGrapes(card.total_grapes, (subs ?? []) as Submission[]);
+  const skinId = getSkin((profileRow as Pick<Profile, "grape_skin"> | null)?.grape_skin).id;
 
   return (
     <div>
@@ -50,6 +54,7 @@ export default async function MyCardPage({
           premium={isPremiumActive(academyRow)}
           // 마감된 숙제는 지난 기록만 볼 수 있다 (제출은 DB가 막는다)
           readOnly={!!card.closed_at}
+          skinId={skinId}
         />
       </div>
     </div>

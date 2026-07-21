@@ -25,6 +25,8 @@ export interface Profile {
   username: string | null;
   /** 맡은 악기(세션) — 곡 편성 그룹핑과 악기 파트 팀의 기준 */
   instrument: string | null;
+  /** 고른 포도알 스킨 id (lib/skins.ts). 기본 'violet' */
+  grape_skin: string;
   created_at: string;
 }
 

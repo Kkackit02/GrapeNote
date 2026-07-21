@@ -25,6 +25,8 @@ interface Props {
   premium?: boolean;
   /** 마감된 숙제 — 지난 기록은 볼 수 있고 새 제출/삭제만 막는다 */
   readOnly?: boolean;
+  /** 이 멤버가 고른 포도알 스킨 id */
+  skinId?: string;
 }
 
 /** 학생 핵심 화면: 포도송이 + 포도알 탭 → 상태별 바텀 시트 */
@@ -36,6 +38,7 @@ export function StudentCardView({
   leaderLabel = "선생님",
   premium = false,
   readOnly = false,
+  skinId,
 }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<GrapeState | null>(null);
@@ -116,6 +119,7 @@ export function StudentCardView({
           grapes={grapes}
           onGrapeClick={(g) => { setSelected(g); setJustUploaded(false); }}
           selectedIndex={selected?.index}
+          skinId={skinId}
           className="max-w-sm mx-auto"
         />
         <p className="mt-2 text-center text-sm text-gray-400">

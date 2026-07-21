@@ -75,7 +75,7 @@ export default async function TeacherCardPage({
       />
 
       <div className="rounded-2xl bg-white border border-violet-100 p-4">
-        <GrapeBunch grapes={grapes} className="max-w-xs mx-auto" />
+        <GrapeBunch grapes={grapes} skinId={student.grape_skin} className="max-w-xs mx-auto" />
       </div>
 
       <section>

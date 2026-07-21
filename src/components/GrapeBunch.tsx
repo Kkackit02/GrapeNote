@@ -1,6 +1,7 @@
 "use client";
 
 import { bunchRows, type GrapeState } from "@/lib/grapes";
+import { getSkin } from "@/lib/skins";
 import { GrapeBerry } from "./GrapeBerry";
 
 const R = 18; // 포도알 반지름
@@ -15,10 +16,13 @@ interface Props {
   /** 강조할 포도알 index (선택된 알) */
   selectedIndex?: number;
   className?: string;
+  /** 합격 포도알에 입힐 스킨 id (기본 머루). 멤버가 고른 값 */
+  skinId?: string;
 }
 
 /** 포도송이 SVG — 위가 넓고 아래로 좁아지는 클러스터 + 줄기/잎 */
-export function GrapeBunch({ grapes, onGrapeClick, selectedIndex, className }: Props) {
+export function GrapeBunch({ grapes, onGrapeClick, selectedIndex, className, skinId }: Props) {
+  const skin = getSkin(skinId);
   const rows = bunchRows(grapes.length);
   const maxRow = Math.max(...rows, 1);
   const width = maxRow * DX + PAD * 2;
@@ -47,9 +51,14 @@ export function GrapeBunch({ grapes, onGrapeClick, selectedIndex, className }: P
       aria-label={`포도송이: ${grapes.filter((g) => g.status === "approved").length}/${grapes.length}알 완성`}
     >
       <defs>
-        <radialGradient id="grape-fill" cx="0.35" cy="0.3" r="0.9">
-          <stop offset="0%" stopColor="#a855f7" />
-          <stop offset="100%" stopColor="#6b21a8" />
+        <radialGradient id={`skin-${skin.id}`} cx="0.35" cy="0.3" r="0.9">
+          {skin.colors.map((color, i) => (
+            <stop
+              key={i}
+              offset={`${(i / (skin.colors.length - 1)) * 100}%`}
+              stopColor={color}
+            />
+          ))}
         </radialGradient>
       </defs>
 
@@ -78,6 +87,7 @@ export function GrapeBunch({ grapes, onGrapeClick, selectedIndex, className }: P
           r={R}
           selected={selectedIndex === grape.index}
           onClick={onGrapeClick ? () => onGrapeClick(grape) : undefined}
+          skin={skin}
         />
       ))}
     </svg>
