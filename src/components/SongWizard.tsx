@@ -19,6 +19,7 @@ export function SongWizard({ students }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [totalGrapes, setTotalGrapes] = useState(5);
   const [dueDate, setDueDate] = useState("");
+  const [autoAssign, setAutoAssign] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +56,7 @@ export function SongWizard({ students }: Props) {
       memberIds: [...selected],
       totalGrapes,
       dueDate: dueDate || null,
+      autoAssign,
     });
     setBusy(false);
     if (!result.ok) {
@@ -156,6 +158,23 @@ export function SongWizard({ students }: Props) {
         </label>
       </div>
 
+      <label className="flex items-start gap-2.5 rounded-xl bg-violet-50 border border-violet-100 p-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={autoAssign}
+          onChange={(e) => setAutoAssign(e.target.checked)}
+          className="mt-0.5 h-4 w-4 accent-violet-600"
+        />
+        <span className="text-sm">
+          <span className="font-bold text-gray-700">🔁 나중에 합류하는 멤버에게도 자동 배정</span>
+          <span className="block text-xs text-gray-400 mt-0.5">
+            {autoAssign
+              ? "곡 팀이 함께 만들어져, 이후 합류하는 멤버에게 이 곡이 자동으로 배정돼요."
+              : "지금 고른 멤버에게만 배정해요. (합류자에게 줄 땐 나중에 직접 배정)"}
+          </span>
+        </span>
+      </label>
+
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       <button
@@ -165,9 +184,6 @@ export function SongWizard({ students }: Props) {
       >
         {busy ? "만드는 중..." : `🎵 곡 만들기 (${selected.size}명에게 배정)`}
       </button>
-      <p className="text-xs text-gray-400 text-center -mt-2">
-        곡 팀이 함께 만들어져요 — 나중에 멤버가 합류하면 이 곡이 자동 배정돼요.
-      </p>
     </form>
   );
 }

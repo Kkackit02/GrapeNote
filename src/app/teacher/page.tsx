@@ -114,50 +114,8 @@ export default async function TeacherDashboard() {
 
       <JoinCodeCard code={academy?.join_code ?? null} groupLabel={terms.group} />
 
-      <div className="grid grid-cols-2 gap-2">
-        <Link
-          href="/teacher/board"
-          className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
-        >
-          📊 현황판
-          <p className="mt-0.5 text-xs font-medium text-gray-400">곡×멤버 진행 한눈에</p>
-        </Link>
-        <Link
-          href="/teacher/songs"
-          className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
-        >
-          🎵 곡 관리
-          <p className="mt-0.5 text-xs font-medium text-gray-400">편성·미션·기한 수정</p>
-        </Link>
-        <Link
-          href="/teacher/stats"
-          className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
-        >
-          📈 주간 통계
-          <p className="mt-0.5 text-xs font-medium text-gray-400">이번 주 누가 열심히?</p>
-        </Link>
-        <Link
-          href="/teacher/cards"
-          className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
-        >
-          📋 숙제 관리
-          <p className="mt-0.5 text-xs font-medium text-gray-400">배정한 숙제 수정·기한</p>
-        </Link>
-        <Link
-          href="/teacher/teams"
-          className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
-        >
-          👥 팀 관리
-          <p className="mt-0.5 text-xs font-medium text-gray-400">팀·파트장 지정</p>
-        </Link>
-        <Link
-          href="/teacher/videos"
-          className="rounded-2xl bg-white border border-violet-100 p-4 font-bold text-violet-800 active:bg-violet-50"
-        >
-          🎬 영상 관리
-          <p className="mt-0.5 text-xs font-medium text-gray-400">전체 영상 표·다운로드</p>
-        </Link>
-      </div>
+      {/* 화면 이동은 상단 헤더 하나로 일원화했다 (현황판·곡·검토함 + 더보기).
+          대시보드는 '지금 할 일'(검토 대기·멤버·초대)에 집중한다. */}
 
       {/* 설정은 /teacher/settings로 옮겼다. 여유가 없을 때만 여기서 알린다 */}
       {storagePercent >= 80 && (

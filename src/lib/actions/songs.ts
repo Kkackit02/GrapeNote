@@ -22,9 +22,12 @@ async function verifyTeacher(): Promise<
 }
 
 /**
- * 곡 추가 마법사: 곡 팀 생성 → 편성 멤버 소속 → 카드(미션 포함) 배정까지 한 번에.
- * 순서 중요 — 멤버를 먼저 넣고(카드가 아직 없어 자동 배정 트리거는 조용) 카드를 나중에
- * 만들어야 중복 카드가 생기지 않는다.
+ * 곡 추가 마법사: 편성 멤버에게 카드(미션 포함)를 배정한다.
+ *
+ * autoAssign 기본값은 false — 이번에 고른 멤버에게만 배정하고 끝낸다(개별 배정).
+ * autoAssign을 켜면 곡 팀을 함께 만들어, 나중에 합류하는 멤버에게도 이 곡이 자동 배정된다.
+ * (트리거가 팀 합류 시 카드를 만든다. 순서 중요 — 멤버를 먼저 넣고 카드를 나중에 만들어야
+ *  중복 카드가 생기지 않는다.)
  */
 export async function createSong(input: {
   title: string;
@@ -33,6 +36,8 @@ export async function createSong(input: {
   memberIds: string[];
   totalGrapes: number;
   dueDate?: string | null;
+  /** 나중에 합류하는 멤버에게 이 곡을 자동 배정할지 (곡 팀 생성). 기본 false */
+  autoAssign?: boolean;
 }): Promise<ActionResult<{ count: number }>> {
   const title = input.title.trim();
   if (!title) return { ok: false, error: "곡 이름을 입력해 주세요." };
@@ -55,6 +60,22 @@ export async function createSong(input: {
     return { ok: false, error: "이미 있는 곡이에요. 현황판에서 곡명을 눌러 편성을 수정해 주세요." };
   }
 
+  // 개별 배정(기본): 곡 팀 없이 고른 멤버에게만 카드를 만든다
+  if (!input.autoAssign) {
+    const created = await createCard({
+      studentIds: memberIds,
+      title,
+      description: input.mission,
+      totalGrapes: input.totalGrapes,
+      dueDate: input.dueDate,
+    });
+    if (!created.ok) return created;
+    revalidatePath("/teacher/board");
+    revalidatePath("/teacher");
+    return { ok: true, data: { count: memberIds.length } };
+  }
+
+  // 자동 배정: 곡 팀을 만들고 멤버를 넣은 뒤 카드를 배정 (팀 연결 → 이후 합류자 자동 배정)
   const { data: team, error: teamError } = await supabase
     .from("teams")
     .insert({ academy_id: auth.academyId, name: `🎵 ${title}` })

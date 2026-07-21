@@ -8,7 +8,12 @@ import { PinPad } from "@/components/PinPad";
 
 export default function StudentLoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  // 지난번 로그인한 아이디를 기억해 매번 다시 입력하지 않게 한다 (클라이언트에서만 읽음)
+  const [username, setUsername] = useState(() =>
+    typeof window === "undefined"
+      ? ""
+      : localStorage.getItem("grapenote-last-username") ?? ""
+  );
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -21,9 +26,10 @@ export default function StudentLoginPage() {
       return;
     }
     setSubmitting(true);
+    const cleanUsername = username.trim().toLowerCase();
     const supabase = createSupabaseBrowser();
     const { error } = await supabase.auth.signInWithPassword({
-      email: `${username.trim().toLowerCase()}@student.grapenote.app`,
+      email: `${cleanUsername}@student.grapenote.app`,
       password: pin,
     });
     if (error) {
@@ -32,6 +38,7 @@ export default function StudentLoginPage() {
       setSubmitting(false);
       return;
     }
+    localStorage.setItem("grapenote-last-username", cleanUsername);
     router.push("/me");
     router.refresh();
   };
@@ -46,6 +53,7 @@ export default function StudentLoginPage() {
         <form onSubmit={submit} className="mt-5 flex flex-col gap-3">
           <input
             required
+            suppressHydrationWarning
             value={username}
             onChange={(e) => setUsername(e.target.value.toLowerCase())}
             placeholder="아이디"

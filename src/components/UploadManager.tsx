@@ -200,7 +200,7 @@ function UploadStatusBar() {
   if (uploads.length === 0) return null;
 
   return (
-    <div className="fixed bottom-3 inset-x-3 z-[60] max-w-lg mx-auto flex flex-col gap-2 pointer-events-none">
+    <div className="fixed bottom-16 inset-x-3 z-[60] max-w-lg mx-auto flex flex-col gap-2 pointer-events-none">
       {uploads.map((task) => (
         <div
           key={task.id}

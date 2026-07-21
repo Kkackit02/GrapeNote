@@ -45,3 +45,8 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Claude Code 로컬 작업물 · 임시 스크린샷 (커밋 대상 아님)
+.claude/
+*.png
+!public/*.png
