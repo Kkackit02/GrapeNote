@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { calcStreak } from "@/lib/streaks";
+import { parseInstruments } from "@/lib/instruments";
 import {
   getSkin,
   isSkinUnlocked,
@@ -32,9 +33,10 @@ export async function setGrapeSkin(skinId: string): Promise<ActionResult> {
   }
 
   // 내 누적 통계로 잠금 해제 여부 재확인
-  const [{ data: cardRows }, { data: subRows }] = await Promise.all([
+  const [{ data: cardRows }, { data: subRows }, { data: me }] = await Promise.all([
     supabase.from("progress_cards").select("completed_at").eq("student_id", user.id),
     supabase.from("submissions").select("status, created_at").eq("student_id", user.id),
+    supabase.from("profiles").select("instrument").eq("id", user.id).maybeSingle(),
   ]);
   const cards = (cardRows ?? []) as Pick<ProgressCard, "completed_at">[];
   const subs = (subRows ?? []) as Pick<Submission, "status" | "created_at">[];
@@ -43,6 +45,7 @@ export async function setGrapeSkin(skinId: string): Promise<ActionResult> {
     bunches: cards.filter((c) => c.completed_at).length,
     videos: subs.length,
     streak: calcStreak(subs.map((s) => s.created_at)),
+    instruments: parseInstruments(me?.instrument as string | null),
   };
 
   if (isRandom) {

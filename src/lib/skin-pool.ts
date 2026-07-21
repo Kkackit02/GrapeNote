@@ -2,6 +2,7 @@ import "server-only";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { calcStreak } from "@/lib/streaks";
 import { unlockedSkinIds, type SkinStats } from "@/lib/skins";
+import { parseInstruments } from "@/lib/instruments";
 
 /**
  * 멤버별로 '가진(해금한) 스킨 id 목록'을 구한다 — 랜덤 포도의 재료.
@@ -13,13 +14,17 @@ export async function getSkinPools(studentIds: string[]): Promise<Map<string, st
   if (ids.length === 0) return pools;
 
   const admin = createSupabaseAdmin();
-  const [{ data: cardRows }, { data: subRows }] = await Promise.all([
+  const [{ data: cardRows }, { data: subRows }, { data: profileRows }] = await Promise.all([
     admin.from("progress_cards").select("student_id, completed_at").in("student_id", ids),
     admin.from("submissions").select("student_id, status, created_at").in("student_id", ids),
+    admin.from("profiles").select("id, instrument").in("id", ids),
   ]);
 
   const cards = (cardRows ?? []) as { student_id: string; completed_at: string | null }[];
   const subs = (subRows ?? []) as { student_id: string; status: string; created_at: string }[];
+  const instrumentOf = new Map(
+    (profileRows ?? []).map((p) => [p.id as string, (p.instrument as string | null) ?? null])
+  );
 
   for (const id of ids) {
     const myCards = cards.filter((c) => c.student_id === id);
@@ -29,6 +34,7 @@ export async function getSkinPools(studentIds: string[]): Promise<Map<string, st
       bunches: myCards.filter((c) => c.completed_at).length,
       videos: mySubs.length,
       streak: calcStreak(mySubs.map((s) => s.created_at)),
+      instruments: parseInstruments(instrumentOf.get(id)),
     };
     pools.set(id, unlockedSkinIds(stats));
   }

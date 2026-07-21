@@ -1,3 +1,5 @@
+import { instrumentEmoji } from "@/lib/instruments";
+
 /**
  * 포도알 스킨 — 합격한 포도알의 색/광택을 바꾸는 개인 꾸미기.
  * 잠금 해제 기준을 여러 종류(포도알 수·포도송이 수·연습 영상 수·연속일)로 섞어
@@ -9,7 +11,9 @@ export type SkinUnlock =
   | { kind: "grapes"; n: number } // 모은 포도알(합격) 수
   | { kind: "bunches"; n: number } // 완성한 포도송이 수
   | { kind: "videos"; n: number } // 올린 연습 영상 수
-  | { kind: "streak"; n: number }; // 연속 연습일 🔥
+  | { kind: "streak"; n: number } // 연속 연습일 🔥
+  /** 악기 전용 — 그 악기를 맡은 멤버만 (+ 포도알 n개) */
+  | { kind: "instrument"; instrument: string; n: number };
 
 /** 움직이는 이펙트 — 합격 포도알에 덧입힌다 */
 export type SkinEffect = "flame" | "glow" | "sparkle";
@@ -35,6 +39,8 @@ export interface SkinStats {
   bunches: number;
   videos: number;
   streak: number;
+  /** 맡은 악기 목록 (악기 전용 스킨 판정) */
+  instruments?: string[];
 }
 
 export const DEFAULT_SKIN_ID = "violet";
@@ -180,6 +186,56 @@ export const SKINS: GrapeSkin[] = [
     effect: "sparkle",
     unlock: { kind: "bunches", n: 10 },
   },
+  // ── 악기 전용: 그 악기를 맡은 멤버만 (포도알 5개 이상) ──
+  {
+    id: "inst-guitar",
+    name: "기타리스트",
+    emoji: "🎸",
+    colors: ["#fde68a", "#d97706", "#451a03"],
+    stroke: "#1c0a02",
+    gloss: "#fef3c7",
+    effect: "glow",
+    unlock: { kind: "instrument", instrument: "기타", n: 5 },
+  },
+  {
+    id: "inst-bass",
+    name: "베이시스트",
+    emoji: "🎸",
+    colors: ["#f0abfc", "#a21caf", "#4a044e"],
+    stroke: "#3b0764",
+    gloss: "#fae8ff",
+    effect: "glow",
+    unlock: { kind: "instrument", instrument: "베이스", n: 5 },
+  },
+  {
+    id: "inst-drums",
+    name: "드러머",
+    emoji: "🥁",
+    colors: ["#f1f5f9", "#94a3b8", "#334155"],
+    stroke: "#1e293b",
+    gloss: "#ffffff",
+    effect: "sparkle",
+    unlock: { kind: "instrument", instrument: "드럼", n: 5 },
+  },
+  {
+    id: "inst-keys",
+    name: "건반주자",
+    emoji: "🎹",
+    colors: ["#fffbeb", "#a8a29e", "#1c1917"],
+    stroke: "#0c0a09",
+    gloss: "#ffffff",
+    unlock: { kind: "instrument", instrument: "키보드", n: 5 },
+  },
+  {
+    id: "inst-vocal",
+    name: "보컬리스트",
+    emoji: "🎤",
+    colors: ["#fda4af", "#e11d48", "#4c0519"],
+    stroke: "#3f0417",
+    gloss: "#fff1f2",
+    effect: "sparkle",
+    unlock: { kind: "instrument", instrument: "보컬", n: 5 },
+  },
   {
     id: "rainbow",
     name: "무지개",
@@ -227,14 +283,20 @@ export function unlockCurrent(unlock: SkinUnlock, stats: SkinStats): number | nu
       return stats.videos;
     case "streak":
       return stats.streak;
+    case "instrument":
+      return null; // 악기 보유 여부가 핵심이라 숫자 진행도는 보여주지 않는다
   }
 }
 
 /** 스킨이 지금 열려 있는지. */
 export function isSkinUnlocked(skin: GrapeSkin, stats: SkinStats): boolean {
-  if (skin.unlock.kind === "free") return true;
-  const have = unlockCurrent(skin.unlock, stats) ?? 0;
-  return have >= skin.unlock.n;
+  const unlock = skin.unlock;
+  if (unlock.kind === "free") return true;
+  if (unlock.kind === "instrument") {
+    return (stats.instruments ?? []).includes(unlock.instrument) && stats.grapes >= unlock.n;
+  }
+  const have = unlockCurrent(unlock, stats) ?? 0;
+  return have >= unlock.n;
 }
 
 /** 잠금 조건 안내 문구. */
@@ -250,5 +312,7 @@ export function unlockLabel(unlock: SkinUnlock): string {
       return `연습 영상 ${unlock.n}개 올리기`;
     case "streak":
       return `🔥 ${unlock.n}일 연속 연습`;
+    case "instrument":
+      return `${instrumentEmoji(unlock.instrument)} ${unlock.instrument} 담당 + 포도알 ${unlock.n}개`;
   }
 }
