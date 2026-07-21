@@ -85,10 +85,11 @@ export function BerryTexture({ skin }: { skin: GrapeSkin }) {
         </g>
       );
     case "holo":
-      // 무지갯빛 간섭무늬 — 여러 색 띠라 textureColor 대신 고정 팔레트를 쓴다
+      // 간섭무늬 — 여러 색 띠라 textureColor 대신 고정 팔레트를 쓴다.
+      // 초록·민트·청록을 주도색으로 두고 라임/연노랑을 살짝 섞어 어른거리게.
       return (
-        <g opacity={0.5} transform="rotate(-25)">
-          {["#f0abfc", "#a5b4fc", "#67e8f9", "#86efac", "#fde68a"].map((band, i) => (
+        <g opacity={0.55} transform="rotate(-25)">
+          {["#bbf7d0", "#5eead4", "#22d3ee", "#a3e635", "#4ade80"].map((band, i) => (
             <rect key={band} x={-1.4 + i * 0.56} y={-1.4} width={0.56} height={2.8} fill={band} />
           ))}
         </g>
