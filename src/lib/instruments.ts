@@ -23,6 +23,30 @@ export function instrumentEmoji(instrument: string | null | undefined): string {
 }
 
 /**
+ * 같은 악기를 부르는 다른 이름들을 프리셋 이름으로 모아 준다.
+ * (예: "피아노"로 기록된 연습도 🎹 키보드 전용 스킨에 쌓이도록)
+ */
+const ALIASES: Record<string, string> = {
+  피아노: "키보드",
+  건반: "키보드",
+  신디: "키보드",
+  신디사이저: "키보드",
+  일렉기타: "기타",
+  일렉: "기타",
+  통기타: "기타",
+  어쿠스틱: "기타",
+  어쿠스틱기타: "기타",
+  노래: "보컬",
+  보컬리스트: "보컬",
+  드럼스: "드럼",
+};
+
+export function normalizeInstrument(instrument: string | null | undefined): string {
+  const name = (instrument ?? "").trim();
+  return ALIASES[name] ?? name;
+}
+
+/**
  * 악기 다중 지정: profiles.instrument에 "기타, 드럼"처럼 쉼표로 저장한다 (첫 번째가 주 세션).
  * 별도 마이그레이션 없이 겸업 세션을 표현하기 위한 관례.
  */

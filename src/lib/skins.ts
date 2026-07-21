@@ -1,4 +1,4 @@
-import { instrumentEmoji } from "@/lib/instruments";
+import { instrumentEmoji, normalizeInstrument } from "@/lib/instruments";
 
 /**
  * 포도알 스킨 — 합격한 포도알의 색/광택을 바꾸는 개인 꾸미기.
@@ -272,7 +272,8 @@ export function tallyGrapesByInstrument(
   const tally: Record<string, number> = {};
   for (const sub of submissions) {
     if (sub.status !== "approved" || !sub.instrument) continue;
-    const key = sub.instrument.trim();
+    // "피아노" 같은 다른 이름도 프리셋(키보드)으로 모아 센다
+    const key = normalizeInstrument(sub.instrument);
     if (key) tally[key] = (tally[key] ?? 0) + 1;
   }
   return tally;
