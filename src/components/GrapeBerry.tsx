@@ -138,6 +138,27 @@ export function BerryTexture({ skin }: { skin: GrapeSkin }) {
           </g>
         </g>
       );
+    case "monster":
+      // 부릅뜬 눈 + 송곳니. 광택이 왼쪽 위에 오므로 눈은 살짝 아래에 둔다
+      return (
+        <g>
+          <ellipse cx={-0.34} cy={-0.1} rx={0.21} ry={0.25} fill="#ffffff" />
+          <ellipse cx={0.34} cy={-0.1} rx={0.21} ry={0.25} fill="#ffffff" />
+          <circle cx={-0.29} cy={-0.05} r={0.11} fill="#0b1220" />
+          <circle cx={0.39} cy={-0.05} r={0.11} fill="#0b1220" />
+          {/* 찡그린 눈썹 */}
+          <path
+            d="M -0.58 -0.42 L -0.14 -0.26 M 0.58 -0.42 L 0.14 -0.26"
+            stroke="#0b1220"
+            strokeWidth={0.1}
+            strokeLinecap="round"
+          />
+          {/* 벌린 입 + 송곳니 */}
+          <path d="M -0.52 0.34 Q 0 0.86 0.52 0.34 Q 0 0.5 -0.52 0.34 Z" fill="#0b1220" />
+          <polygon points="-0.28,0.4 -0.14,0.4 -0.21,0.62" fill="#ffffff" />
+          <polygon points="0.13,0.4 0.27,0.4 0.2,0.62" fill="#ffffff" />
+        </g>
+      );
     default:
       return null;
   }
@@ -207,8 +228,8 @@ export function GrapeBerry({ grape, cx, cy, r, selected, onClick, skin: skinProp
           <BerryTexture skin={skin} />
         </g>
       )}
-      {status === "approved" && (
-        // 광택
+      {/* 광택 — 괴물은 얼굴을 덮어 버려서 생략한다 */}
+      {status === "approved" && skin.texture !== "monster" && (
         <ellipse cx={cx - r * 0.35} cy={cy - r * 0.4} rx={r * 0.28} ry={r * 0.18} fill={skin.gloss} opacity={0.8} />
       )}
       {/* 이펙트: 반짝임 (네 갈래 별빛) */}

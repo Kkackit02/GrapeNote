@@ -10,6 +10,7 @@ import {
   isSkinUnlocked,
   unlockCurrent,
   unlockLabel,
+  unlockTarget,
   unlockedSkinIds,
   getSkin,
   RANDOM_SKIN_ID,
@@ -68,7 +69,9 @@ function Swatch({ skin, dim, mini }: { skin: GrapeSkin; dim?: boolean; mini?: bo
           </g>
         </>
       )}
-      <ellipse cx={13} cy={14} rx={5} ry={3.2} fill={skin.gloss} opacity={0.8} />
+      {skin.texture !== "monster" && (
+        <ellipse cx={13} cy={14} rx={5} ry={3.2} fill={skin.gloss} opacity={0.8} />
+      )}
       {!dim && skin.effect === "sparkle" && (
         <>
           <circle cx={28} cy={13} r={2.6} fill="#ffffff" className="gn-fx-sparkle" />
@@ -192,7 +195,7 @@ export function SkinPicker({ currentSkinId, stats }: Props) {
           const isPreview = skin.id === previewId;
           const inUse = skin.id === currentSkinId;
           const have = unlockCurrent(skin.unlock, stats);
-          const need = skin.unlock.kind === "free" ? 0 : skin.unlock.n;
+          const need = unlockTarget(skin.unlock);
 
           return (
             <li key={skin.id}>

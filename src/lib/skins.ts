@@ -1,4 +1,4 @@
-import { instrumentEmoji, normalizeInstrument } from "@/lib/instruments";
+import { instrumentEmoji, normalizeInstrument, INSTRUMENT_PRESETS } from "@/lib/instruments";
 
 /**
  * 포도알 스킨 — 합격한 포도알의 색/광택을 바꾸는 개인 꾸미기.
@@ -13,7 +13,9 @@ export type SkinUnlock =
   | { kind: "videos"; n: number } // 올린 연습 영상 수
   | { kind: "streak"; n: number } // 연속 연습일 🔥
   /** 악기 전용 — 그 악기로 연습한 포도알 n개 (담당이 아니어도 도전 가능) */
-  | { kind: "instrument"; instrument: string; n: number };
+  | { kind: "instrument"; instrument: string; n: number }
+  /** 만능 — 모든 악기로 각각 포도알 n개 (전 악기 섭렵) */
+  | { kind: "allInstruments"; n: number };
 
 /** 움직이는 이펙트 — 합격 포도알에 덧입힌다 */
 export type SkinEffect = "flame" | "glow" | "sparkle";
@@ -30,7 +32,8 @@ export type SkinTexture =
   | "swirl"
   | "holo" // 무지갯빛 간섭무늬
   | "droplet" // 맺힌 물방울
-  | "starfield"; // 별무리 + 성운
+  | "starfield" // 별무리 + 성운
+  | "monster"; // 눈·송곳니 (최상위 보상)
 
 export interface GrapeSkin {
   id: string;
@@ -347,6 +350,18 @@ export const SKINS: GrapeSkin[] = [
     textureColor: "#ffffff",
     unlock: { kind: "bunches", n: 15 },
   },
+  {
+    // 최상위 보상 — 다섯 악기를 전부 섭렵해야 열린다
+    id: "monster",
+    name: "괴물",
+    emoji: "👾",
+    colors: ["#bef264", "#4d7c0f", "#14532d"],
+    stroke: "#052e16",
+    gloss: "#ecfccb",
+    effect: "flame",
+    texture: "monster",
+    unlock: { kind: "allInstruments", n: 5 },
+  },
 ];
 
 const SKIN_BY_ID = new Map(SKINS.map((s) => [s.id, s]));
@@ -400,7 +415,19 @@ export function unlockCurrent(unlock: SkinUnlock, stats: SkinStats): number | nu
       return stats.streak;
     case "instrument":
       return stats.grapesByInstrument?.[unlock.instrument] ?? 0;
+    case "allInstruments":
+      // 조건을 채운 '악기 수'가 진행도 (예: 3/5)
+      return INSTRUMENT_PRESETS.filter(
+        (name) => (stats.grapesByInstrument?.[name] ?? 0) >= unlock.n
+      ).length;
   }
+}
+
+/** 진행도 표시의 분모 (예: 3/5의 5). free면 0 */
+export function unlockTarget(unlock: SkinUnlock): number {
+  if (unlock.kind === "free") return 0;
+  if (unlock.kind === "allInstruments") return INSTRUMENT_PRESETS.length;
+  return unlock.n;
 }
 
 /** 스킨이 지금 열려 있는지. */
@@ -408,7 +435,7 @@ export function isSkinUnlocked(skin: GrapeSkin, stats: SkinStats): boolean {
   const unlock = skin.unlock;
   if (unlock.kind === "free") return true;
   const have = unlockCurrent(unlock, stats) ?? 0;
-  return have >= unlock.n;
+  return have >= unlockTarget(unlock);
 }
 
 /** 잠금 조건 안내 문구. */
@@ -426,5 +453,7 @@ export function unlockLabel(unlock: SkinUnlock): string {
       return `🔥 ${unlock.n}일 연속 연습`;
     case "instrument":
       return `${instrumentEmoji(unlock.instrument)} ${unlock.instrument}로 포도알 ${unlock.n}개`;
+    case "allInstruments":
+      return `모든 악기로 포도알 ${unlock.n}개씩`;
   }
 }
