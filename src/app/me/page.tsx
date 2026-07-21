@@ -5,7 +5,7 @@ import { deriveGrapes, approvedCount } from "@/lib/grapes";
 import { dueBadge, daysLeft } from "@/lib/due";
 import { calcStreak, practicedToday } from "@/lib/streaks";
 import { getGroupFeed, getWeeklyStats, type FeedReaction } from "@/lib/activity";
-import { getInstrumentRanks, rankTitle } from "@/lib/instrument-ranks";
+import { getInstrumentRanks, rankTitle, type RankedMember } from "@/lib/instrument-ranks";
 import { getTitle } from "@/lib/titles";
 import { instrumentEmoji } from "@/lib/instruments";
 import { getTerms } from "@/lib/terms-server";
@@ -50,7 +50,12 @@ export default async function MyCardsPage() {
 
   // 칭호: 내가 고른 것 + 악기별 순위(자동, 상위 3위)
   const wornTitle = getTitle(profile.title);
-  const instrumentRanks = await getInstrumentRanks(user!.app_metadata.academy_id as string);
+  const allRanks = await getInstrumentRanks(user!.app_metadata.academy_id as string);
+  // 내가 낀 악기를 앞으로 — 남의 파트 순위부터 보게 되지 않도록
+  const instrumentRanks = [
+    ...allRanks.filter((ir) => ir.members.some((m) => m.studentId === user!.id)),
+    ...allRanks.filter((ir) => !ir.members.some((m) => m.studentId === user!.id)),
+  ];
   let myRankTitle: { emoji: string; name: string } | null = null;
   let bestRank = 99;
   for (const ir of instrumentRanks) {
@@ -268,38 +273,63 @@ export default async function MyCardsPage() {
           <h2 className="text-lg font-extrabold text-violet-900">🏅 악기별 순위</h2>
           <p className="mt-0.5 text-xs text-gray-400">
             포도알(합격) 많은 순 · 동점이면 포도송이 · 상위 3명에게 칭호가 붙어요
+            <br />
+            포도알을 1개라도 모으면 순위에 올라요.
           </p>
           <div className="mt-2 grid gap-2">
-            {instrumentRanks.map((ir) => (
-              <div key={ir.instrument} className="rounded-2xl bg-white border border-violet-100 p-3">
-                <p className="text-sm font-bold text-gray-700">
-                  {instrumentEmoji(ir.instrument)} {ir.instrument}
-                </p>
-                <ol className="mt-1.5 flex flex-col gap-1">
-                  {ir.members.slice(0, 3).map((m) => {
-                    const t = rankTitle(ir.instrument, m.rank);
-                    const isMe = m.studentId === user!.id;
-                    return (
-                      <li
-                        key={m.studentId}
-                        className={`flex items-center justify-between text-sm ${
-                          isMe ? "font-extrabold text-violet-700" : "text-gray-600"
-                        }`}
-                      >
-                        <span>
-                          {t?.emoji} {m.name}
-                          {isMe && " (나)"}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          🍇 {m.grapes}
-                          {m.bunches > 0 && <span className="text-gray-300"> · 🏆 {m.bunches}</span>}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </div>
-            ))}
+            {instrumentRanks.map((ir) => {
+              const mine = ir.members.find((m) => m.studentId === user!.id);
+              // 상위 3명 + (내가 4위 밖이면) 내 줄을 따로 붙여 항상 내 등수를 보여준다
+              const top = ir.members.slice(0, 3);
+              const showMine = mine && mine.rank > 3;
+              const row = (m: RankedMember) => {
+                const t = rankTitle(ir.instrument, m.rank);
+                const isMe = m.studentId === user!.id;
+                return (
+                  <li
+                    key={m.studentId}
+                    className={`flex items-center justify-between text-sm ${
+                      isMe ? "font-extrabold text-violet-700" : "text-gray-600"
+                    }`}
+                  >
+                    <span>
+                      {t?.emoji ?? `${m.rank}위`} {m.name}
+                      {isMe && " (나)"}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      🍇 {m.grapes}
+                      {m.bunches > 0 && <span className="text-gray-300"> · 🏆 {m.bunches}</span>}
+                    </span>
+                  </li>
+                );
+              };
+              return (
+                <div
+                  key={ir.instrument}
+                  className={`rounded-2xl bg-white border p-3 ${
+                    mine ? "border-violet-300" : "border-violet-100"
+                  }`}
+                >
+                  <p className="text-sm font-bold text-gray-700">
+                    {instrumentEmoji(ir.instrument)} {ir.instrument}
+                    <span className="ml-1 text-xs font-medium text-gray-400">
+                      {ir.members.length}명
+                    </span>
+                  </p>
+                  <ol className="mt-1.5 flex flex-col gap-1">
+                    {top.map(row)}
+                    {showMine && (
+                      <>
+                        <li aria-hidden className="text-center text-xs text-gray-300 leading-none">
+                          ⋯
+                        </li>
+                        {row(mine)}
+                      </>
+                    )}
+                  </ol>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
