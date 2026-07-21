@@ -505,6 +505,92 @@ export async function shareCompletion(cardId: string): Promise<ActionResult> {
   return { ok: true, data: undefined };
 }
 
+/**
+ * 파트장이 자기 팀원에게 숙제를 낸다 (리더가 허용했을 때만).
+ * 서버에서 '허용됨 + 내가 파트장 + 대상이 내 팀원'을 검증한 뒤 service role로 배정한다.
+ * 개별 배정(team_id 없음) — 팀 자동 배정 트리거와 무관.
+ */
+export async function assignHomeworkAsLeader(input: {
+  studentIds: string[];
+  title: string;
+  description: string;
+  totalGrapes: number;
+  dueDate?: string | null;
+}): Promise<ActionResult<{ count: number }>> {
+  const valid = validateCardInput(input);
+  if (!valid.ok) return valid;
+
+  const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.app_metadata?.role !== "student") {
+    return { ok: false, error: "파트장 계정으로 로그인해 주세요." };
+  }
+  const academyId = user.app_metadata.academy_id as string;
+
+  const admin = createSupabaseAdmin();
+
+  // 1) 리더가 파트장 배정을 허용했는지
+  const { data: academy } = await admin
+    .from("academies")
+    .select("leaders_can_assign")
+    .eq("id", academyId)
+    .maybeSingle();
+  if (!academy?.leaders_can_assign) {
+    return { ok: false, error: "리더가 파트장 숙제 배정을 허용하지 않았어요." };
+  }
+
+  // 2) 내가 파트장인 팀 목록
+  const { data: myTeams } = await admin
+    .from("teams")
+    .select("id")
+    .eq("academy_id", academyId)
+    .eq("leader_id", user.id);
+  const teamIds = (myTeams ?? []).map((t) => t.id);
+  if (teamIds.length === 0) {
+    return { ok: false, error: "파트장만 숙제를 낼 수 있어요." };
+  }
+
+  // 3) 대상이 내 팀원인지 (아닌 대상은 걸러낸다)
+  const { data: members } = await admin
+    .from("team_members")
+    .select("profile_id")
+    .in("team_id", teamIds);
+  const allowed = new Set((members ?? []).map((m) => m.profile_id as string));
+  const studentIds = [...new Set(input.studentIds)].filter((id) => allowed.has(id) && id !== user.id);
+  if (studentIds.length === 0) {
+    return { ok: false, error: "내 팀원에게만 숙제를 낼 수 있어요." };
+  }
+
+  const rows = studentIds.map((studentId) => ({
+    academy_id: academyId,
+    student_id: studentId,
+    team_id: null,
+    title: valid.title,
+    description: input.description.trim() || null,
+    total_grapes: input.totalGrapes,
+    due_date: valid.dueDate,
+    created_by: user.id,
+  }));
+  const { error } = await admin.from("progress_cards").insert(rows);
+  if (error) return { ok: false, error: "숙제 배정에 실패했습니다." };
+
+  // 배정받은 팀원에게 알림 (실패해도 배정은 성공)
+  try {
+    await sendPushTo(studentIds, {
+      title: "🎵 새 숙제가 배정됐어요!",
+      body: `「${valid.title}」 연습을 시작해 볼까요?`,
+      url: "/me",
+      tag: "new-homework",
+    });
+  } catch {
+    // 무시
+  }
+
+  revalidatePath("/me");
+  revalidatePath("/me/review");
+  return { ok: true, data: { count: studentIds.length } };
+}
+
 /** 학생이 자기 숙제(진도카드)를 직접 추가. RLS가 본인 카드 insert만 허용한다. */
 export async function createMyCard(input: {
   title: string;

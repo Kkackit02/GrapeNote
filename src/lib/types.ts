@@ -16,6 +16,8 @@ export interface Academy {
   premium_until?: string | null;
   /** 연습 리마인더 요일 (KST 0=일~6=토 콤마 목록). 비면 꺼짐 (0028) */
   reminder_days?: string | null;
+  /** 파트장이 자기 팀원에게 숙제를 낼 수 있게 허용 (0030) */
+  leaders_can_assign?: boolean;
   created_at: string;
 }
 

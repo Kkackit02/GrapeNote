@@ -37,10 +37,11 @@ export default async function MyCardsPage() {
     targetIds.length > 0
       ? supabase.from("feed_reactions").select("*").in("target_id", targetIds)
       : Promise.resolve({ data: [] }),
-    supabase.from("academies").select("show_board").maybeSingle(),
+    supabase.from("academies").select("show_board, leaders_can_assign").maybeSingle(),
   ]);
   const reactions = (reactionRows ?? []) as FeedReaction[];
   const boardShared = !!academyRow?.show_board;
+  const leaderCanAssign = !!academyRow?.leaders_can_assign;
 
   // 프로필이 없는 계정(가입 중 실패 등)은 무한 리다이렉트 대신 로그인으로 돌려보낸다
   if (!profileRow) redirect("/student/login");
@@ -108,6 +109,16 @@ export default async function MyCardsPage() {
               : "검토할 팀원 영상이 없어요"}
           </span>
           <span className="text-amber-700 font-bold text-sm shrink-0">검토함 →</span>
+        </Link>
+      )}
+
+      {isLeader && leaderCanAssign && (
+        <Link
+          href="/me/assign"
+          className="rounded-2xl bg-violet-50 border border-violet-200 p-4 flex items-center justify-between active:bg-violet-100"
+        >
+          <span className="font-bold text-violet-900">🎯 팀원에게 숙제 내기</span>
+          <span className="text-violet-600 font-bold text-sm shrink-0">숙제 내기 →</span>
         </Link>
       )}
 

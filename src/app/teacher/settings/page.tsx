@@ -5,6 +5,7 @@ import { isDriveConfigured } from "@/lib/google-drive";
 import { getTerms } from "@/lib/terms-server";
 import { groupLimits, formatBytes, isPremiumActive } from "@/lib/limits";
 import { BoardShareToggle } from "@/components/BoardShareToggle";
+import { LeaderAssignToggle } from "@/components/LeaderAssignToggle";
 import { DriveArchiveCard } from "@/components/DriveArchiveCard";
 import { PushToggle } from "@/components/PushToggle";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -115,6 +116,7 @@ export default async function SettingsPage() {
       />
       <LinkAccountCard linkedName={linkedName} />
       <BoardShareToggle enabled={!!academy?.show_board} />
+      <LeaderAssignToggle enabled={!!academy?.leaders_can_assign} />
       <DriveArchiveCard connected={driveConnected} configured={isDriveConfigured()} />
     </div>
   );
