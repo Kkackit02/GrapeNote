@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { deriveGrapes, approvedCount } from "@/lib/grapes";
 import { GrapeBunch } from "@/components/GrapeBunch";
+import { RANDOM_SKIN_ID } from "@/lib/skins";
+import { getSkinPools } from "@/lib/skin-pool";
 import { SongTracks } from "@/components/SongTracks";
 import type { ProgressCard, Profile, SongTrack, Submission } from "@/lib/types";
 
@@ -46,6 +48,11 @@ export default async function TeacherCardPage({
   const student = studentRow as Profile;
   const subList = (subs ?? []) as Submission[];
   const grapes = deriveGrapes(card.total_grapes, subList);
+  // 이 멤버가 랜덤 포도를 쓰면 가진 스킨 목록이 필요하다
+  const randomPool =
+    student.grape_skin === RANDOM_SKIN_ID
+      ? (await getSkinPools([student.id])).get(student.id)
+      : undefined;
 
   return (
     <div className="flex flex-col gap-5">
@@ -75,7 +82,12 @@ export default async function TeacherCardPage({
       />
 
       <div className="rounded-2xl bg-white border border-violet-100 p-4">
-        <GrapeBunch grapes={grapes} skinId={student.grape_skin} className="max-w-xs mx-auto" />
+        <GrapeBunch
+          grapes={grapes}
+          skinId={student.grape_skin}
+          randomPool={randomPool}
+          className="max-w-xs mx-auto"
+        />
       </div>
 
       <section>

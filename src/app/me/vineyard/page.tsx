@@ -6,7 +6,7 @@ import { calcTitleStats, getTitle } from "@/lib/titles";
 import { GrapeBunch } from "@/components/GrapeBunch";
 import { SkinPicker } from "@/components/SkinPicker";
 import { TitlePicker } from "@/components/TitlePicker";
-import { getSkin } from "@/lib/skins";
+import { getSkin, unlockedSkinIds, type SkinStats } from "@/lib/skins";
 import type { ProgressCard, Profile, Submission } from "@/lib/types";
 
 /** 내 포도밭: 완성한 포도송이 갤러리 + 누적 통계 */
@@ -27,7 +27,8 @@ export default async function VineyardPage() {
   const cardList = (cards ?? []) as ProgressCard[];
   const subList = (subs ?? []) as Submission[];
   const profile = profileRow as Pick<Profile, "grape_skin" | "title"> | null;
-  const skinId = getSkin(profile?.grape_skin).id;
+  // 저장된 원본 값 그대로 쓴다 ("random"이면 랜덤 포도로 렌더돼야 하므로)
+  const skinId = profile?.grape_skin ?? getSkin(undefined).id;
   const wornTitle = getTitle(profile?.title);
 
   // 마감된 숙제도 완성작이면 트로피는 남긴다 (기록은 사라지지 않음)
@@ -36,6 +37,13 @@ export default async function VineyardPage() {
   const totalVideos = subList.length;
   const streak = calcStreak(subList.map((s) => s.created_at));
   const titleStats = calcTitleStats(cardList, subList, streak);
+  const skinStats: SkinStats = {
+    grapes: totalApproved,
+    bunches: completed.length,
+    videos: totalVideos,
+    streak,
+  };
+  const myPool = unlockedSkinIds(skinStats); // 랜덤 포도 재료
 
   return (
     <div className="flex flex-col gap-5">
@@ -68,15 +76,7 @@ export default async function VineyardPage() {
         </div>
       </div>
 
-      <SkinPicker
-        currentSkinId={skinId}
-        stats={{
-          grapes: totalApproved,
-          bunches: completed.length,
-          videos: totalVideos,
-          streak,
-        }}
-      />
+      <SkinPicker currentSkinId={skinId} stats={skinStats} />
 
       <TitlePicker currentTitleId={profile?.title ?? null} stats={titleStats} />
 
@@ -98,7 +98,12 @@ export default async function VineyardPage() {
                   href={`/me/cards/${card.id}`}
                   className="block rounded-2xl bg-white border-2 border-violet-100 p-3 text-center active:bg-violet-50"
                 >
-                  <GrapeBunch grapes={grapes} skinId={skinId} className="max-h-32 mx-auto" />
+                  <GrapeBunch
+                    grapes={grapes}
+                    skinId={skinId}
+                    randomPool={myPool}
+                    className="max-h-32 mx-auto"
+                  />
                   <p className="mt-2 text-sm font-extrabold text-gray-800 truncate">
                     🏆 {card.title}
                   </p>

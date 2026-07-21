@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getTitle } from "@/lib/titles";
+import { RANDOM_SKIN_ID } from "@/lib/skins";
+import { getSkinPools } from "@/lib/skin-pool";
 import { getGroupWall, getGroupShowcases } from "@/lib/wall";
 import { GrapeBunch } from "@/components/GrapeBunch";
 import { ShowcasePlayer } from "@/components/ShowcasePlayer";
@@ -47,6 +49,12 @@ export default async function WallPage() {
       .in("id", memberIds);
     for (const row of titleRows ?? []) titleOf.set(row.id as string, (row.title as string) ?? null);
   }
+
+  // 랜덤 포도를 쓰는 멤버가 있으면 그 사람들의 '가진 스킨' 목록을 구한다
+  const randomIds = completions
+    .filter((c) => c.grape_skin === RANDOM_SKIN_ID)
+    .map((c) => c.student_id);
+  const skinPools = randomIds.length > 0 ? await getSkinPools(randomIds) : new Map<string, string[]>();
 
   // 완성작 리액션 (같은 학원 것만 조회됨)
   const cardIds = completions.map((c) => c.card_id);
@@ -108,6 +116,7 @@ export default async function WallPage() {
                 <GrapeBunch
                   grapes={allApproved(c.total_grapes)}
                   skinId={c.grape_skin}
+                  randomPool={skinPools.get(c.student_id)}
                   className="max-h-28 mx-auto"
                 />
                 <p className="mt-1.5 text-sm font-extrabold text-gray-800 truncate">

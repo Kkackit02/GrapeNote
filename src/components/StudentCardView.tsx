@@ -28,8 +28,10 @@ interface Props {
   premium?: boolean;
   /** 마감된 숙제 — 지난 기록은 볼 수 있고 새 제출/삭제만 막는다 */
   readOnly?: boolean;
-  /** 이 멤버가 고른 포도알 스킨 id */
+  /** 이 멤버가 고른 포도알 스킨 id ("random"이면 랜덤 포도) */
   skinId?: string;
+  /** 랜덤 포도용 — 이 멤버가 가진 스킨 id 목록 */
+  randomPool?: string[];
   /** 자랑 카드용 — 멤버 이름 */
   memberName?: string;
   /** 자랑 카드용 — 그룹 이름 */
@@ -48,6 +50,7 @@ export function StudentCardView({
   premium = false,
   readOnly = false,
   skinId,
+  randomPool,
   memberName = "멤버",
   groupName = "우리 그룹",
   showcaseSubmissionId = null,
@@ -159,6 +162,7 @@ export function StudentCardView({
           onGrapeClick={(g) => { setSelected(g); setJustUploaded(false); }}
           selectedIndex={selected?.index}
           skinId={skinId}
+          randomPool={randomPool}
           onAddGrape={canGrow ? addGrape : undefined}
           addBusy={adding}
           className="max-w-sm mx-auto"

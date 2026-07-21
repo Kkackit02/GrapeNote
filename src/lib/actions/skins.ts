@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { calcStreak } from "@/lib/streaks";
-import { getSkin, isSkinUnlocked, type SkinStats } from "@/lib/skins";
+import {
+  getSkin,
+  isSkinUnlocked,
+  unlockedSkinIds,
+  RANDOM_SKIN_ID,
+  type SkinStats,
+} from "@/lib/skins";
 import type { ActionResult, ProgressCard, Submission } from "@/lib/types";
 
 /**
@@ -19,8 +25,9 @@ export async function setGrapeSkin(skinId: string): Promise<ActionResult> {
     return { ok: false, error: "멤버 계정으로 로그인해 주세요." };
   }
 
+  const isRandom = skinId === RANDOM_SKIN_ID;
   const skin = getSkin(skinId);
-  if (skin.id !== skinId) {
+  if (!isRandom && skin.id !== skinId) {
     return { ok: false, error: "알 수 없는 스킨이에요." };
   }
 
@@ -38,14 +45,19 @@ export async function setGrapeSkin(skinId: string): Promise<ActionResult> {
     streak: calcStreak(subs.map((s) => s.created_at)),
   };
 
-  if (!isSkinUnlocked(skin, stats)) {
+  if (isRandom) {
+    // 랜덤 포도는 가진 스킨이 2개 이상일 때만 (섞을 재료가 있어야 한다)
+    if (unlockedSkinIds(stats).length < 2) {
+      return { ok: false, error: "스킨을 2개 이상 모으면 랜덤 포도를 쓸 수 있어요!" };
+    }
+  } else if (!isSkinUnlocked(skin, stats)) {
     return { ok: false, error: "아직 잠긴 스킨이에요. 조건을 채우면 열려요!" };
   }
 
   // 본인 행만, grape_skin 컬럼만 갱신 (service role)
   const { error } = await createSupabaseAdmin()
     .from("profiles")
-    .update({ grape_skin: skin.id })
+    .update({ grape_skin: isRandom ? RANDOM_SKIN_ID : skin.id })
     .eq("id", user.id);
   if (error) return { ok: false, error: "스킨 변경에 실패했어요." };
 

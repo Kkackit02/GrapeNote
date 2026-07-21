@@ -38,6 +38,8 @@ export interface SkinStats {
 }
 
 export const DEFAULT_SKIN_ID = "violet";
+/** 랜덤 포도 — 내가 가진 스킨들이 포도알마다 섞여 박힌다 */
+export const RANDOM_SKIN_ID = "random";
 
 /**
  * 스킨 목록. 위에서부터 쉬운 순서(대략)로 둔다.
@@ -157,6 +159,21 @@ const SKIN_BY_ID = new Map(SKINS.map((s) => [s.id, s]));
 /** id로 스킨을 찾되, 없거나 비어 있으면 기본 스킨으로 안전하게 되돌린다. */
 export function getSkin(id: string | null | undefined): GrapeSkin {
   return (id && SKIN_BY_ID.get(id)) || SKIN_BY_ID.get(DEFAULT_SKIN_ID)!;
+}
+
+/**
+ * 랜덤 포도에서 이 포도알에 박힐 스킨.
+ * 인덱스로 결정되므로 새로고침해도 같은 자리엔 같은 스킨이 온다(깜빡임 방지).
+ */
+export function skinForIndex(poolIds: string[], index: number): GrapeSkin {
+  if (poolIds.length === 0) return getSkin(undefined);
+  const mixed = (index * 2654435761) >>> 0; // 골든비 해시로 섞어 배열이 단조롭지 않게
+  return getSkin(poolIds[mixed % poolIds.length]);
+}
+
+/** 지금 통계로 열린 스킨 id 목록 (랜덤 포도의 재료) */
+export function unlockedSkinIds(stats: SkinStats): string[] {
+  return SKINS.filter((s) => isSkinUnlocked(s, stats)).map((s) => s.id);
 }
 
 /** 이 스킨의 잠금 해제 기준에 대한 현재 진행값(가진 수). free면 null. */

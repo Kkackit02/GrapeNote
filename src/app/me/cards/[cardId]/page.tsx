@@ -5,7 +5,8 @@ import { deriveGrapes } from "@/lib/grapes";
 import { getTerms } from "@/lib/terms-server";
 import { isPremiumActive } from "@/lib/limits";
 import { StudentCardView } from "@/components/StudentCardView";
-import { getSkin } from "@/lib/skins";
+import { getSkin, RANDOM_SKIN_ID } from "@/lib/skins";
+import { getSkinPools } from "@/lib/skin-pool";
 import type { ProgressCard, Profile, SongTrack, Submission } from "@/lib/types";
 
 export default async function MyCardPage({
@@ -47,7 +48,10 @@ export default async function MyCardPage({
     Profile,
     "grape_skin" | "display_name" | "showcase_submission_id"
   > | null;
-  const skinId = getSkin(profile?.grape_skin).id;
+  // 저장된 원본 값 ("random"이면 랜덤 포도). 랜덤일 때만 가진 스킨 목록을 구한다.
+  const skinId = profile?.grape_skin ?? getSkin(undefined).id;
+  const randomPool =
+    skinId === RANDOM_SKIN_ID ? (await getSkinPools([user!.id])).get(user!.id) : undefined;
 
   return (
     <div>
@@ -63,6 +67,7 @@ export default async function MyCardPage({
           // 마감된 숙제는 지난 기록만 볼 수 있다 (제출은 DB가 막는다)
           readOnly={!!card.closed_at}
           skinId={skinId}
+          randomPool={randomPool}
           memberName={profile?.display_name ?? "멤버"}
           groupName={(academyRow as { name?: string } | null)?.name ?? "우리 그룹"}
           showcaseSubmissionId={profile?.showcase_submission_id ?? null}

@@ -1,7 +1,7 @@
 "use client";
 
 import { bunchRows, type GrapeState } from "@/lib/grapes";
-import { getSkin } from "@/lib/skins";
+import { getSkin, skinForIndex, RANDOM_SKIN_ID, type GrapeSkin } from "@/lib/skins";
 import { GrapeBerry } from "./GrapeBerry";
 
 const R = 18; // 포도알 반지름
@@ -16,8 +16,10 @@ interface Props {
   /** 강조할 포도알 index (선택된 알) */
   selectedIndex?: number;
   className?: string;
-  /** 합격 포도알에 입힐 스킨 id (기본 머루). 멤버가 고른 값 */
+  /** 합격 포도알에 입힐 스킨 id (기본 머루). 멤버가 고른 값. "random"이면 랜덤 포도 */
   skinId?: string;
+  /** 랜덤 포도용 — 이 멤버가 가진 스킨 id 목록 */
+  randomPool?: string[];
   /** 주어지면 송이 끝에 점선 "+" 알을 띄운다 — 누르면 포도알을 하나 더 단다 */
   onAddGrape?: () => void;
   /** "+" 알 처리 중 (연타 방지 표시) */
@@ -31,10 +33,19 @@ export function GrapeBunch({
   selectedIndex,
   className,
   skinId,
+  randomPool,
   onAddGrape,
   addBusy,
 }: Props) {
-  const skin = getSkin(skinId);
+  // 랜덤 포도: 가진 스킨이 2개 이상일 때만 의미가 있다
+  const pool = skinId === RANDOM_SKIN_ID ? (randomPool ?? []) : [];
+  const isRandom = pool.length > 1;
+  const skin = getSkin(isRandom ? undefined : skinId);
+  /** 이 포도알에 박힐 스킨 (랜덤이면 인덱스로 고정 선택) */
+  const skinOf = (grapeIndex: number): GrapeSkin =>
+    isRandom ? skinForIndex(pool, grapeIndex) : skin;
+  // defs에 필요한 그라데이션 (랜덤이면 가진 스킨 전부)
+  const skinsUsed: GrapeSkin[] = isRandom ? pool.map((id) => getSkin(id)) : [skin];
   // "+" 알이 있으면 그 자리까지 포함해 송이 모양을 잡는다
   const slotCount = grapes.length + (onAddGrape ? 1 : 0);
   const rows = bunchRows(slotCount);
@@ -66,15 +77,13 @@ export function GrapeBunch({
       aria-label={`포도송이: ${grapes.filter((g) => g.status === "approved").length}/${grapes.length}알 완성`}
     >
       <defs>
-        <radialGradient id={`skin-${skin.id}`} cx="0.35" cy="0.3" r="0.9">
-          {skin.colors.map((color, i) => (
-            <stop
-              key={i}
-              offset={`${(i / (skin.colors.length - 1)) * 100}%`}
-              stopColor={color}
-            />
-          ))}
-        </radialGradient>
+        {skinsUsed.map((s) => (
+          <radialGradient key={s.id} id={`skin-${s.id}`} cx="0.35" cy="0.3" r="0.9">
+            {s.colors.map((color, i) => (
+              <stop key={i} offset={`${(i / (s.colors.length - 1)) * 100}%`} stopColor={color} />
+            ))}
+          </radialGradient>
+        ))}
       </defs>
 
       {/* 줄기 */}
@@ -102,7 +111,7 @@ export function GrapeBunch({
           r={R}
           selected={selectedIndex === grape.index}
           onClick={onGrapeClick ? () => onGrapeClick(grape) : undefined}
-          skin={skin}
+          skin={skinOf(grape.index)}
         />
       ))}
 

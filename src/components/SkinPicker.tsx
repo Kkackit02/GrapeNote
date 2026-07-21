@@ -8,6 +8,9 @@ import {
   isSkinUnlocked,
   unlockCurrent,
   unlockLabel,
+  unlockedSkinIds,
+  getSkin,
+  RANDOM_SKIN_ID,
   type GrapeSkin,
   type SkinStats,
 } from "@/lib/skins";
@@ -18,10 +21,15 @@ interface Props {
 }
 
 /** 포도알 한 알 미리보기 (스킨 색) */
-function Swatch({ skin, dim }: { skin: GrapeSkin; dim?: boolean }) {
+function Swatch({ skin, dim, mini }: { skin: GrapeSkin; dim?: boolean; mini?: boolean }) {
   const gid = `swatch-${skin.id}`;
   return (
-    <svg viewBox="0 0 40 40" className="w-11 h-11 shrink-0" aria-hidden style={dim ? { opacity: 0.4 } : undefined}>
+    <svg
+      viewBox="0 0 40 40"
+      className={`${mini ? "w-8 h-8" : "w-11 h-11"} shrink-0`}
+      aria-hidden
+      style={dim ? { opacity: 0.4 } : undefined}
+    >
       <defs>
         <radialGradient id={gid} cx="0.35" cy="0.3" r="0.9">
           {skin.colors.map((c, i) => (
@@ -57,11 +65,12 @@ export function SkinPicker({ currentSkinId, stats }: Props) {
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const pick = async (skin: GrapeSkin) => {
-    if (saving || skin.id === currentSkinId || !isSkinUnlocked(skin, stats)) return;
+  /** 스킨 id(또는 "random")를 적용한다. 잠금 검증은 버튼 disabled + 서버가 함께 막는다. */
+  const pick = async (id: string) => {
+    if (saving || id === currentSkinId) return;
     setError(null);
-    setSaving(skin.id);
-    const result = await setGrapeSkin(skin.id);
+    setSaving(id);
+    const result = await setGrapeSkin(id);
     setSaving(null);
     if (!result.ok) {
       setError(result.error);
@@ -78,6 +87,48 @@ export function SkinPicker({ currentSkinId, stats }: Props) {
       </p>
       {error && <p className="mt-1.5 text-sm text-red-500">{error}</p>}
 
+      {/* 랜덤 포도 — 가진 스킨들이 포도알마다 섞여 박힌다 */}
+      {(() => {
+        const owned = unlockedSkinIds(stats);
+        const canRandom = owned.length >= 2;
+        const selected = currentSkinId === RANDOM_SKIN_ID;
+        return (
+          <button
+            type="button"
+            onClick={() => canRandom && pick(RANDOM_SKIN_ID)}
+            disabled={!canRandom || selected || saving !== null}
+            className={`mt-2 w-full text-left rounded-2xl border-2 p-3 flex items-center gap-3 ${
+              selected
+                ? "bg-violet-50 border-violet-400"
+                : canRandom
+                  ? "bg-white border-violet-100 active:bg-violet-50"
+                  : "bg-gray-50 border-gray-100"
+            }`}
+          >
+            <span className="flex -space-x-2 shrink-0">
+              {(canRandom ? owned : ["violet", "green", "gold"]).slice(0, 3).map((id, i) => (
+                <Swatch key={i} skin={getSkin(id)} dim={!canRandom} mini />
+              ))}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-extrabold text-gray-800 flex items-center gap-1">
+                🎲 랜덤 포도
+                {selected && <span className="text-violet-600">✓</span>}
+              </p>
+              {selected ? (
+                <p className="text-xs font-bold text-violet-600">사용 중 · 가진 스킨 {owned.length}개가 섞여요</p>
+              ) : canRandom ? (
+                <p className="text-xs text-gray-400">
+                  {saving === RANDOM_SKIN_ID ? "입히는 중..." : `가진 스킨 ${owned.length}개가 알마다 랜덤으로!`}
+                </p>
+              ) : (
+                <p className="text-xs text-gray-400">🔒 스킨 2개 이상 모으기</p>
+              )}
+            </div>
+          </button>
+        );
+      })()}
+
       <ul className="mt-2 grid grid-cols-2 gap-2">
         {SKINS.map((skin) => {
           const unlocked = isSkinUnlocked(skin, stats);
@@ -89,7 +140,7 @@ export function SkinPicker({ currentSkinId, stats }: Props) {
             <li key={skin.id}>
               <button
                 type="button"
-                onClick={() => pick(skin)}
+                onClick={() => pick(skin.id)}
                 disabled={!unlocked || selected || saving !== null}
                 className={`w-full text-left rounded-2xl border-2 p-3 flex items-center gap-3 transition-colors ${
                   selected
