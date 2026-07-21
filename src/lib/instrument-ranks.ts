@@ -17,9 +17,9 @@ export interface InstrumentRank {
 
 /** 순위별 칭호 (악기명과 조합). 1~3위만 특별 칭호. */
 export function rankTitle(instrument: string, rank: number): { emoji: string; name: string } | null {
-  if (rank === 1) return { emoji: "👑", name: `${instrument} 지존` };
-  if (rank === 2) return { emoji: "🥈", name: `${instrument} 고수` };
-  if (rank === 3) return { emoji: "🥉", name: `${instrument} 유망주` };
+  if (rank === 1) return { emoji: "👑", name: `${instrument} 킹` };
+  if (rank === 2) return { emoji: "🥈", name: `${instrument} 짱` };
+  if (rank === 3) return { emoji: "🥉", name: `${instrument} 좌` };
   return null;
 }
 
