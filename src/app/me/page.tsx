@@ -17,6 +17,7 @@ import type { ProgressCard, Profile, Submission, Team } from "@/lib/types";
 
 export default async function MyCardsPage() {
   const supabase = await createSupabaseServer();
+  const terms = await getTerms();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/student/login");
 
@@ -341,7 +342,7 @@ export default async function MyCardsPage() {
         myId={user!.id}
       />
 
-      <AddMyCardForm leaderLabel={(await getTerms()).leader} />
+      <AddMyCardForm leaderLabel={terms.leader} groupType={terms.type} />
 
       <InstallPrompt />
 

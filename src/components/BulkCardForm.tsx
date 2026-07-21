@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { GroupType } from "@/lib/terms";
 import { useRouter } from "next/navigation";
 import { createCard } from "@/lib/actions/cards";
 import { SongTitleField } from "./SongTitleField";
@@ -17,10 +18,12 @@ interface Props {
   teams?: TeamOption[];
   /** 팀 페이지에서 넘어온 경우 최초 선택할 팀 */
   initialTeamId?: string | null;
+  /** 교재 프리셋은 학원에서만 노출 */
+  groupType?: GroupType;
 }
 
 /** 공통 카드 배정: 팀/전체/개별 선택 + 곡 정보. 팀으로 배정하면 팀 숙제가 되어 새 팀원에게도 자동 배정된다. */
-export function BulkCardForm({ students, teams = [], initialTeamId = null }: Props) {
+export function BulkCardForm({ students, teams = [], initialTeamId = null, groupType }: Props) {
   const router = useRouter();
   const initialTeam = teams.find((t) => t.id === initialTeamId) ?? null;
   const [selected, setSelected] = useState<Set<string>>(
@@ -138,7 +141,7 @@ export function BulkCardForm({ students, teams = [], initialTeamId = null }: Pro
 
       <section className="rounded-2xl bg-white border border-violet-100 p-4 flex flex-col gap-3">
         <h2 className="font-bold text-gray-700">어떤 곡인가요?</h2>
-        <SongTitleField value={title} onChange={setTitle} />
+        <SongTitleField value={title} onChange={setTitle} groupType={groupType} />
         <input
           value={description}
           onChange={(e) => setDescription(e.target.value)}

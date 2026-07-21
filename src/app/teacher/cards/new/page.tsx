@@ -48,6 +48,7 @@ export default async function NewCardPage({
         </div>
       ) : (
         <BulkCardForm
+          groupType={terms.type}
           students={studentList}
           teams={teamOptions}
           initialTeamId={teamParam ?? null}

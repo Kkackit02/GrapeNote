@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { assignHomeworkAsLeader } from "@/lib/actions/cards";
 import { instrumentEmoji, parseInstruments } from "@/lib/instruments";
+import { MissionPresets } from "./MissionPresets";
 
 export interface AssignMember {
   id: string;
@@ -126,6 +127,8 @@ export function LeaderAssignForm({ members }: Props) {
           placeholder={"예: 1절은 악보 안 보고 치기"}
           className="px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
         />
+        <MissionPresets onPick={(t) => setMission((m) => (m.trim() ? `${m}
+${t}` : t))} />
       </label>
 
       <div className="grid grid-cols-2 gap-3">

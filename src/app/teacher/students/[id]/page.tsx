@@ -59,7 +59,7 @@ export default async function StudentDetailPage({
 
       <InstrumentPicker studentId={id} current={profile.instrument} />
 
-      <NewCardForm studentId={id} />
+      <NewCardForm studentId={id} groupType={terms.type} />
 
       {cardList.length === 0 ? (
         <p className="text-center text-gray-500 py-6">아직 배정된 진도카드가 없어요.</p>

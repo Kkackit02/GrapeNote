@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createSong } from "@/lib/actions/songs";
 import { instrumentEmoji, parseInstruments } from "@/lib/instruments";
+import { MissionPresets } from "./MissionPresets";
 import type { Profile } from "@/lib/types";
 
 interface Props {
@@ -90,6 +91,8 @@ export function SongWizard({ students }: Props) {
           className="px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
         />
         <span className="text-xs text-gray-400">멤버 카드 상단에 크게 표시돼요.</span>
+        <MissionPresets onPick={(t) => setMission((m) => (m.trim() ? `${m}
+${t}` : t))} />
       </label>
 
       <div className="flex flex-col gap-2">

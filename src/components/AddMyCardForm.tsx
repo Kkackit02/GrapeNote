@@ -1,12 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import type { GroupType } from "@/lib/terms";
 import { useRouter } from "next/navigation";
 import { createMyCard } from "@/lib/actions/cards";
 import { SongTitleField } from "./SongTitleField";
 
 /** 멤버가 스스로 연습할 곡(숙제)을 추가하는 폼. 추가만 가능하고 수정/삭제는 리더만. */
-export function AddMyCardForm({ leaderLabel = "선생님" }: { leaderLabel?: string }) {
+export function AddMyCardForm({
+  leaderLabel = "선생님",
+  groupType,
+}: {
+  leaderLabel?: string;
+  /** 교재 프리셋은 학원에서만 노출 */
+  groupType?: GroupType;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -56,7 +64,7 @@ export function AddMyCardForm({ leaderLabel = "선생님" }: { leaderLabel?: str
       <p className="text-xs text-gray-500 -mt-1">
         한번 추가하면 스스로 고칠 수 없어요. 바꾸고 싶으면 {leaderLabel}에게 이야기해 주세요!
       </p>
-      <SongTitleField value={title} onChange={setTitle} />
+      <SongTitleField value={title} onChange={setTitle} groupType={groupType} />
       <input
         value={description}
         onChange={(e) => setDescription(e.target.value)}

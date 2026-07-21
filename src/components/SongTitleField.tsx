@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { GroupType } from "@/lib/terms";
 
 const BOOKS = [
   { key: "custom", label: "직접 입력", max: 0 },
@@ -16,10 +17,13 @@ const BOOKS = [
 interface Props {
   value: string;
   onChange: (title: string) => void;
+  /** 교재 프리셋(바이엘·체르니…)은 학원에서만 의미가 있다. 밴드/동아리엔 숨긴다. */
+  groupType?: GroupType;
 }
 
-/** 교재 프리셋 + 번호 선택으로 곡 제목 자동 입력. 직접 입력도 가능. */
-export function SongTitleField({ value, onChange }: Props) {
+/** 곡 제목 입력. 학원이면 교재 프리셋 + 번호 선택도 제공한다. */
+export function SongTitleField({ value, onChange, groupType = "academy" }: Props) {
+  const showBooks = groupType === "academy";
   const [bookKey, setBookKey] = useState<string>("custom");
   const [number, setNumber] = useState("");
   const book = BOOKS.find((b) => b.key === bookKey)!;
@@ -44,6 +48,7 @@ export function SongTitleField({ value, onChange }: Props) {
 
   return (
     <div className="flex flex-col gap-2">
+      {showBooks && (
       <div className="flex gap-2">
         <select
           value={bookKey}
@@ -67,12 +72,13 @@ export function SongTitleField({ value, onChange }: Props) {
           </div>
         )}
       </div>
-      {bookKey === "custom" ? (
+      )}
+      {!showBooks || bookKey === "custom" ? (
         <input
           required
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="곡 이름 (예: 젓가락 행진곡)"
+          placeholder={showBooks ? "곡 이름 (예: 젓가락 행진곡)" : "곡 이름 (예: 혁오 - TOMBOY)"}
           className="h-12 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400"
         />
       ) : (

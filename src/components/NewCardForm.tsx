@@ -1,16 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import type { GroupType } from "@/lib/terms";
 import { useRouter } from "next/navigation";
 import { createCard } from "@/lib/actions/cards";
 import { SongTitleField } from "./SongTitleField";
 
 interface Props {
   studentId: string;
+  /** 교재 프리셋은 학원에서만 노출 */
+  groupType?: GroupType;
 }
 
 /** 진도카드 배정 폼 (곡명 + 포도알 개수 + 지시사항) */
-export function NewCardForm({ studentId }: Props) {
+export function NewCardForm({ studentId, groupType }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -57,7 +60,7 @@ export function NewCardForm({ studentId }: Props) {
   return (
     <form onSubmit={submit} className="rounded-2xl bg-white border border-violet-200 p-4 flex flex-col gap-3">
       <h3 className="font-bold text-violet-900">새 진도카드</h3>
-      <SongTitleField value={title} onChange={setTitle} />
+      <SongTitleField value={title} onChange={setTitle} groupType={groupType} />
       <input
         value={description}
         onChange={(e) => setDescription(e.target.value)}
