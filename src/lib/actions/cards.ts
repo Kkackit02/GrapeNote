@@ -537,6 +537,64 @@ export async function createMyCard(input: {
   return { ok: true, data: undefined };
 }
 
+/**
+ * 멤버가 자기 카드의 포도송이를 더 키운다 (포도알 개수 늘리기).
+ * 늘리기만 가능 — 줄이면 제출 기록이 숨겨질 수 있어 막는다. 최대 60개.
+ * 마감된 카드는 불가. 늘리면 (새 빈 알이 생겨) 완성 상태는 자동 해제된다.
+ */
+export async function growMyCard(input: {
+  cardId: string;
+  /** 늘릴 개수 (1 이상) */
+  addGrapes: number;
+}): Promise<ActionResult<{ totalGrapes: number }>> {
+  if (!Number.isInteger(input.addGrapes) || input.addGrapes < 1) {
+    return { ok: false, error: "늘릴 개수를 확인해 주세요." };
+  }
+
+  const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.app_metadata?.role !== "student") {
+    return { ok: false, error: "멤버 계정으로 로그인해 주세요." };
+  }
+
+  // RLS로 내 카드만 조회된다 — 남의 카드는 여기서 걸러진다
+  const { data: card } = await supabase
+    .from("progress_cards")
+    .select("id, student_id, total_grapes, closed_at, completed_at")
+    .eq("id", input.cardId)
+    .eq("student_id", user.id)
+    .maybeSingle();
+  if (!card) return { ok: false, error: "내 카드만 키울 수 있어요." };
+  if (card.closed_at) return { ok: false, error: "마감된 숙제는 키울 수 없어요." };
+
+  const newTotal = card.total_grapes + input.addGrapes;
+  if (newTotal > 60) {
+    return { ok: false, error: `포도알은 최대 60개까지예요. (지금 ${card.total_grapes}개)` };
+  }
+
+  // 늘어난 포도알은 비어 있으므로 완성 상태는 해제한다
+  const { data: subs } = await supabase
+    .from("submissions")
+    .select("*")
+    .eq("card_id", input.cardId);
+  const grapes = deriveGrapes(newTotal, (subs ?? []) as Submission[]);
+  const completedAt = isCardComplete(grapes) ? card.completed_at : null;
+
+  // 프로필 쓰기와 같은 이유로 service role — id + student_id로 범위를 좁혀 안전하게 갱신
+  const { error } = await createSupabaseAdmin()
+    .from("progress_cards")
+    .update({ total_grapes: newTotal, completed_at: completedAt })
+    .eq("id", input.cardId)
+    .eq("student_id", user.id);
+  if (error) return { ok: false, error: "포도송이 키우기에 실패했어요." };
+
+  revalidatePath("/me");
+  revalidatePath(`/me/cards/${input.cardId}`);
+  revalidatePath("/teacher/cards");
+  revalidatePath("/teacher/board");
+  return { ok: true, data: { totalGrapes: newTotal } };
+}
+
 /** 숙제(진도카드) 수정 — 선생님 전용. 제목/지시사항/포도알 개수/기한을 바꾼다. */
 export async function updateCard(input: {
   cardId: string;

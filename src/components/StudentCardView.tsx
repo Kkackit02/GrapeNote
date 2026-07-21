@@ -11,6 +11,7 @@ import { ShareCompletionButton } from "./ShareCompletionButton";
 import { ShareCardButton } from "./ShareCardButton";
 import { ShowcaseButton } from "./ShowcaseButton";
 import { deleteSubmission } from "@/lib/actions/uploads";
+import { growMyCard } from "@/lib/actions/cards";
 import { approvedCount, type GrapeState } from "@/lib/grapes";
 import { groupLimits } from "@/lib/limits";
 import type { ProgressCard, SongTrack } from "@/lib/types";
@@ -55,6 +56,21 @@ export function StudentCardView({
   const [selected, setSelected] = useState<GrapeState | null>(null);
   const [justUploaded, setJustUploaded] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [adding, setAdding] = useState(false);
+
+  // 내 카드면 포도알을 더 달 수 있다 (늘리기만, 최대 60). 마감 카드는 불가.
+  const canGrow = !readOnly && card.total_grapes < 60;
+  const addGrape = async () => {
+    if (adding) return;
+    setAdding(true);
+    const result = await growMyCard({ cardId: card.id, addGrapes: 1 });
+    setAdding(false);
+    if (!result.ok) {
+      window.alert(result.error);
+      return;
+    }
+    router.refresh();
+  };
 
   const done = approvedCount(grapes);
   const completed = !!card.completed_at;
@@ -143,10 +159,18 @@ export function StudentCardView({
           onGrapeClick={(g) => { setSelected(g); setJustUploaded(false); }}
           selectedIndex={selected?.index}
           skinId={skinId}
+          onAddGrape={canGrow ? addGrape : undefined}
+          addBusy={adding}
           className="max-w-sm mx-auto"
         />
         <p className="mt-2 text-center text-sm text-gray-400">
           포도알을 눌러 연습 영상을 올려 보세요!
+          {canGrow && (
+            <>
+              <br />
+              <span className="text-green-600 font-medium">점선 + 알을 누르면 포도알을 더 달 수 있어요 🍇</span>
+            </>
+          )}
         </p>
       </div>
 

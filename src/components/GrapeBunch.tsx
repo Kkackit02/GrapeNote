@@ -18,30 +18,45 @@ interface Props {
   className?: string;
   /** 합격 포도알에 입힐 스킨 id (기본 머루). 멤버가 고른 값 */
   skinId?: string;
+  /** 주어지면 송이 끝에 점선 "+" 알을 띄운다 — 누르면 포도알을 하나 더 단다 */
+  onAddGrape?: () => void;
+  /** "+" 알 처리 중 (연타 방지 표시) */
+  addBusy?: boolean;
 }
 
 /** 포도송이 SVG — 위가 넓고 아래로 좁아지는 클러스터 + 줄기/잎 */
-export function GrapeBunch({ grapes, onGrapeClick, selectedIndex, className, skinId }: Props) {
+export function GrapeBunch({
+  grapes,
+  onGrapeClick,
+  selectedIndex,
+  className,
+  skinId,
+  onAddGrape,
+  addBusy,
+}: Props) {
   const skin = getSkin(skinId);
-  const rows = bunchRows(grapes.length);
+  // "+" 알이 있으면 그 자리까지 포함해 송이 모양을 잡는다
+  const slotCount = grapes.length + (onAddGrape ? 1 : 0);
+  const rows = bunchRows(slotCount);
   const maxRow = Math.max(...rows, 1);
   const width = maxRow * DX + PAD * 2;
   const height = rows.length * DY + R + STEM_H + PAD * 2;
   const cxCenter = width / 2;
 
-  // 각 포도알의 (cx, cy) 계산
+  // 각 슬롯의 (cx, cy) 계산 (실제 알 + "+" 알)
   const positions: { cx: number; cy: number }[] = [];
   let grapeIdx = 0;
   rows.forEach((count, rowIdx) => {
     const rowWidth = count * DX;
     const startX = cxCenter - rowWidth / 2 + DX / 2;
-    for (let i = 0; i < count && grapeIdx < grapes.length; i++, grapeIdx++) {
+    for (let i = 0; i < count && grapeIdx < slotCount; i++, grapeIdx++) {
       positions.push({
         cx: startX + i * DX,
         cy: PAD + STEM_H + R + rowIdx * DY,
       });
     }
   });
+  const addPos = onAddGrape ? positions[grapes.length] : null;
 
   return (
     <svg
@@ -90,6 +105,37 @@ export function GrapeBunch({ grapes, onGrapeClick, selectedIndex, className, ski
           skin={skin}
         />
       ))}
+
+      {/* 포도알 더 달기 — 송이 끝의 점선 "+" 알 */}
+      {addPos && (
+        <g
+          onClick={addBusy ? undefined : onAddGrape}
+          className={addBusy ? "opacity-50" : "cursor-pointer"}
+          style={{ transformBox: "fill-box", transformOrigin: "center" }}
+          role="button"
+          aria-label="포도알 더 달기"
+        >
+          <circle
+            cx={addPos.cx}
+            cy={addPos.cy}
+            r={R}
+            fill="#f0fdf4"
+            stroke="#4ade80"
+            strokeWidth={2}
+            strokeDasharray="4 3"
+          />
+          <text
+            x={addPos.cx}
+            y={addPos.cy + R * 0.35}
+            textAnchor="middle"
+            fontSize={R * 1.1}
+            fill="#16a34a"
+            fontWeight="bold"
+          >
+            +
+          </text>
+        </g>
+      )}
     </svg>
   );
 }
