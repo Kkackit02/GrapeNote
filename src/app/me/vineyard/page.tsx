@@ -6,8 +6,7 @@ import { calcTitleStats, getTitle } from "@/lib/titles";
 import { GrapeBunch } from "@/components/GrapeBunch";
 import { SkinPicker } from "@/components/SkinPicker";
 import { TitlePicker } from "@/components/TitlePicker";
-import { getSkin, unlockedSkinIds, type SkinStats } from "@/lib/skins";
-import { parseInstruments } from "@/lib/instruments";
+import { getSkin, unlockedSkinIds, tallyGrapesByInstrument, type SkinStats } from "@/lib/skins";
 import type { ProgressCard, Profile, Submission } from "@/lib/types";
 
 /** 내 포도밭: 완성한 포도송이 갤러리 + 누적 통계 */
@@ -43,7 +42,7 @@ export default async function VineyardPage() {
     bunches: completed.length,
     videos: totalVideos,
     streak,
-    instruments: parseInstruments(profile?.instrument),
+    grapesByInstrument: tallyGrapesByInstrument(subList),
   };
   const myPool = unlockedSkinIds(skinStats); // 랜덤 포도 재료
 

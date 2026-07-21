@@ -12,7 +12,7 @@ export type SkinUnlock =
   | { kind: "bunches"; n: number } // 완성한 포도송이 수
   | { kind: "videos"; n: number } // 올린 연습 영상 수
   | { kind: "streak"; n: number } // 연속 연습일 🔥
-  /** 악기 전용 — 그 악기를 맡은 멤버만 (+ 포도알 n개) */
+  /** 악기 전용 — 그 악기로 연습한 포도알 n개 (담당이 아니어도 도전 가능) */
   | { kind: "instrument"; instrument: string; n: number };
 
 /** 움직이는 이펙트 — 합격 포도알에 덧입힌다 */
@@ -39,8 +39,8 @@ export interface SkinStats {
   bunches: number;
   videos: number;
   streak: number;
-  /** 맡은 악기 목록 (악기 전용 스킨 판정) */
-  instruments?: string[];
+  /** 악기별로 모은 포도알(합격) 수 — 악기 전용 스킨 판정 */
+  grapesByInstrument?: Record<string, number>;
 }
 
 export const DEFAULT_SKIN_ID = "violet";
@@ -265,6 +265,19 @@ export function skinForIndex(poolIds: string[], index: number): GrapeSkin {
   return getSkin(poolIds[mixed % poolIds.length]);
 }
 
+/** 합격 제출들을 악기별로 세어 준다 (악기 전용 스킨 판정용) */
+export function tallyGrapesByInstrument(
+  submissions: { status: string; instrument?: string | null }[]
+): Record<string, number> {
+  const tally: Record<string, number> = {};
+  for (const sub of submissions) {
+    if (sub.status !== "approved" || !sub.instrument) continue;
+    const key = sub.instrument.trim();
+    if (key) tally[key] = (tally[key] ?? 0) + 1;
+  }
+  return tally;
+}
+
 /** 지금 통계로 열린 스킨 id 목록 (랜덤 포도의 재료) */
 export function unlockedSkinIds(stats: SkinStats): string[] {
   return SKINS.filter((s) => isSkinUnlocked(s, stats)).map((s) => s.id);
@@ -284,7 +297,7 @@ export function unlockCurrent(unlock: SkinUnlock, stats: SkinStats): number | nu
     case "streak":
       return stats.streak;
     case "instrument":
-      return null; // 악기 보유 여부가 핵심이라 숫자 진행도는 보여주지 않는다
+      return stats.grapesByInstrument?.[unlock.instrument] ?? 0;
   }
 }
 
@@ -292,9 +305,6 @@ export function unlockCurrent(unlock: SkinUnlock, stats: SkinStats): number | nu
 export function isSkinUnlocked(skin: GrapeSkin, stats: SkinStats): boolean {
   const unlock = skin.unlock;
   if (unlock.kind === "free") return true;
-  if (unlock.kind === "instrument") {
-    return (stats.instruments ?? []).includes(unlock.instrument) && stats.grapes >= unlock.n;
-  }
   const have = unlockCurrent(unlock, stats) ?? 0;
   return have >= unlock.n;
 }
@@ -313,6 +323,6 @@ export function unlockLabel(unlock: SkinUnlock): string {
     case "streak":
       return `🔥 ${unlock.n}일 연속 연습`;
     case "instrument":
-      return `${instrumentEmoji(unlock.instrument)} ${unlock.instrument} 담당 + 포도알 ${unlock.n}개`;
+      return `${instrumentEmoji(unlock.instrument)} ${unlock.instrument}로 포도알 ${unlock.n}개`;
   }
 }

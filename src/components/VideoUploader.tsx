@@ -5,6 +5,7 @@ import { VideoRecorder, type RecorderTrack } from "./VideoRecorder";
 import { useUploadManager } from "./UploadManager";
 
 import { groupLimits, formatBytes } from "@/lib/limits";
+import { instrumentEmoji } from "@/lib/instruments";
 
 interface Props {
   cardId: string;
@@ -16,6 +17,10 @@ interface Props {
   leaderLabel?: string;
   /** 이 곡의 MR — 녹화 중 반주로 틀 수 있다 */
   tracks?: RecorderTrack[];
+  /** 고를 수 있는 악기 목록 (기본은 내 세션이 맨 앞) */
+  instrumentOptions?: string[];
+  /** 기본 선택 악기 (내 주 세션) */
+  defaultInstrument?: string;
 }
 
 /**
@@ -30,6 +35,8 @@ export function VideoUploader({
   premium = false,
   leaderLabel = "선생님",
   tracks = [],
+  instrumentOptions = [],
+  defaultInstrument = "",
 }: Props) {
   const limits = groupLimits(premium);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -38,6 +45,7 @@ export function VideoUploader({
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [comment, setComment] = useState("");
+  const [instrument, setInstrument] = useState(defaultInstrument);
 
   const handleFile = (file: File | undefined) => {
     if (!file) return;
@@ -54,7 +62,7 @@ export function VideoUploader({
       return;
     }
 
-    const result = startUpload({ cardId, grapeIndex, file, title, comment });
+    const result = startUpload({ cardId, grapeIndex, file, title, comment, instrument });
     if (!result.ok) {
       setError(result.error ?? "업로드를 시작하지 못했어요.");
       return;
@@ -88,6 +96,25 @@ export function VideoUploader({
         className="hidden"
         onChange={(e) => handleFile(e.target.files?.[0])}
       />
+      {instrumentOptions.length > 0 && (
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-bold text-gray-700">🎸 어떤 악기로 연습했나요?</span>
+          <select
+            value={instrument}
+            onChange={(e) => setInstrument(e.target.value)}
+            className="h-12 px-4 rounded-xl border border-gray-300 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400"
+          >
+            {instrumentOptions.map((name) => (
+              <option key={name} value={name}>
+                {instrumentEmoji(name)} {name}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-gray-400">
+            다른 악기로 연습해도 괜찮아요 — 그 악기 포도알이 쌓이면 전용 스킨이 열려요!
+          </span>
+        </label>
+      )}
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}

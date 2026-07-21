@@ -18,6 +18,8 @@ export interface UploadTask {
   file: File;
   title?: string;
   comment?: string;
+  /** 어떤 악기로 연습했는지 */
+  instrument?: string;
   /** 0..1 */
   progress: number;
   status: "preparing" | "uploading" | "confirming" | "done" | "error";
@@ -33,6 +35,7 @@ interface UploadManagerValue {
     file: File;
     title?: string;
     comment?: string;
+    instrument?: string;
   }): { ok: boolean; error?: string };
   retryUpload(id: string): void;
   dismissUpload(id: string): void;
@@ -121,6 +124,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
           fileHash,
           title: task.title,
           comment: task.comment,
+          instrument: task.instrument,
         });
         if (!confirm.ok) throw new Error(confirm.error);
 

@@ -17,6 +17,7 @@ function sub(grapeIndex: number, status: Submission["status"], createdAt?: strin
     status,
     student_title: null,
     student_comment: null,
+    instrument: null,
     teacher_comment: null,
     reviewed_by: null,
     reviewed_at: null,

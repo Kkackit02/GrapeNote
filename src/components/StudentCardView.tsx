@@ -32,6 +32,10 @@ interface Props {
   skinId?: string;
   /** 랜덤 포도용 — 이 멤버가 가진 스킨 id 목록 */
   randomPool?: string[];
+  /** 업로드 시 고를 수 있는 악기 (내 세션이 맨 앞) */
+  instrumentOptions?: string[];
+  /** 기본 선택 악기 (내 주 세션) */
+  defaultInstrument?: string;
   /** 자랑 카드용 — 멤버 이름 */
   memberName?: string;
   /** 자랑 카드용 — 그룹 이름 */
@@ -51,6 +55,8 @@ export function StudentCardView({
   readOnly = false,
   skinId,
   randomPool,
+  instrumentOptions = [],
+  defaultInstrument = "",
   memberName = "멤버",
   groupName = "우리 그룹",
   showcaseSubmissionId = null,
@@ -233,6 +239,8 @@ export function StudentCardView({
                 premium={premium}
                 leaderLabel={leaderLabel}
                 tracks={recorderTracks}
+                instrumentOptions={instrumentOptions}
+                defaultInstrument={defaultInstrument}
               />
             ) : selected.status === "retry" ? (
               <div className="flex flex-col gap-3">
@@ -252,6 +260,8 @@ export function StudentCardView({
                   premium={premium}
                   leaderLabel={leaderLabel}
                   tracks={recorderTracks}
+                  instrumentOptions={instrumentOptions}
+                  defaultInstrument={defaultInstrument}
                 />
                 <GrapeVideoSection
                   history={selected.history}

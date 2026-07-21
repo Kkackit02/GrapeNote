@@ -131,6 +131,8 @@ export async function confirmUpload(input: {
   /** 학생이 다는 제목 / 선생님께 보내는 코멘트 (선택) */
   title?: string;
   comment?: string;
+  /** 이 포도알을 어떤 악기로 연습했는지 (악기 전용 스킨 판정에 쓰인다) */
+  instrument?: string;
 }): Promise<ActionResult> {
   const supabase = await createSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
@@ -161,6 +163,7 @@ export async function confirmUpload(input: {
     p_video_hash: input.fileHash ?? "",
     p_title: input.title?.slice(0, 100) ?? "",
     p_comment: input.comment?.slice(0, 500) ?? "",
+    p_instrument: input.instrument?.slice(0, 30) ?? "",
   });
   if (error) {
     if (error.message.includes("submissions_unique_video_per_student")) {

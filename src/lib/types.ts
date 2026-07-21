@@ -114,6 +114,8 @@ export interface Submission {
   status: SubmissionStatus;
   student_title: string | null;
   student_comment: string | null;
+  /** 이 포도알을 어떤 악기로 연습했는지 (0033). 없으면 미지정 */
+  instrument: string | null;
   teacher_comment: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
