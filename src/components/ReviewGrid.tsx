@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { reviewSubmission } from "@/lib/actions/review";
+import { reviewSubmission, bulkApprove } from "@/lib/actions/review";
+import { QuickComments } from "./QuickComments";
 import type { ReviewQueueItem } from "@/lib/review-queue";
 
 const MODES = [1, 2, 4, 6] as const;
@@ -49,6 +50,16 @@ export function ReviewGrid({ items, basePath, memberLabel = "학생" }: Props) {
   const [rate, setRate] = useState(1);
   const [soundId, setSoundId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const applyMode = (m: Mode) => {
     setMode(m);
@@ -111,8 +122,31 @@ export function ReviewGrid({ items, basePath, memberLabel = "학생" }: Props) {
     if (completedMessage) setToast(completedMessage);
   };
 
+  const bulkApproveSelected = async () => {
+    const ids = board.slots
+      .filter((s): s is ReviewQueueItem => !!s && selected.has(s.id))
+      .map((s) => s.id);
+    if (ids.length === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    const result = await bulkApprove(ids);
+    setBulkBusy(false);
+    if (!result.ok) {
+      setToast(result.error);
+      return;
+    }
+    ids.forEach((id) => handleJudged(id, null));
+    setSelected(new Set());
+    const { approved, completed, failed } = result.data;
+    setToast(
+      `🍇 ${approved}개 합격` +
+        (completed ? ` · 포도송이 ${completed}개 완성!` : "") +
+        (failed ? ` (${failed}개는 이미 처리됨)` : "")
+    );
+  };
+
   const remaining =
     board.slots.filter(Boolean).length + board.backlog.length;
+  const selectedVisible = board.slots.filter((s) => s && selected.has(s.id)).length;
 
   if (remaining === 0) {
     return (
@@ -129,7 +163,19 @@ export function ReviewGrid({ items, basePath, memberLabel = "학생" }: Props) {
     <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen px-4">
       <div className={`mx-auto ${layout.width} flex flex-col gap-3`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-bold text-gray-600">👀 대기 {remaining}개</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-bold text-gray-600">👀 대기 {remaining}개</p>
+            {selectedVisible > 0 && (
+              <button
+                type="button"
+                disabled={bulkBusy}
+                onClick={bulkApproveSelected}
+                className="px-3 h-8 rounded-lg bg-violet-600 text-white text-sm font-bold disabled:opacity-50 active:bg-violet-800"
+              >
+                🍇 선택 {selectedVisible}개 합격
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
               <span className="text-xs text-gray-400 mr-0.5">분할</span>
@@ -178,6 +224,8 @@ export function ReviewGrid({ items, basePath, memberLabel = "학생" }: Props) {
                   setSoundId(soundId === item.id ? null : item.id)
                 }
                 onJudged={handleJudged}
+                selected={selected.has(item.id)}
+                onToggleSelect={() => toggleSelect(item.id)}
               />
             ) : (
               // 다 본 자리 — 다른 타일이 밀리지 않게 자리를 지킨다
@@ -231,9 +279,21 @@ interface TileProps {
   soundOn: boolean;
   onToggleSound: () => void;
   onJudged: (id: string, completedMessage: string | null) => void;
+  selected: boolean;
+  onToggleSelect: () => void;
 }
 
-function ReviewTile({ item, rate, basePath, memberLabel, soundOn, onToggleSound, onJudged }: TileProps) {
+function ReviewTile({
+  item,
+  rate,
+  basePath,
+  memberLabel,
+  soundOn,
+  onToggleSound,
+  onJudged,
+  selected,
+  onToggleSelect,
+}: TileProps) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
@@ -291,17 +351,30 @@ function ReviewTile({ item, rate, basePath, memberLabel, soundOn, onToggleSound,
     .join(" · ");
 
   return (
-    <div className="rounded-2xl bg-white border border-violet-100 overflow-hidden flex flex-col">
+    <div
+      className={`rounded-2xl bg-white border overflow-hidden flex flex-col ${
+        selected ? "border-violet-400 ring-2 ring-violet-300" : "border-violet-100"
+      }`}
+    >
       <div className="px-3 pt-2.5 pb-1.5 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-bold text-gray-800 text-sm truncate">
-            🎵 {item.studentName} — {item.songTitle}
-          </p>
-          <p className="text-xs text-gray-400" suppressHydrationWarning>
-            포도알 #{item.grapeIndex} · {formatSubmittedAt(item.createdAt)}
-            {duration != null && <> · ⏱ {formatDuration(duration)}</>}
-          </p>
-        </div>
+        <label className="flex items-start gap-2 min-w-0 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggleSelect}
+            className="mt-0.5 h-4 w-4 accent-violet-600 shrink-0"
+            aria-label="일괄 합격 선택"
+          />
+          <span className="min-w-0">
+            <span className="block font-bold text-gray-800 text-sm truncate">
+              🎵 {item.studentName} — {item.songTitle}
+            </span>
+            <span className="block text-xs text-gray-400" suppressHydrationWarning>
+              포도알 #{item.grapeIndex} · {formatSubmittedAt(item.createdAt)}
+              {duration != null && <> · ⏱ {formatDuration(duration)}</>}
+            </span>
+          </span>
+        </label>
         <Link href={`${basePath}/${item.id}`} className="shrink-0 text-xs font-bold text-violet-500">
           크게 →
         </Link>
@@ -386,6 +459,7 @@ function ReviewTile({ item, rate, basePath, memberLabel, soundOn, onToggleSound,
               autoFocus
               className="w-full rounded-xl border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
             />
+            <QuickComments onPick={(t) => setComment((c) => (c.trim() ? `${c} ${t}` : t))} />
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"

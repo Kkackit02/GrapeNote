@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { reviewSubmission } from "@/lib/actions/review";
+import { QuickComments } from "./QuickComments";
 
 interface Props {
   submissionId: string;
@@ -52,6 +53,7 @@ export function ReviewPanel({
         rows={3}
         className="w-full rounded-xl border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
       />
+      <QuickComments onPick={(t) => setComment((c) => (c.trim() ? `${c} ${t}` : t))} />
       {error && <p className="text-sm text-red-500">{error}</p>}
       {remaining > 0 && (
         <p className="text-xs text-gray-400 text-center">

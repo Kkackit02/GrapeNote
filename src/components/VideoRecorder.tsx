@@ -75,6 +75,13 @@ export function VideoRecorder({
   const mrNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const mrGainRef = useRef<GainNode | null>(null);
 
+  // 메트로놈: lookahead 스케줄러로 정확한 박자 클릭 (녹음 스트림에도 함께 싣는다)
+  const metroTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const nextClickRef = useRef(0);
+  const beatRef = useRef(0);
+  const bpmRef = useRef(90);
+  const recordDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+
   const [phase, setPhase] = useState<Phase>("initializing");
   const [facing, setFacing] = useState<"environment" | "user">("environment");
   const [elapsed, setElapsed] = useState(0);
@@ -86,6 +93,8 @@ export function VideoRecorder({
   const [mrPreviewing, setMrPreviewing] = useState(false);
   const [mrVolume, setMrVolume] = useState(0.7);
   const [mrError, setMrError] = useState<string | null>(null);
+  const [bpm, setBpm] = useState(90);
+  const [metroOn, setMetroOn] = useState(false);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -130,6 +139,7 @@ export function VideoRecorder({
     queueMicrotask(() => startStream(facing));
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (metroTimerRef.current) clearInterval(metroTimerRef.current);
       recorderRef.current?.stop();
       stopStream();
       try {
@@ -233,21 +243,74 @@ export function VideoRecorder({
     setMrPreviewing(true);
   };
 
+  /** 클릭 한 번을 정확한 시각에 예약한다 (스피커 + 녹음 중이면 녹음에도) */
+  const scheduleClick = (time: number, accent: boolean) => {
+    const ctx = audioCtxRef.current;
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = accent ? 1600 : 1000; // 첫 박은 높게
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(0.5, time + 0.001);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    if (recordDestRef.current) gain.connect(recordDestRef.current);
+    osc.start(time);
+    osc.stop(time + 0.06);
+  };
+
+  /** 25ms마다 앞으로 0.12초치 클릭을 미리 예약 (setInterval 지터를 흡수) */
+  const metroTick = () => {
+    const ctx = audioCtxRef.current;
+    if (!ctx) return;
+    while (nextClickRef.current < ctx.currentTime + 0.12) {
+      scheduleClick(nextClickRef.current, beatRef.current % 4 === 0);
+      nextClickRef.current += 60 / bpmRef.current;
+      beatRef.current += 1;
+    }
+  };
+
+  const startMetro = () => {
+    const ctx = ensureCtx();
+    beatRef.current = 0;
+    nextClickRef.current = ctx.currentTime + 0.1;
+    if (metroTimerRef.current) clearInterval(metroTimerRef.current);
+    metroTimerRef.current = setInterval(metroTick, 25);
+    setMetroOn(true);
+  };
+
+  const stopMetro = () => {
+    if (metroTimerRef.current) clearInterval(metroTimerRef.current);
+    metroTimerRef.current = null;
+    setMetroOn(false);
+  };
+
+  const toggleMetro = () => (metroOn ? stopMetro() : startMetro());
+
+  const changeBpm = (next: number) => {
+    const clamped = Math.max(40, Math.min(240, next));
+    bpmRef.current = clamped;
+    setBpm(clamped);
+  };
+
   const flipCamera = async () => {
     const next = facing === "environment" ? "user" : "environment";
     setFacing(next);
     await startStream(next);
   };
 
-  /** 마이크 + MR을 믹싱한 스트림 (MR 미선택이면 원본 그대로). 반주 재생도 여기서 시작한다. */
+  /** 마이크 + (MR·메트로놈)을 믹싱한 스트림. 둘 다 없으면 원본 그대로. */
   const buildRecordStream = (stream: MediaStream): MediaStream => {
-    if (!mrReady || !mrBufferRef.current) return stream;
+    const withMr = mrReady && !!mrBufferRef.current;
+    if (!withMr && !metroOn) return stream;
     try {
       const ctx = ensureCtx();
       const dest = ctx.createMediaStreamDestination();
       const micSource = ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks()));
       micSource.connect(dest);
-      playMr(dest); // 반주를 스피커 + 녹음 스트림 양쪽으로
+      if (withMr) playMr(dest); // 반주를 스피커 + 녹음 스트림 양쪽으로
+      recordDestRef.current = dest; // 메트로놈 클릭도 녹음에 실린다
       return new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
     } catch {
       setMrError("반주 믹싱에 실패했어요. 반주 없이 녹음해요.");
@@ -283,6 +346,8 @@ export function VideoRecorder({
     recorder.onstop = () => {
       if (timerRef.current) clearInterval(timerRef.current);
       stopMr();
+      stopMetro();
+      recordDestRef.current = null;
       const type = recorder.mimeType || mimeType || "video/webm";
       const ext = type.includes("mp4") ? "mp4" : "webm";
       const blob = new Blob(chunksRef.current, { type });
@@ -339,6 +404,7 @@ export function VideoRecorder({
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse mr-2" />
             {formatTime(elapsed)} / {formatTime(MAX_SECONDS)}
             {mrReady && <span className="ml-2 text-xs text-violet-300">🎧 반주</span>}
+            {metroOn && <span className="ml-2 text-xs text-violet-300">🥁 {bpm}</span>}
           </span>
         ) : (
           <span className="text-sm text-white/70">
@@ -442,6 +508,54 @@ export function VideoRecorder({
             </>
           )}
           {mrError && <p className="text-[11px] text-red-400">{mrError}</p>}
+        </div>
+      )}
+
+      {/* 메트로놈 (촬영 전에만 켜고 BPM 조절) */}
+      {phase === "ready" && (
+        <div className="px-5 pb-1 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleMetro}
+              className={`shrink-0 px-3 h-10 rounded-xl text-sm font-bold ${
+                metroOn ? "bg-violet-500 text-white" : "bg-white/15 text-white"
+              }`}
+            >
+              🥁 메트로놈 {metroOn ? "켜짐" : "꺼짐"}
+            </button>
+            <button
+              type="button"
+              onClick={() => changeBpm(bpm - 5)}
+              className="w-9 h-10 rounded-xl bg-white/10 text-white text-lg font-bold"
+              aria-label="BPM 낮추기"
+            >
+              −
+            </button>
+            <span className="w-16 text-center text-white font-bold tabular-nums">{bpm} BPM</span>
+            <button
+              type="button"
+              onClick={() => changeBpm(bpm + 5)}
+              className="w-9 h-10 rounded-xl bg-white/10 text-white text-lg font-bold"
+              aria-label="BPM 높이기"
+            >
+              +
+            </button>
+          </div>
+          <input
+            type="range"
+            min={40}
+            max={240}
+            step={1}
+            value={bpm}
+            onChange={(e) => changeBpm(Number(e.target.value))}
+            className="w-full accent-violet-500"
+          />
+          {metroOn && (
+            <p className="text-[11px] text-amber-300">
+              🎧 이어폰을 끼면 클릭이 내 연주에 겹쳐 들리지 않아요. 녹화 내내 박자가 함께 녹음돼요.
+            </p>
+          )}
         </div>
       )}
 

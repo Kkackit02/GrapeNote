@@ -104,3 +104,81 @@ export async function reviewSubmission(input: {
   revalidatePath(`/me/cards/${updated.card_id}`);
   return { ok: true, data: { cardCompleted } };
 }
+
+/**
+ * 여러 영상을 한 번에 합격 처리 (검토함에서 훑어보고 좋은 것들을 몰아서 합격).
+ * 각 건은 review_submission RPC로 판정하므로 권한·중복은 DB가 강제한다.
+ * 재연습은 코멘트가 필요해 일괄 대상이 아니다 — 합격만 지원.
+ */
+export async function bulkApprove(
+  submissionIds: string[]
+): Promise<ActionResult<{ approved: number; completed: number; failed: number }>> {
+  const ids = [...new Set(submissionIds)].slice(0, 60);
+  if (ids.length === 0) return { ok: false, error: "선택한 영상이 없어요." };
+
+  const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "로그인이 필요해요." };
+
+  const cardIds = new Set<string>();
+  let approved = 0;
+  let failed = 0;
+  for (const id of ids) {
+    const { data: cardId, error } = await supabase.rpc("review_submission", {
+      sub_id: id,
+      verdict: "approved",
+      comment: null,
+    });
+    if (error || !cardId) {
+      failed++;
+      continue;
+    }
+    approved++;
+    cardIds.add(cardId as string);
+  }
+
+  // 영향받은 카드별로 완성 여부 확인 + 멤버에게 알림 (카드당 한 번)
+  const admin = createSupabaseAdmin();
+  let completed = 0;
+  for (const cardId of cardIds) {
+    const { data: card } = await supabase
+      .from("progress_cards")
+      .select("id, total_grapes, completed_at, title, student_id")
+      .eq("id", cardId)
+      .single();
+    if (!card) continue;
+
+    let didComplete = false;
+    if (!card.completed_at) {
+      const { data: subs } = await supabase.from("submissions").select("*").eq("card_id", cardId);
+      const grapes = deriveGrapes(card.total_grapes, (subs ?? []) as Submission[]);
+      if (isCardComplete(grapes)) {
+        await admin
+          .from("progress_cards")
+          .update({ completed_at: new Date().toISOString() })
+          .eq("id", cardId);
+        completed++;
+        didComplete = true;
+      }
+    }
+
+    try {
+      await sendPushTo([card.student_id], {
+        title: didComplete ? "🎉 포도송이 완성!" : "🍇 합격이에요!",
+        body: didComplete
+          ? `${card.title}를 끝까지 해냈어요! 자랑하기로 친구들에게 알릴 수 있어요.`
+          : `${card.title} 포도알이 채워졌어요!`,
+        url: `/me/cards/${cardId}`,
+        tag: `verdict-${cardId}`,
+      });
+    } catch {
+      // 무시
+    }
+    revalidatePath(`/teacher/cards/${cardId}`);
+    revalidatePath(`/me/cards/${cardId}`);
+  }
+
+  revalidatePath("/teacher/review");
+  revalidatePath("/me/review");
+  return { ok: true, data: { approved, completed, failed } };
+}

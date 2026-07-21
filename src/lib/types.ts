@@ -14,6 +14,8 @@ export interface Academy {
   is_premium?: boolean;
   /** 구독 만료일 — 지나면 자동으로 무료 한도 (0025). null이면 무기한 */
   premium_until?: string | null;
+  /** 연습 리마인더 요일 (KST 0=일~6=토 콤마 목록). 비면 꺼짐 (0028) */
+  reminder_days?: string | null;
   created_at: string;
 }
 
