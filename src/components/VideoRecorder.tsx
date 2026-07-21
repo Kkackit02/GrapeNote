@@ -13,11 +13,14 @@ const QUALITY = {
 } as const;
 
 function pickMimeType(): string {
+  // 오디오 코덱을 함께 명시한 포맷을 먼저 고른다. 일부 브라우저(안드로이드 크롬 등)는
+  // 오디오 코덱이 빠진 "video/mp4"를 지원한다고 하면서도 소리를 담지 못해 무음 영상이 된다.
   const candidates = [
-    "video/mp4",
-    "video/webm;codecs=h264",
-    "video/webm;codecs=vp9",
-    "video/webm;codecs=vp8",
+    "video/mp4;codecs=avc1,mp4a.40.2", // Safari/최신 크롬 (소리 포함)
+    "video/webm;codecs=vp8,opus",
+    "video/webm;codecs=vp9,opus",
+    "video/webm;codecs=h264,opus",
+    "video/mp4", // 마지막 수단 (소리 없을 수 있음)
     "video/webm",
   ];
   return candidates.find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
