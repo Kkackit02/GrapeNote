@@ -23,7 +23,8 @@ export default async function BoardPage() {
     ]);
 
   const studentList = (students ?? []) as Profile[];
-  const cardList = (cards ?? []) as ProgressCard[];
+  // 마감된 숙제는 현황판에서 숨긴다 (멤버 현황판·홈과 일관되게)
+  const cardList = ((cards ?? []) as ProgressCard[]).filter((c) => !c.closed_at);
   const subList = (subs ?? []) as Submission[];
   const teamList = (teams ?? []) as Team[];
   const teamName = (id: string | null) =>
