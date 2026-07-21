@@ -35,6 +35,8 @@ export interface Profile {
   showcase_submission_id: string | null;
   /** 같은 사람의 다른 역할 계정(리더↔멤버) — 원탭 전환용, 없으면 null */
   linked_account_id: string | null;
+  /** 고른 칭호 id (lib/titles.ts). 이름 옆에 표시. 없으면 null */
+  title: string | null;
   created_at: string;
 }
 

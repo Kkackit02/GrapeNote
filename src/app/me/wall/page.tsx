@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { getTitle } from "@/lib/titles";
 import { getGroupWall, getGroupShowcases } from "@/lib/wall";
 import { GrapeBunch } from "@/components/GrapeBunch";
 import { ShowcasePlayer } from "@/components/ShowcasePlayer";
@@ -32,6 +34,19 @@ export default async function WallPage() {
   ]);
   const myShowcaseId =
     (profileRow as Pick<Profile, "showcase_submission_id"> | null)?.showcase_submission_id ?? null;
+
+  // 벽에 뜬 멤버들의 칭호 (남의 profile은 RLS로 못 읽어 service role로 모아 온다)
+  const memberIds = [
+    ...new Set([...completions.map((c) => c.student_id), ...showcases.map((s) => s.student_id)]),
+  ];
+  const titleOf = new Map<string, string | null>();
+  if (memberIds.length > 0) {
+    const { data: titleRows } = await createSupabaseAdmin()
+      .from("profiles")
+      .select("id, title")
+      .in("id", memberIds);
+    for (const row of titleRows ?? []) titleOf.set(row.id as string, (row.title as string) ?? null);
+  }
 
   // 완성작 리액션 (같은 학원 것만 조회됨)
   const cardIds = completions.map((c) => c.card_id);
@@ -101,6 +116,14 @@ export default async function WallPage() {
                 <p className="text-xs text-gray-400 truncate">
                   {c.student_id === user.id ? "나" : c.student_name}
                 </p>
+                {(() => {
+                  const t = getTitle(titleOf.get(c.student_id));
+                  return t ? (
+                    <p className="text-[11px] font-bold text-violet-600 truncate">
+                      {t.emoji} {t.name}
+                    </p>
+                  ) : null;
+                })()}
                 <div className="mt-1.5 flex justify-center">
                   <ReactionBar
                     targetKind="card"

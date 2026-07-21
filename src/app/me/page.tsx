@@ -5,6 +5,9 @@ import { deriveGrapes, approvedCount } from "@/lib/grapes";
 import { dueBadge, daysLeft } from "@/lib/due";
 import { calcStreak, practicedToday } from "@/lib/streaks";
 import { getGroupFeed, getWeeklyStats, type FeedReaction } from "@/lib/activity";
+import { getInstrumentRanks, rankTitle } from "@/lib/instrument-ranks";
+import { getTitle } from "@/lib/titles";
+import { instrumentEmoji } from "@/lib/instruments";
 import { getTerms } from "@/lib/terms-server";
 import { AddMyCardForm } from "@/components/AddMyCardForm";
 import { GroupFeed } from "@/components/GroupFeed";
@@ -46,6 +49,19 @@ export default async function MyCardsPage() {
   // 프로필이 없는 계정(가입 중 실패 등)은 무한 리다이렉트 대신 로그인으로 돌려보낸다
   if (!profileRow) redirect("/student/login");
   const profile = profileRow as Profile;
+
+  // 칭호: 내가 고른 것 + 악기별 순위(자동, 상위 3위)
+  const wornTitle = getTitle(profile.title);
+  const instrumentRanks = await getInstrumentRanks(user!.app_metadata.academy_id as string);
+  let myRankTitle: { emoji: string; name: string } | null = null;
+  let bestRank = 99;
+  for (const ir of instrumentRanks) {
+    const mine = ir.members.find((m) => m.studentId === user!.id);
+    if (mine && mine.rank <= 3 && mine.rank < bestRank) {
+      myRankTitle = rankTitle(ir.instrument, mine.rank);
+      bestRank = mine.rank;
+    }
+  }
   const myCards = ((cards ?? []) as ProgressCard[]).filter((c) => !c.closed_at); // 마감 숙제는 숨김 (0023)
   const subList = (subs ?? []) as Submission[];
   const cardList = myCards.filter((c) => !c.completed_at); // 진행 중만 (완성작은 포도밭에)
@@ -93,9 +109,25 @@ export default async function MyCardsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-extrabold text-violet-900">
-        {profile.display_name} 님, 안녕하세요! 👋
-      </h1>
+      <div>
+        <h1 className="text-xl font-extrabold text-violet-900">
+          {profile.display_name} 님, 안녕하세요! 👋
+        </h1>
+        {(wornTitle || myRankTitle) && (
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {myRankTitle && (
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                {myRankTitle.emoji} {myRankTitle.name}
+              </span>
+            )}
+            {wornTitle && (
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">
+                {wornTitle.emoji} {wornTitle.name}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
 
       {isLeader && (
         <Link
@@ -233,6 +265,42 @@ export default async function MyCardsPage() {
           <span className="font-bold text-violet-800">📊 우리 그룹 현황판</span>
           <span className="text-sm text-gray-400">누가 어디까지 했나 →</span>
         </Link>
+      )}
+
+      {instrumentRanks.length > 0 && (
+        <section>
+          <h2 className="text-lg font-extrabold text-violet-900">🏅 악기별 포도송이 순위</h2>
+          <p className="mt-0.5 text-xs text-gray-400">악기별로 포도송이가 많은 순 · 상위 3명에게 칭호가 붙어요</p>
+          <div className="mt-2 grid gap-2">
+            {instrumentRanks.map((ir) => (
+              <div key={ir.instrument} className="rounded-2xl bg-white border border-violet-100 p-3">
+                <p className="text-sm font-bold text-gray-700">
+                  {instrumentEmoji(ir.instrument)} {ir.instrument}
+                </p>
+                <ol className="mt-1.5 flex flex-col gap-1">
+                  {ir.members.slice(0, 3).map((m) => {
+                    const t = rankTitle(ir.instrument, m.rank);
+                    const isMe = m.studentId === user!.id;
+                    return (
+                      <li
+                        key={m.studentId}
+                        className={`flex items-center justify-between text-sm ${
+                          isMe ? "font-extrabold text-violet-700" : "text-gray-600"
+                        }`}
+                      >
+                        <span>
+                          {t?.emoji} {m.name}
+                          {isMe && " (나)"}
+                        </span>
+                        <span className="text-xs text-gray-400">🏆 {m.bunches}</span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       <GroupFeed
