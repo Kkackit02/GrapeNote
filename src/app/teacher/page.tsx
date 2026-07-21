@@ -114,10 +114,33 @@ export default async function TeacherDashboard() {
 
       <JoinCodeCard code={academy?.join_code ?? null} groupLabel={terms.group} />
 
-      {/* 화면 이동은 상단 헤더 하나로 일원화했다 (현황판·곡·검토함 + 더보기).
-          대시보드는 '지금 할 일'(검토 대기·멤버·초대)에 집중한다. */}
+      {/* 관리 화면 바로가기 — 대시보드를 허브로 (헤더 더보기는 없앴다) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {[
+          { href: "/teacher/board", emoji: "📊", label: "현황판", desc: "곡×멤버 진행 한눈에" },
+          { href: "/teacher/songs", emoji: "🎵", label: "곡 관리", desc: "편성·미션·기한" },
+          { href: "/teacher/cards", emoji: "📋", label: "숙제 관리", desc: "배정한 숙제 수정" },
+          { href: "/teacher/teams", emoji: "👥", label: "팀 관리", desc: "팀·파트장 지정" },
+          { href: "/teacher/stats", emoji: "📈", label: "주간 통계", desc: "이번 주 누가 열심히?" },
+          { href: "/teacher/videos", emoji: "🎬", label: "영상 관리", desc: "전체 영상·백업" },
+          { href: "/teacher/settings", emoji: "⚙️", label: "그룹 설정", desc: "알림·저장·계정 전환" },
+          { href: "/teacher/premium", emoji: "✨", label: "프리미엄", desc: "저장 공간 늘리기" },
+          { href: "/teacher/help", emoji: "❓", label: "도움말", desc: "사용법·FAQ" },
+        ].map((tile) => (
+          <Link
+            key={tile.href}
+            href={tile.href}
+            className="rounded-2xl bg-white border border-violet-100 p-3.5 active:bg-violet-50"
+          >
+            <p className="font-bold text-violet-800">
+              {tile.emoji} {tile.label}
+            </p>
+            <p className="mt-0.5 text-xs font-medium text-gray-400">{tile.desc}</p>
+          </Link>
+        ))}
+      </div>
 
-      {/* 설정은 /teacher/settings로 옮겼다. 여유가 없을 때만 여기서 알린다 */}
+      {/* 저장 공간 경고 — 여유가 없을 때만 강조 (설정 타일에도 있음) */}
       {storagePercent >= 80 && (
         <Link
           href="/teacher/settings"

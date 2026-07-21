@@ -24,30 +24,7 @@ export default async function TeacherLayout({ children }: { children: React.Reac
             <Link href="/teacher/board" className="hover:text-violet-700">현황판</Link>
             <Link href="/teacher/songs" className="hover:text-violet-700">곡</Link>
             <Link href="/teacher/review" className="hover:text-violet-700">검토함</Link>
-            {/* 나머지 화면들: 헤더가 좁아지지 않게 더보기로 묶는다 */}
-            <details className="relative">
-              <summary className="list-none cursor-pointer hover:text-violet-700 select-none">
-                더보기 ▾
-              </summary>
-              <div className="absolute right-0 top-7 z-50 w-40 rounded-xl bg-white border border-violet-100 shadow-lg py-1 flex flex-col">
-                <Link href="/teacher/cards" className="px-3 py-2 hover:bg-violet-50">📋 숙제 관리</Link>
-                <Link href="/teacher/videos" className="px-3 py-2 hover:bg-violet-50">🎬 영상 관리</Link>
-                <Link href="/teacher/teams" className="px-3 py-2 hover:bg-violet-50">👥 팀 관리</Link>
-                <Link href="/teacher/stats" className="px-3 py-2 hover:bg-violet-50">📈 주간 통계</Link>
-                <Link
-                  href="/teacher/settings"
-                  className="px-3 py-2 hover:bg-violet-50 border-t border-violet-50"
-                >
-                  ⚙️ 그룹 설정
-                </Link>
-                <Link href="/teacher/premium" className="px-3 py-2 hover:bg-violet-50">
-                  ✨ 프리미엄
-                </Link>
-                <Link href="/teacher/help" className="px-3 py-2 hover:bg-violet-50">
-                  ❓ 도움말
-                </Link>
-              </div>
-            </details>
+            {/* 나머지 관리 화면들은 대시보드 타일로 옮겼다 (더보기 제거) */}
             {hasLinked && <AccountSwitchButton label="🔄 멤버로" />}
             <LogoutButton />
           </nav>
