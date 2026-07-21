@@ -48,9 +48,6 @@ export function isPremiumActive(academy: {
   return new Date(academy.premium_until).getTime() > Date.now();
 }
 
-/** 무료 보존 일수 — cron 정리의 기본값 */
-export const FREE_RETENTION_DAYS = FREE_LIMITS.retentionDays;
-
 export function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)}GB`;
   return `${Math.round(bytes / (1024 * 1024))}MB`;

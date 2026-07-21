@@ -5,7 +5,8 @@ import { getTerms } from "@/lib/terms-server";
 import { VideosTable, type VideoRow } from "@/components/VideosTable";
 import type { Profile, ProgressCard, Submission } from "@/lib/types";
 
-// 일괄 드라이브 백업 서버 액션이 이 라우트에서 실행된다 — 시간 여유 확보
+// 드라이브 백업은 브라우저에서 직접 업로드하지만(서버 함수 제한 회피),
+// 목록 조회·정리 액션이 무거울 수 있어 여유를 둔다
 export const maxDuration = 60;
 
 /** 영상 관리: 전체 제출 영상을 엑셀 표처럼 보고 일괄 다운로드·백업·정리한다 */

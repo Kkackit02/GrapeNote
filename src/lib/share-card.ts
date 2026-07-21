@@ -1,10 +1,12 @@
 import { bunchRows } from "@/lib/grapes";
-import type { GrapeSkin } from "@/lib/skins";
+import { skinForIndex, type GrapeSkin } from "@/lib/skins";
 
 export interface ShareCardOpts {
   /** 포도알(=완성 알) 총 개수 */
   totalGrapes: number;
   skin: GrapeSkin;
+  /** 랜덤 포도용 — 가진 스킨 id 목록 (2개 이상이면 알마다 다른 스킨) */
+  randomPoolIds?: string[];
   title: string;
   memberName: string;
   groupName: string;
@@ -99,12 +101,15 @@ export function drawShareCard(canvas: HTMLCanvasElement, opts: ShareCardOpts): v
   ctx.fill();
   ctx.stroke();
 
-  // 알 배치 (역삼각형)
+  // 알 배치 — 랜덤 포도면 화면과 똑같이 인덱스로 스킨을 고른다
+  const pool = opts.randomPoolIds ?? [];
+  const skinAt = (index: number) => (pool.length > 1 ? skinForIndex(pool, index) : opts.skin);
+  let berryIdx = 0;
   rows.forEach((count, rowIdx) => {
     const rowWidth = count * dx;
     const startX = centerX - rowWidth / 2 + dx / 2;
-    for (let i = 0; i < count; i++) {
-      drawBerry(ctx, startX + i * dx, berryTop + rowIdx * dy, r, opts.skin);
+    for (let i = 0; i < count; i++, berryIdx++) {
+      drawBerry(ctx, startX + i * dx, berryTop + rowIdx * dy, r, skinAt(berryIdx + 1));
     }
   });
 

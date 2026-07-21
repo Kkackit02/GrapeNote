@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { getShowcasePlaybackUrl } from "@/lib/actions/showcase";
-import { getSkin } from "@/lib/skins";
+import { getSkin, skinForIndex, RANDOM_SKIN_ID } from "@/lib/skins";
 
 interface Props {
   submissionId: string;
@@ -10,13 +10,25 @@ interface Props {
   songTitle: string;
   grapeIndex: number;
   skinId: string;
+  /** 랜덤 포도용 — 이 멤버가 가진 스킨 id 목록 */
+  randomPool?: string[];
   /** 내가 건 자랑 영상인지 (배지 표시용) */
   mine?: boolean;
 }
 
 /** 자랑 영상 한 개 — 누르면 그 자리에서 signed URL을 받아 재생한다. */
-export function ShowcasePlayer({ submissionId, memberName, songTitle, grapeIndex, skinId, mine }: Props) {
-  const skin = getSkin(skinId);
+export function ShowcasePlayer({
+  submissionId,
+  memberName,
+  songTitle,
+  grapeIndex,
+  skinId,
+  randomPool,
+  mine,
+}: Props) {
+  // 랜덤 포도면 가진 스킨 중 하나로 대표 색을 잡는다 (기본 머루로 떨어지지 않게)
+  const pool = skinId === RANDOM_SKIN_ID ? (randomPool ?? []) : [];
+  const skin = pool.length > 1 ? skinForIndex(pool, 1) : getSkin(skinId);
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

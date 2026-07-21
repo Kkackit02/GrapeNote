@@ -77,7 +77,9 @@ export default async function MyCardPage({
           skinId={skinId}
           randomPool={randomPool}
           instrumentOptions={instrumentOptions}
-          defaultInstrument={instrumentOptions[0] ?? ""}
+          // 세션이 지정된 멤버만 자동 선택 — 미지정이면 빈 값(악기 미지정)으로 둬야
+          // 엉뚱한 악기(프리셋 첫 항목)로 집계되지 않는다
+          defaultInstrument={myInstruments[0] ?? ""}
           memberName={profile?.display_name ?? "멤버"}
           groupName={(academyRow as { name?: string } | null)?.name ?? "우리 그룹"}
           showcaseSubmissionId={profile?.showcase_submission_id ?? null}

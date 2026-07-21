@@ -7,6 +7,8 @@ import { getSkin } from "@/lib/skins";
 interface Props {
   totalGrapes: number;
   skinId?: string;
+  /** 랜덤 포도용 — 가진 스킨 id 목록 */
+  randomPool?: string[];
   title: string;
   memberName: string;
   groupName: string;
@@ -18,7 +20,15 @@ interface Props {
  * 완성 포도송이를 이미지 카드로 만들어 밖(단톡방·인스타)에 자랑한다.
  * 캔버스로 그려 Web Share(모바일)로 공유하거나 이미지를 저장한다. 고른 스킨 색이 반영된다.
  */
-export function ShareCardButton({ totalGrapes, skinId, title, memberName, groupName, completedAt }: Props) {
+export function ShareCardButton({
+  totalGrapes,
+  skinId,
+  randomPool,
+  title,
+  memberName,
+  groupName,
+  completedAt,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -39,6 +49,7 @@ export function ShareCardButton({ totalGrapes, skinId, title, memberName, groupN
       drawShareCard(canvas, {
         totalGrapes,
         skin: getSkin(skinId),
+        randomPoolIds: randomPool,
         title,
         memberName,
         groupName,

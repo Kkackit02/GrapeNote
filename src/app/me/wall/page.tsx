@@ -51,9 +51,10 @@ export default async function WallPage() {
   }
 
   // 랜덤 포도를 쓰는 멤버가 있으면 그 사람들의 '가진 스킨' 목록을 구한다
-  const randomIds = completions
-    .filter((c) => c.grape_skin === RANDOM_SKIN_ID)
-    .map((c) => c.student_id);
+  const randomIds = [
+    ...completions.filter((c) => c.grape_skin === RANDOM_SKIN_ID).map((c) => c.student_id),
+    ...showcases.filter((s) => s.grape_skin === RANDOM_SKIN_ID).map((s) => s.student_id),
+  ];
   const skinPools = randomIds.length > 0 ? await getSkinPools(randomIds) : new Map<string, string[]>();
 
   // 완성작 리액션 (같은 학원 것만 조회됨)
@@ -95,6 +96,7 @@ export default async function WallPage() {
                 songTitle={s.song_title}
                 grapeIndex={s.grape_index}
                 skinId={s.grape_skin}
+                randomPool={skinPools.get(s.student_id)}
                 mine={s.submission_id === myShowcaseId}
               />
             ))}

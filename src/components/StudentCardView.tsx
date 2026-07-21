@@ -143,6 +143,7 @@ export function StudentCardView({
           <ShareCardButton
             totalGrapes={card.total_grapes}
             skinId={skinId}
+            randomPool={randomPool}
             title={card.title}
             memberName={memberName}
             groupName={groupName}

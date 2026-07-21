@@ -109,6 +109,8 @@ export function VideoUploader({
                 {instrumentEmoji(name)} {name}
               </option>
             ))}
+            {/* 세션이 없거나 애매할 때 — 엉뚱한 악기로 집계되지 않게 */}
+            <option value="">🎵 악기 미지정</option>
           </select>
           <span className="text-xs text-gray-400">
             다른 악기로 연습해도 괜찮아요 — 그 악기 포도알이 쌓이면 전용 스킨이 열려요!
