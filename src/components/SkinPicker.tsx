@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { setGrapeSkin } from "@/lib/actions/skins";
 import { GrapeBunch } from "./GrapeBunch";
+import { BerryTexture } from "./GrapeBerry";
 import {
   SKINS,
   isSkinUnlocked,
@@ -57,6 +58,16 @@ function Swatch({ skin, dim, mini }: { skin: GrapeSkin; dim?: boolean; mini?: bo
         />
       )}
       <circle cx={20} cy={21} r={16} fill={`url(#${gid})`} stroke={skin.stroke} strokeWidth={1.5} />
+      {skin.texture && (
+        <>
+          <clipPath id={`${gid}-clip`}>
+            <circle cx={0} cy={0} r={1} />
+          </clipPath>
+          <g transform="translate(20 21) scale(16)" clipPath={`url(#${gid}-clip)`}>
+            <BerryTexture skin={skin} />
+          </g>
+        </>
+      )}
       <ellipse cx={13} cy={14} rx={5} ry={3.2} fill={skin.gloss} opacity={0.8} />
       {!dim && skin.effect === "sparkle" && (
         <>

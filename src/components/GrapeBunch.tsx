@@ -57,10 +57,17 @@ export function GrapeBunch({
   const slotCount = grapes.length + (onAddGrape ? 1 : 0);
   const rows = bunchRows(slotCount);
   const maxRow = Math.max(...rows, 1);
+  // 큰 송이일수록 줄기·잎도 같이 커진다 (작은 송이는 기본 크기 유지)
+  const orn = Math.min(2.2, Math.max(1, maxRow / 4));
+  const stemH = STEM_H * orn;
+  const topPad = PAD * orn; // 잎이 위로 뻗어도 잘리지 않게 위 여백도 함께 키운다
   const bunchWidth = (maxRow - 1) * DX + R * 2;
-  const width = Math.max(bunchWidth, MIN_CONTENT_W) + PAD * 2;
-  const height = PAD * 2 + STEM_H + R * 2 + (rows.length - 1) * DY;
+  const width = Math.max(bunchWidth, MIN_CONTENT_W * orn) + PAD * 2;
+  const height = topPad + stemH + R * 2 + (rows.length - 1) * DY + PAD;
   const cxCenter = width / 2;
+  /** 줄기·잎 좌표 헬퍼 (송이 크기에 비례) */
+  const ox = (v: number) => cxCenter + v * orn;
+  const oy = (v: number) => topPad + v * orn;
 
   // 각 슬롯의 (cx, cy) 계산 (실제 알 + "+" 알)
   const positions: { cx: number; cy: number }[] = [];
@@ -70,7 +77,7 @@ export function GrapeBunch({
     for (let i = 0; i < count && grapeIdx < slotCount; i++, grapeIdx++) {
       positions.push({
         cx: startX + i * DX,
-        cy: PAD + STEM_H + R + rowIdx * DY,
+        cy: topPad + stemH + R + rowIdx * DY,
       });
     }
   });
@@ -84,6 +91,10 @@ export function GrapeBunch({
       aria-label={`포도송이: ${grapes.filter((g) => g.status === "approved").length}/${grapes.length}알 완성`}
     >
       <defs>
+        {/* 무늬가 알 밖으로 삐져나오지 않게 — 단위원 하나를 모든 알이 재사용한다 */}
+        <clipPath id="gn-berry-clip" clipPathUnits="userSpaceOnUse">
+          <circle cx={0} cy={0} r={1} />
+        </clipPath>
         {skinsUsed.map((s) => (
           <radialGradient key={s.id} id={`skin-${s.id}`} cx="0.35" cy="0.3" r="0.9">
             {s.colors.map((color, i) => (
@@ -95,44 +106,44 @@ export function GrapeBunch({
 
       {/* 줄기 — 살짝 S자로 휘어 자연스럽게 */}
       <path
-        d={`M ${cxCenter} ${PAD}
-            C ${cxCenter + 6} ${PAD + STEM_H * 0.35},
-              ${cxCenter - 4} ${PAD + STEM_H * 0.7},
-              ${cxCenter} ${PAD + STEM_H + 2}`}
+        d={`M ${ox(0)} ${oy(0)}
+            C ${ox(6)} ${oy(10.5)},
+              ${ox(-4)} ${oy(21)},
+              ${ox(0)} ${oy(32)}`}
         stroke="#7c4a1e"
-        strokeWidth={6}
+        strokeWidth={6 * orn}
         strokeLinecap="round"
         fill="none"
       />
       {/* 덩굴손 — 왼쪽으로 살짝 말린 곡선 */}
       <path
-        d={`M ${cxCenter - 1} ${PAD + 9}
-            C ${cxCenter - 16} ${PAD + 4},
-              ${cxCenter - 24} ${PAD + 16},
-              ${cxCenter - 14} ${PAD + 19}`}
+        d={`M ${ox(-1)} ${oy(9)}
+            C ${ox(-16)} ${oy(4)},
+              ${ox(-24)} ${oy(16)},
+              ${ox(-14)} ${oy(19)}`}
         stroke="#8a5a2b"
-        strokeWidth={2.5}
+        strokeWidth={2.5 * orn}
         strokeLinecap="round"
         fill="none"
       />
       {/* 잎 — 끝이 뾰족한 잎사귀 + 잎맥 */}
       <path
-        d={`M ${cxCenter + 2} ${PAD + 10}
-            C ${cxCenter + 16} ${PAD - 8},
-              ${cxCenter + 42} ${PAD - 6},
-              ${cxCenter + 50} ${PAD + 8}
-            C ${cxCenter + 36} ${PAD + 22},
-              ${cxCenter + 14} ${PAD + 22},
-              ${cxCenter + 2} ${PAD + 10} Z`}
+        d={`M ${ox(2)} ${oy(10)}
+            C ${ox(16)} ${oy(-8)},
+              ${ox(42)} ${oy(-6)},
+              ${ox(50)} ${oy(8)}
+            C ${ox(36)} ${oy(22)},
+              ${ox(14)} ${oy(22)},
+              ${ox(2)} ${oy(10)} Z`}
         fill="#4ade80"
         stroke="#15803d"
-        strokeWidth={1.5}
+        strokeWidth={1.5 * orn}
         strokeLinejoin="round"
       />
       <path
-        d={`M ${cxCenter + 5} ${PAD + 10} Q ${cxCenter + 28} ${PAD + 4} ${cxCenter + 47} ${PAD + 8}`}
+        d={`M ${ox(5)} ${oy(10)} Q ${ox(28)} ${oy(4)} ${ox(47)} ${oy(8)}`}
         stroke="#15803d"
-        strokeWidth={1.2}
+        strokeWidth={1.2 * orn}
         fill="none"
         opacity={0.65}
       />

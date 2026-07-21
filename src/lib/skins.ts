@@ -18,6 +18,12 @@ export type SkinUnlock =
 /** 움직이는 이펙트 — 합격 포도알에 덧입힌다 */
 export type SkinEffect = "flame" | "glow" | "sparkle";
 
+/**
+ * 알 표면 무늬 — 색만으로는 밋밋해서 질감을 더한다.
+ * stripe(줄무늬) · speckle(점박이) · facet(보석 컷) · metal(금속 광택) · swirl(소용돌이)
+ */
+export type SkinTexture = "stripe" | "speckle" | "facet" | "metal" | "swirl";
+
 export interface GrapeSkin {
   id: string;
   name: string;
@@ -30,6 +36,10 @@ export interface GrapeSkin {
   gloss: string;
   /** 특수 이펙트 (있으면 애니메이션) */
   effect?: SkinEffect;
+  /** 알 표면 무늬 */
+  texture?: SkinTexture;
+  /** 무늬 색 (없으면 광택색을 쓴다) */
+  textureColor?: string;
   unlock: SkinUnlock;
 }
 
@@ -68,6 +78,8 @@ export const SKINS: GrapeSkin[] = [
     colors: ["#a3e635", "#4d7c0f"],
     stroke: "#3f6212",
     gloss: "#ecfccb",
+    texture: "speckle",
+    textureColor: "#f7fee7",
     unlock: { kind: "grapes", n: 10 },
   },
   {
@@ -77,6 +89,8 @@ export const SKINS: GrapeSkin[] = [
     colors: ["#fce7f3", "#f472b6", "#db2777"],
     stroke: "#9d174d",
     gloss: "#fff1f2",
+    texture: "speckle",
+    textureColor: "#fff1f2",
     unlock: { kind: "videos", n: 10 },
   },
   {
@@ -96,6 +110,8 @@ export const SKINS: GrapeSkin[] = [
     colors: ["#fb7185", "#be123c"],
     stroke: "#881337",
     gloss: "#ffe4e6",
+    texture: "facet",
+    textureColor: "#ffe4e6",
     unlock: { kind: "videos", n: 20 },
   },
   {
@@ -106,6 +122,8 @@ export const SKINS: GrapeSkin[] = [
     stroke: "#92400e",
     gloss: "#fef9c3",
     effect: "glow",
+    texture: "metal",
+    textureColor: "#fffbeb",
     unlock: { kind: "bunches", n: 3 },
   },
   {
@@ -115,6 +133,8 @@ export const SKINS: GrapeSkin[] = [
     colors: ["#60a5fa", "#1d4ed8"],
     stroke: "#1e3a8a",
     gloss: "#dbeafe",
+    texture: "speckle",
+    textureColor: "#eff6ff",
     unlock: { kind: "grapes", n: 40 },
   },
   {
@@ -125,6 +145,8 @@ export const SKINS: GrapeSkin[] = [
     stroke: "#164e63",
     gloss: "#cffafe",
     effect: "glow",
+    texture: "swirl",
+    textureColor: "#cffafe",
     unlock: { kind: "streak", n: 14 },
   },
   {
@@ -134,6 +156,8 @@ export const SKINS: GrapeSkin[] = [
     colors: ["#fed7aa", "#fb7185", "#7c3aed"],
     stroke: "#9f1239",
     gloss: "#ffe4e6",
+    texture: "stripe",
+    textureColor: "#fff7ed",
     unlock: { kind: "grapes", n: 70 },
   },
   {
@@ -144,6 +168,8 @@ export const SKINS: GrapeSkin[] = [
     stroke: "#020617",
     gloss: "#e0e7ff",
     effect: "sparkle",
+    texture: "speckle",
+    textureColor: "#e0e7ff",
     unlock: { kind: "streak", n: 30 },
   },
   {
@@ -154,6 +180,8 @@ export const SKINS: GrapeSkin[] = [
     stroke: "#0e7490",
     gloss: "#ccfbf1",
     effect: "glow",
+    texture: "stripe",
+    textureColor: "#ecfeff",
     unlock: { kind: "videos", n: 50 },
   },
   {
@@ -164,6 +192,8 @@ export const SKINS: GrapeSkin[] = [
     stroke: "#4c1d95",
     gloss: "#ede9fe",
     effect: "sparkle",
+    texture: "speckle",
+    textureColor: "#ffffff",
     unlock: { kind: "bunches", n: 5 },
   },
   {
@@ -174,6 +204,8 @@ export const SKINS: GrapeSkin[] = [
     stroke: "#450a0a",
     gloss: "#fef08a",
     effect: "flame",
+    texture: "swirl",
+    textureColor: "#fde68a",
     unlock: { kind: "grapes", n: 100 },
   },
   {
@@ -184,6 +216,8 @@ export const SKINS: GrapeSkin[] = [
     stroke: "#0369a1",
     gloss: "#ffffff",
     effect: "sparkle",
+    texture: "facet",
+    textureColor: "#ffffff",
     unlock: { kind: "bunches", n: 10 },
   },
   // ── 악기 전용: 그 악기를 맡은 멤버만 (포도알 5개 이상) ──
@@ -195,6 +229,8 @@ export const SKINS: GrapeSkin[] = [
     stroke: "#1c0a02",
     gloss: "#fef3c7",
     effect: "glow",
+    texture: "metal",
+    textureColor: "#fef3c7",
     unlock: { kind: "instrument", instrument: "기타", n: 5 },
   },
   {
@@ -205,6 +241,8 @@ export const SKINS: GrapeSkin[] = [
     stroke: "#3b0764",
     gloss: "#fae8ff",
     effect: "glow",
+    texture: "swirl",
+    textureColor: "#fae8ff",
     unlock: { kind: "instrument", instrument: "베이스", n: 5 },
   },
   {
@@ -215,6 +253,8 @@ export const SKINS: GrapeSkin[] = [
     stroke: "#1e293b",
     gloss: "#ffffff",
     effect: "sparkle",
+    texture: "metal",
+    textureColor: "#ffffff",
     unlock: { kind: "instrument", instrument: "드럼", n: 5 },
   },
   {
@@ -224,6 +264,8 @@ export const SKINS: GrapeSkin[] = [
     colors: ["#fffbeb", "#a8a29e", "#1c1917"],
     stroke: "#0c0a09",
     gloss: "#ffffff",
+    texture: "stripe",
+    textureColor: "#1c1917",
     unlock: { kind: "instrument", instrument: "키보드", n: 5 },
   },
   {
@@ -234,6 +276,8 @@ export const SKINS: GrapeSkin[] = [
     stroke: "#3f0417",
     gloss: "#fff1f2",
     effect: "sparkle",
+    texture: "facet",
+    textureColor: "#fff1f2",
     unlock: { kind: "instrument", instrument: "보컬", n: 5 },
   },
   {
@@ -244,6 +288,8 @@ export const SKINS: GrapeSkin[] = [
     stroke: "#7c3aed",
     gloss: "#ffffff",
     effect: "sparkle",
+    texture: "stripe",
+    textureColor: "#ffffff",
     unlock: { kind: "bunches", n: 15 },
   },
 ];
