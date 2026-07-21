@@ -84,6 +84,59 @@ export function BerryTexture({ skin }: { skin: GrapeSkin }) {
           <path d="M -0.5 0.62 C -0.1 0.1, 0.45 0.3, 0.72 0.55" strokeWidth={0.12} opacity={0.8} />
         </g>
       );
+    case "holo":
+      // 무지갯빛 간섭무늬 — 여러 색 띠라 textureColor 대신 고정 팔레트를 쓴다
+      return (
+        <g opacity={0.5} transform="rotate(-25)">
+          {["#f0abfc", "#a5b4fc", "#67e8f9", "#86efac", "#fde68a"].map((band, i) => (
+            <rect key={band} x={-1.4 + i * 0.56} y={-1.4} width={0.56} height={2.8} fill={band} />
+          ))}
+        </g>
+      );
+    case "droplet":
+      // 맺힌 물방울 — 테두리 + 작은 하이라이트
+      return (
+        <g opacity={0.6}>
+          {[
+            [-0.36, -0.3, 0.26],
+            [0.4, 0.16, 0.2],
+            [-0.14, 0.52, 0.16],
+          ].map(([x, y, rr], i) => (
+            <g key={i}>
+              <circle cx={x} cy={y} r={rr} fill={c} opacity={0.3} />
+              <circle cx={x} cy={y} r={rr} fill="none" stroke={c} strokeWidth={0.05} />
+              <ellipse cx={x - rr * 0.3} cy={y - rr * 0.35} rx={rr * 0.3} ry={rr * 0.2} fill="#ffffff" opacity={0.85} />
+            </g>
+          ))}
+        </g>
+      );
+    case "starfield":
+      // 성운 한 줄기 + 크기가 제각각인 별들
+      return (
+        <g>
+          <path
+            d="M -1 0.35 C -0.4 -0.2, 0.35 0.15, 1 -0.45"
+            stroke={c}
+            strokeWidth={0.3}
+            fill="none"
+            opacity={0.22}
+            strokeLinecap="round"
+          />
+          <g fill={c} opacity={0.9}>
+            {[
+              [-0.5, -0.45, 0.07],
+              [0.22, -0.6, 0.05],
+              [0.55, -0.18, 0.06],
+              [-0.22, 0.18, 0.045],
+              [0.34, 0.5, 0.06],
+              [-0.6, 0.36, 0.05],
+              [0.06, -0.16, 0.035],
+            ].map(([x, y, rr], i) => (
+              <circle key={i} cx={x} cy={y} r={rr} />
+            ))}
+          </g>
+        </g>
+      );
     default:
       return null;
   }

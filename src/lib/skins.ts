@@ -22,7 +22,15 @@ export type SkinEffect = "flame" | "glow" | "sparkle";
  * 알 표면 무늬 — 색만으로는 밋밋해서 질감을 더한다.
  * stripe(줄무늬) · speckle(점박이) · facet(보석 컷) · metal(금속 광택) · swirl(소용돌이)
  */
-export type SkinTexture = "stripe" | "speckle" | "facet" | "metal" | "swirl";
+export type SkinTexture =
+  | "stripe"
+  | "speckle"
+  | "facet"
+  | "metal"
+  | "swirl"
+  | "holo" // 무지갯빛 간섭무늬
+  | "droplet" // 맺힌 물방울
+  | "starfield"; // 별무리 + 성운
 
 export interface GrapeSkin {
   id: string;
@@ -279,6 +287,53 @@ export const SKINS: GrapeSkin[] = [
     texture: "facet",
     textureColor: "#fff1f2",
     unlock: { kind: "instrument", instrument: "보컬", n: 5 },
+  },
+  {
+    id: "droplet",
+    name: "물방울",
+    emoji: "💧",
+    colors: ["#e0f7ff", "#38bdf8", "#0369a1"],
+    stroke: "#075985",
+    gloss: "#ffffff",
+    effect: "glow",
+    texture: "droplet",
+    textureColor: "#e0f2fe",
+    unlock: { kind: "videos", n: 30 },
+  },
+  {
+    id: "cosmos",
+    name: "우주",
+    emoji: "🌠",
+    colors: ["#4c1d95", "#1e1b4b", "#020617"],
+    stroke: "#020617",
+    gloss: "#c7d2fe",
+    effect: "sparkle",
+    texture: "starfield",
+    textureColor: "#ffffff",
+    unlock: { kind: "bunches", n: 20 },
+  },
+  {
+    id: "obsidian",
+    name: "블랙",
+    emoji: "🖤",
+    colors: ["#475569", "#1e293b", "#020617"],
+    stroke: "#000000",
+    gloss: "#cbd5e1",
+    effect: "sparkle",
+    texture: "metal",
+    textureColor: "#e2e8f0",
+    unlock: { kind: "streak", n: 50 },
+  },
+  {
+    id: "holo",
+    name: "홀로그램",
+    emoji: "🪩",
+    colors: ["#fdf4ff", "#c4b5fd", "#7dd3fc"],
+    stroke: "#7c3aed",
+    gloss: "#ffffff",
+    effect: "sparkle",
+    texture: "holo",
+    unlock: { kind: "grapes", n: 200 },
   },
   {
     id: "rainbow",
