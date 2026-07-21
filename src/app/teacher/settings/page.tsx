@@ -5,7 +5,7 @@ import { isDriveConfigured } from "@/lib/google-drive";
 import { getTerms } from "@/lib/terms-server";
 import { groupLimits, formatBytes, isPremiumActive } from "@/lib/limits";
 import { BoardShareToggle } from "@/components/BoardShareToggle";
-import { LeaderAssignToggle } from "@/components/LeaderAssignToggle";
+import { LeaderAssignManager, type AssignLeader } from "@/components/LeaderAssignManager";
 import { DriveArchiveCard } from "@/components/DriveArchiveCard";
 import { PushToggle } from "@/components/PushToggle";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -54,13 +54,30 @@ export default async function SettingsPage() {
   }
 
   let driveConnected = false;
+  let assignLeaders: AssignLeader[] = [];
   if (academy) {
-    const { data: conn } = await createSupabaseAdmin()
-      .from("drive_connections")
-      .select("academy_id")
-      .eq("academy_id", academy.id)
-      .maybeSingle();
+    const admin = createSupabaseAdmin();
+    const [{ data: conn }, { data: teams }] = await Promise.all([
+      admin.from("drive_connections").select("academy_id").eq("academy_id", academy.id).maybeSingle(),
+      admin.from("teams").select("leader_id").eq("academy_id", academy.id).not("leader_id", "is", null),
+    ]);
     driveConnected = !!conn;
+
+    const leaderIds = [...new Set((teams ?? []).map((t) => t.leader_id as string))];
+    if (leaderIds.length > 0) {
+      const { data: profs } = await admin
+        .from("profiles")
+        .select("id, display_name, instrument, can_assign_homework")
+        .in("id", leaderIds);
+      assignLeaders = (profs ?? [])
+        .map((p) => ({
+          id: p.id as string,
+          name: p.display_name as string,
+          instrument: (p.instrument as string | null) ?? null,
+          canAssign: !!p.can_assign_homework,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    }
   }
 
   return (
@@ -116,7 +133,7 @@ export default async function SettingsPage() {
       />
       <LinkAccountCard linkedName={linkedName} />
       <BoardShareToggle enabled={!!academy?.show_board} />
-      <LeaderAssignToggle enabled={!!academy?.leaders_can_assign} />
+      <LeaderAssignManager leaders={assignLeaders} />
       <DriveArchiveCard connected={driveConnected} configured={isDriveConfigured()} />
     </div>
   );

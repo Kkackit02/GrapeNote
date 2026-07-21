@@ -529,14 +529,14 @@ export async function assignHomeworkAsLeader(input: {
 
   const admin = createSupabaseAdmin();
 
-  // 1) 리더가 파트장 배정을 허용했는지
-  const { data: academy } = await admin
-    .from("academies")
-    .select("leaders_can_assign")
-    .eq("id", academyId)
+  // 1) 나에게 숙제 배정 권한이 있는지 (리더가 파트장별로 부여)
+  const { data: meProfile } = await admin
+    .from("profiles")
+    .select("can_assign_homework")
+    .eq("id", user.id)
     .maybeSingle();
-  if (!academy?.leaders_can_assign) {
-    return { ok: false, error: "리더가 파트장 숙제 배정을 허용하지 않았어요." };
+  if (!meProfile?.can_assign_homework) {
+    return { ok: false, error: "숙제 배정 권한이 없어요. 리더에게 요청해 주세요." };
   }
 
   // 2) 내가 파트장인 팀 목록

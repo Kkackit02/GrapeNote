@@ -40,15 +40,15 @@ export default async function MyCardsPage() {
     targetIds.length > 0
       ? supabase.from("feed_reactions").select("*").in("target_id", targetIds)
       : Promise.resolve({ data: [] }),
-    supabase.from("academies").select("show_board, leaders_can_assign").maybeSingle(),
+    supabase.from("academies").select("show_board").maybeSingle(),
   ]);
   const reactions = (reactionRows ?? []) as FeedReaction[];
   const boardShared = !!academyRow?.show_board;
-  const leaderCanAssign = !!academyRow?.leaders_can_assign;
 
   // 프로필이 없는 계정(가입 중 실패 등)은 무한 리다이렉트 대신 로그인으로 돌려보낸다
   if (!profileRow) redirect("/student/login");
   const profile = profileRow as Profile;
+  const leaderCanAssign = !!profile.can_assign_homework;
 
   // 칭호: 내가 고른 것 + 악기별 순위(자동, 상위 3위)
   const wornTitle = getTitle(profile.title);

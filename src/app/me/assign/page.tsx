@@ -13,13 +13,13 @@ export default async function LeaderAssignPage() {
   const academyId = user.app_metadata.academy_id as string;
 
   const admin = createSupabaseAdmin();
-  const [{ data: academy }, { data: myTeams }] = await Promise.all([
-    admin.from("academies").select("leaders_can_assign").eq("id", academyId).maybeSingle(),
+  const [{ data: meProfile }, { data: myTeams }] = await Promise.all([
+    admin.from("profiles").select("can_assign_homework").eq("id", user.id).maybeSingle(),
     admin.from("teams").select("id").eq("academy_id", academyId).eq("leader_id", user.id),
   ]);
   const teamIds = (myTeams ?? []).map((t) => t.id);
-  // 허용 안 됐거나 파트장이 아니면 접근 불가
-  if (!academy?.leaders_can_assign || teamIds.length === 0) redirect("/me");
+  // 권한이 없거나 파트장이 아니면 접근 불가
+  if (!meProfile?.can_assign_homework || teamIds.length === 0) redirect("/me");
 
   // 내 팀원 (나 제외)
   const { data: memberRows } = await admin

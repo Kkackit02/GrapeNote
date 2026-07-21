@@ -37,6 +37,8 @@ export interface Profile {
   linked_account_id: string | null;
   /** 고른 칭호 id (lib/titles.ts). 이름 옆에 표시. 없으면 null */
   title: string | null;
+  /** 파트장 숙제 배정 권한 — 리더가 파트장별로 부여 (0032) */
+  can_assign_homework?: boolean;
   created_at: string;
 }
 
